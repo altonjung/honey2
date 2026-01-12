@@ -43,46 +43,14 @@ namespace WindPhysics
             ReallocateDynamicBones(windData);
         }
 
-        internal static void StopUnselectedCtrl()
-        {
-            foreach (ObjectCtrlInfo ctrlInfo in WindPhysics._self._selectedOCIs)
-            {   
-
-                OCIChar selectedOciChar = ctrlInfo as OCIChar; 
-                OCIItem selectedOciItem = ctrlInfo as OCIItem;  
-                
-                if (WindPhysics._self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
-                {
-                    if (windData.coroutine != null)
-                    {
-                        windData.wind_status = Status.STOP;
-                    }
-                }
-#if FEATURE_SUPPORT_ITEM
-                if (_self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
-                {
-                    if (windData.coroutine != null)
-                    {
-                        windData.wind_status = Status.STOP;
-                    }
-                }
-#endif
-            }
-
-            WindPhysics._self._selectedOCIs.Clear();
-        }
 
         internal static void ReallocateDynamicBones(WindData windData)
         {
-            windData.wind_status = WindPhysics.ConfigKeyEnableWind.Value ? Status.RUN : Status.DESTROY;
+            windData.wind_status = WindPhysics.ConfigKeyEnableWind.Value ? Status.RUN : Status.STOP;
 
             if (windData.objectCtrlInfo != null)
             {
                 OCIChar ociChar = windData.objectCtrlInfo as OCIChar;
-                OCIItem ociItem = windData.objectCtrlInfo as OCIItem;
-
-                // 기존 자원 제거
-                WindPhysics._self.ClearWind(windData);
 
                 if (ociChar != null) {
                     ChaControl baseCharControl = ociChar.charInfo;
@@ -107,27 +75,31 @@ namespace WindPhysics
                     windData.clothes = clothes.ToList();
                     windData.cloth_status = windData.clothes.Count > 0 ? Cloth_Status.PHYSICS : Cloth_Status.EMPTY;
                 }
-
+                
+#if FEATURE_ITEM_SUPPORT
+                OCIItem ociItem = windData.objectCtrlInfo as OCIItem;
+                
                 if (ociItem != null) {                    
                     DynamicBone[] bones = ociItem.guideObject.transformTarget.gameObject.GetComponentsInChildren<DynamicBone>(true);
                     Cloth[] clothes = ociItem.guideObject.transformTarget.gameObject.GetComponentsInChildren<Cloth>(true);
 
                     windData.accesoriesDynamicBones = bones.ToList();
                     windData.clothes = clothes.ToList();
-                }               
+                }
+#endif
 
                 if (windData.clothes.Count != 0 || windData.hairDynamicBones.Count != 0 || windData.accesoriesDynamicBones.Count != 0)
                 {
-                    WindPhysics._self._selectedOCIs.Add(windData.objectCtrlInfo);
-                    WindPhysics._self._ociObjectMgmt.Add(windData.objectCtrlInfo.GetHashCode(), windData);
-
+                    // UnityEngine.Debug.Log($">> windData.clothes.Count {windData.clothes.Count}");
+                    // UnityEngine.Debug.Log($">> windData.hairDynamicBones.Count {windData.hairDynamicBones.Count}");
+                    // UnityEngine.Debug.Log($">> windData.accesoriesDynamicBones.Count {windData.accesoriesDynamicBones.Count}");
                     // Coroutine
                     if (ociChar != null) {
                             windData.coroutine = WindPhysics.ConfigKeyEnableWind.Value ? ociChar.charInfo.StartCoroutine(WindPhysics._self.WindRoutine(windData)) : null;  
                     }
-#if FEATURE_SUPPORT_ITEM
+#if FEATURE_ITEM_SUPPORT
                     if (ociItem != null) {
-                        windData.coroutine = ConfigKeyEnableWind.Value ? ociItem.guideObject.StartCoroutine(_self.WindRoutine(windData)) : null; 
+                        windData.coroutine = WindPhysics.ConfigKeyEnableWind.Value ? ociItem.guideObject.StartCoroutine(WindPhysics._self.WindRoutine(windData)) : null; 
                     }
 #endif
                 }
@@ -136,58 +108,41 @@ namespace WindPhysics
 
         internal static void TryAllocateObject(List<ObjectCtrlInfo> curObjCtrlInfos) {
 
-            StopUnselectedCtrl();
             WindPhysics._self._selectedOCIs.Clear();
 
-            foreach (ObjectCtrlInfo ctrlInfo in curObjCtrlInfos)
+            foreach (ObjectCtrlInfo curObjCtrlInfo in curObjCtrlInfos)
             {
-                if (ctrlInfo != null)
-                {
-                    OCIChar ociChar = ctrlInfo as OCIChar;
-                    OCIItem ociItem = ctrlInfo as OCIItem;
-                    if (ociChar != null)
-                    {
-                        if (WindPhysics._self._ociObjectMgmt.TryGetValue(ociChar.GetHashCode(), out var windData1))
-                        {
-                            if (windData1.wind_status == Status.RUN || windData1.wind_status == Status.STOP || windData1.wind_status == Status.IDLE)
-                            {
-                                windData1.wind_status = Status.RUN;                            
-                            } 
-                            else
-                            {
-                                ociChar.GetChaControl().StartCoroutine(ExecuteDynamicBoneAfterFrame(windData1));
-                            }
-                        }
-                        else
-                        {
-                            WindData windData2 = CreateWindData(ociChar);
-                            ociChar.GetChaControl().StartCoroutine(ExecuteDynamicBoneAfterFrame(windData2));
-                        }                      
-                    }         
+                WindPhysics._self._selectedOCIs.Add(curObjCtrlInfo);
 
+                OCIChar ociChar = curObjCtrlInfo as OCIChar;
+                OCIItem ociItem = curObjCtrlInfo as OCIItem;
+
+                // 기존 선택된 대상인지 여부 확인
+                if (WindPhysics._self._ociObjectMgmt.TryGetValue(curObjCtrlInfo.GetHashCode(), out var windData))
+                {
+                    if (ociChar != null)
+                        ociChar.GetChaControl().StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
+    #if FEATURE_ITEM_SUPPORT
                     if (ociItem != null)
-                    {
-    #if FEATURE_SUPPORT_ITEM
-                        if (_self._ociObjectMgmt.TryGetValue(ociItem.GetHashCode(), out var windData1))
-                        {
-                            if (windData1.wind_status == Status.RUN || windData1.wind_status == Status.STOP || windData1.wind_status == Status.IDLE)
-                            {
-                                windData1.wind_status = Status.RUN;                            
-                            } 
-                            else
-                            {
-                                ociItem.guideObject.StartCoroutine(ExecuteDynamicBoneAfterFrame(windData1));
-                            }
-                        }
-                        else
-                        {
-                            WindData windData2 = CreateWindData(ociItem);
-                            ociItem.guideObject.StartCoroutine(ExecuteDynamicBoneAfterFrame(windData2));
-                        } 
-    #endif                    
+                        ociItem.guideObject.StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
+    #endif
+                } 
+                else
+                {
+                    //신규 등록
+                    WindData windData2 = CreateWindData(curObjCtrlInfo);
+                    WindPhysics._self._ociObjectMgmt.Add(curObjCtrlInfo.GetHashCode(), windData2);
+
+                    if (ociChar != null) {
+                        ociChar.GetChaControl().StartCoroutine(ExecuteDynamicBoneAfterFrame(windData2));
                     }
-                }        
-            }    
+    #if FEATURE_ITEM_SUPPORT
+                    if (ociItem != null) {
+                        ociItem.guideObject.StartCoroutine(ExecuteDynamicBoneAfterFrame(windData2));
+                    }
+    #endif
+                }   
+            }
         }
     }
 
@@ -199,10 +154,9 @@ namespace WindPhysics
 
     enum Status
     {
+        IDLE,
         RUN,
-        STOP,
-        DESTROY,
-        IDLE
+        STOP
     }
 
     class WindData

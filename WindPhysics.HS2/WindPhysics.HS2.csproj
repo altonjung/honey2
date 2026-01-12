@@ -79,12 +79,11 @@
     <Reference Include="Sirenix.Serialization, Version=2.0.13.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\IllusionLibs.HoneySelect2.Sirenix.Serialization.2020.5.29.5\lib\net46\Sirenix.Serialization.dll</HintPath>
       <Private>False</Private>
-    </Reference>        
+    </Reference>
     <Reference Include="UnityEngine.ClothModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.ClothModule.2018.4.11.4\lib\net46\UnityEngine.ClothModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
-
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -132,7 +131,7 @@
     <Reference Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.UIModule.2018.4.11.4\lib\net46\UnityEngine.UIModule.dll</HintPath>
       <Private>False</Private>
-    </Reference>    
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

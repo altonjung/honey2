@@ -27,6 +27,7 @@ using AIChara;
 using System.Security.Cryptography;
 using KKAPI.Studio;
 using IllusionUtility.GetUtility;
+using System.Dynamic;
 #endif
 
 // 추가 작업 예정
@@ -48,8 +49,8 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.4.3";
-        public const string GUID = "com.alton.illusionplugins.wind";
+        public const string Version = "0.9.5.1";
+        public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
@@ -205,7 +206,10 @@ namespace WindPhysics
         #region Private Methods
         private void Init()
         {
+            // UIUtility.Init();
             _loaded = true;
+
+
             _CheckWindMgmtRoutine = StartCoroutine(CheckWindMgmtRoutine());
         }
 
@@ -222,21 +226,13 @@ namespace WindPhysics
 
                 if (ociChar != null)
                 {
-                    if (value.coroutine != null)
-                    {
-                        ociChar.charInfo.StopCoroutine(value.coroutine);
-                        value.coroutine = null;
-                    }
+                    StopWindEffect(value);
                 }
-#if FEATURE_SUPPORT_ITEM
+#if FEATURE_ITEM_SUPPORT
                 OCIItem ociItem = value.objectCtrlInfo as OCIItem;
                 if (ociItem != null)
                 {
-                    if (value.coroutine != null)
-                    {
-                        ociItem.guideObject.StopCoroutine(value.coroutine);
-                        value.coroutine = null;
-                    }
+                    StopWindEffect(value);
                 }
 #endif
             }
@@ -252,8 +248,6 @@ namespace WindPhysics
                 if(_previousConfigKeyEnableWind != ConfigKeyEnableWind.Value)
                 {
 
-                    UnityEngine.Debug.Log($">> CheckWindMgmtRoutine {_selectedOCIs.Count}");
-
                     foreach (ObjectCtrlInfo ctrlInfo in _selectedOCIs)
                     {
                         OCIChar ociChar = ctrlInfo as OCIChar;
@@ -263,47 +257,35 @@ namespace WindPhysics
                             {
                                 OCIChar ociChar1 = windData.objectCtrlInfo as OCIChar;
 
-                                UnityEngine.Debug.Log($">> windData {windData.wind_status}");
-
-                                if (windData.wind_status == Status.DESTROY || windData.wind_status == Status.IDLE)
-                                {
-                                    if (windData.coroutine != null)
-                                    {                                       
-                                        ociChar1.charInfo.StopCoroutine(windData.coroutine);
-                                        windData.coroutine = null;
-                                    }
-                                    
-                                    windData.wind_status = Status.RUN;
+                                if (windData.coroutine == null)
+                                {              
+                                    windData.wind_status = Status.RUN;        
                                     windData.coroutine = ociChar1.charInfo.StartCoroutine(WindRoutine(windData));
                                 }
                             } 
                             else
                             {
-                                windData.wind_status = Status.DESTROY;
+                                windData.wind_status = Status.STOP;
                             }                            
                         }
-#if FEATURE_SUPPORT_ITEM
+#if FEATURE_ITEM_SUPPORT
                         OCIItem ociItem = ctrlInfo as OCIItem;
-                        if (ociItem != null && _self._ociObjectMgmt.TryGetValue(ociItem.GetHashCode(), out var windData))
+                        if (ociItem != null && _self._ociObjectMgmt.TryGetValue(ociItem.GetHashCode(), out var windData1))
                         {                          
                             if (ConfigKeyEnableWind.Value)
                             {
-                                OCIItem ociItem1 = windData.objectCtrlInfo as OCIItem;
+                                OCIItem ociItem1 = windData1.objectCtrlInfo as OCIItem;
 
-                                if (windData.wind_status == Status.DESTROY)
+                                if (windData1.wind_status == Status.RUN)
                                 {
-                                    if (windData.coroutine != null)
-                                    {                                 
-                                        ociItem1.guideObject.StopCoroutine(windData.coroutine);
-                                        windData.coroutine = null;
+                                    if (windData1.coroutine == null)
+                                    {                      
+                                        windData1.coroutine = ociChar.charInfo.StartCoroutine(WindRoutine(windData1));
                                     }
-                                    
-                                    windData.wind_status = Status.RUN;
-                                    windData.coroutine = ociItem1.guideObject.StartCoroutine(WindRoutine(windData));
                                 }
                             } else
                             {
-                                windData.wind_status = Status.DESTROY;
+                                windData1.wind_status = Status.STOP;
                             }                            
                         }
 #endif
@@ -368,7 +350,7 @@ namespace WindPhysics
 
                 bone.m_Gravity = new Vector3(
                     0,
-                    UnityEngine.Random.Range(-0.01f, -0.05f),
+                    UnityEngine.Random.Range(-0.005f, -0.05f),
                     0
                 );
             }
@@ -440,65 +422,75 @@ namespace WindPhysics
             }
         }
 
-        private IEnumerator FadeOutWind(WindData windData, float fadeTime)
+        private IEnumerator FadeoutWindEffect_Cloth(
+            List<Cloth> clothes,
+            int settleFrames = 15,
+            float settleForce = 0.2f)
         {
-            const float step = 0.3f; // 0.3초 단위
-            int steps = Mathf.CeilToInt(fadeTime / step);
+            if (clothes == null || clothes.Count == 0)
+                yield break;
 
-            // 초기 값 저장
-            var initialRandomAcceleration = new Dictionary<Cloth, Vector3>();
-            var initialExternalAcceleration = new Dictionary<Cloth, Vector3>();
-
-            foreach (var cloth in windData.clothes)
+            // 1. Wind 즉시 제거 + grounding force 적용
+            foreach (var cloth in clothes)
             {
                 if (cloth == null) continue;
 
-                initialRandomAcceleration[cloth] = cloth.randomAcceleration;
-                initialExternalAcceleration[cloth] = cloth.externalAcceleration;
+                cloth.randomAcceleration   = Vector3.zero;
+                cloth.externalAcceleration = Vector3.down * settleForce;
             }
 
-            // Fade loop (Ease Out)
-            for (int i = 0; i < steps; i++)
+            // 2. 프레임 단위로 안정화 대기
+            for (int i = 0; i < settleFrames; i++)
+                yield return null; // LateUpdate 여러 번 보장
+
+            // 3. 정상 상태 복귀
+            foreach (var cloth in clothes)
             {
-                float normalized = (i + 1) / (float)steps; // 0~1
-                float factor = 1f - Mathf.Pow(1f - normalized, 3); // Ease Out Cubic
+                if (cloth == null) continue;
 
-                foreach (var cloth in windData.clothes)
-                {
-                    if (cloth == null) continue;
-
-                    if (initialRandomAcceleration.TryGetValue(cloth, out var rnd))
-                        cloth.randomAcceleration = rnd * (1f - factor);
-
-                    if (initialExternalAcceleration.TryGetValue(cloth, out var ext))
-                        cloth.externalAcceleration = ext * (1f - factor);
-                }
-
-                yield return new WaitForSeconds(step);
+                cloth.externalAcceleration = Vector3.zero;
             }
         }
 
-        internal void ClearWind(WindData windData)
+        private IEnumerator FadeoutWindEffect_DynamicBone(
+            List<DynamicBone> dynamicBones,
+            int settleFrames = 15,
+            float settleGravity = 0.2f)
+        {
+            if (dynamicBones == null || dynamicBones.Count == 0)
+                yield break;
+
+            // 1. Wind 즉시 제거 + grounding gravity 적용
+            foreach (var bone in dynamicBones)
+            {
+                if (bone == null) continue;
+
+                // 바람 계열 제거
+                bone.m_Force = Vector3.zero;
+
+                // 착지 유도 중력
+                bone.m_Gravity = Vector3.down * settleGravity;
+            }
+
+            // 2. 프레임 기반 안정화 대기
+            for (int i = 0; i < settleFrames; i++)
+                yield return null; // LateUpdate 여러 번 보장
+
+            // 3. 기본 상태 복귀
+            foreach (var bone in dynamicBones)
+            {
+                if (bone == null) continue;
+
+                // 프로젝트 기본값에 맞게 조정 가능
+                bone.m_Gravity = Vector3.zero;
+            }
+        }
+
+        internal void StopWindEffect(WindData windData)
         {
             if (windData.coroutine != null)
             {
-                OCIChar ociChar = windData.objectCtrlInfo as OCIChar;
-                
-                if (ociChar != null) {
-                    ociChar.charInfo.StopCoroutine(windData.coroutine);
-                }
-#if FEATURE_SUPPORT_ITEM
-                OCIItem ociItem = windData.objectCtrlInfo as OCIItem;
-                
-                if (ociItem != null) {
-                    ociItem.guideObject.StopCoroutine(windData.coroutine);
-                }
-#endif
-                windData.coroutine = null;
-
-                windData.clothes.Clear();
-                windData.hairDynamicBones.Clear();
-                windData.accesoriesDynamicBones.Clear(); 
+                windData.wind_status = Status.STOP;
             }
         }
 
@@ -541,13 +533,13 @@ namespace WindPhysics
                         yield return new WaitForSeconds(0.2f);
 
                         // 자연스럽게 사라짐
-                        float minDelayFadeTime = 0.2f;
+                        float minDelayFadeTime = 0.0f;
                         float maxDelayFadeTime = 1.5f;
                         
                         if (WindInterval.Value <= 1.0f)
                         {
-                            minDelayFadeTime  = 0.1f;
-                            maxDelayFadeTime  = 0.3f;
+                            minDelayFadeTime  = 0.2f;
+                            maxDelayFadeTime  = 0.5f;
                         }
 
                         float fadeTime = Mathf.Lerp(WindInterval.Value - minDelayFadeTime, WindInterval.Value + maxDelayFadeTime, WindForce.Value);
@@ -559,31 +551,26 @@ namespace WindPhysics
                             ApplyWind(windEffect, factor, windData);
                             yield return null;
                         }
-
-                        // 다음 바람 전 잠깐 멈춤
-                        // if (WindInterval.Value > 0.1f)
-                        //     yield return new WaitForSeconds(WindInterval.Value);
-
                     }
-                    else if (windData.wind_status == Status.STOP || windData.wind_status == Status.DESTROY)
+                    else if (windData.wind_status == Status.STOP)
                     {
-                        yield return StartCoroutine(FadeOutWind(windData, 0.5f));
-
-                        if (windData.wind_status == Status.DESTROY)
-                        {
-                            yield break;
-                        }
-
-                        windData.wind_status = Status.IDLE;
+                        yield return StartCoroutine(FadeoutWindEffect_Cloth(windData.clothes));
+                        yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.hairDynamicBones));
+                        yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.accesoriesDynamicBones));
+                        
+                        yield break;
                     }
                 }
 
-                if (windData.cloth_status == Cloth_Status.EMPTY)
-                    yield return new WaitForSeconds(1);
-                else
-                    yield return null;
+                yield return null;
             }
+
+            windData.clothes.Clear();
+            windData.hairDynamicBones.Clear();
+            windData.accesoriesDynamicBones.Clear();
+            windData.coroutine = null;
         }
+
         #endregion
 
         #region Patches
@@ -593,12 +580,29 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
-                _self.MgmtInit();
+                ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+                List<ObjectCtrlInfo> deleteObjInfos = new List<ObjectCtrlInfo>();
+                // 삭제 대상 선별 
+                foreach(ObjectCtrlInfo objCtrlInfo in _self._selectedOCIs)
+                {
+                    if (objCtrlInfo != selectedCtrlInfo)
+                    {
+                        deleteObjInfos.Add(objCtrlInfo);
+                    }
+                }
 
-                ObjectCtrlInfo ctrlInfo = Studio.Studio.GetCtrlInfo(_node);
+                // 삭제 대상 stop 처리
+                foreach(ObjectCtrlInfo objCtrlInfo in deleteObjInfos)
+                {
+                    if (_self._ociObjectMgmt.TryGetValue(objCtrlInfo.GetHashCode(), out var windData))
+                    {
+                        windData.wind_status = Status.STOP;
+                    }
+                }
 
+                // 기존 클릭 대상이 아니면, 기존 대상은 STOP 처리
                 List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>(); 
-                objCtrlInfos.Add(ctrlInfo);
+                objCtrlInfos.Add(selectedCtrlInfo);
 
                 Logic.TryAllocateObject(objCtrlInfos);
              
@@ -611,16 +615,34 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance)
             {
-                _self.MgmtInit();
-
-                List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>(); 
+                List<ObjectCtrlInfo> selectedObjCtrlInfos = new List<ObjectCtrlInfo>(); 
                 foreach (TreeNodeObject node in Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes)
                 {
                     ObjectCtrlInfo ctrlInfo = Studio.Studio.GetCtrlInfo(node);
-                    objCtrlInfos.Add(ctrlInfo);                  
+                    selectedObjCtrlInfos.Add(ctrlInfo);                  
                 }
 
-                Logic.TryAllocateObject(objCtrlInfos); 
+                List<ObjectCtrlInfo> deleteObjInfos = new List<ObjectCtrlInfo>();
+                // 삭제 대상 선별 
+                foreach(ObjectCtrlInfo objCtrlInf1 in _self._selectedOCIs)
+                {
+                    foreach(ObjectCtrlInfo objCtrlInfo2 in selectedObjCtrlInfos)
+                    if (objCtrlInf1 != objCtrlInfo2)
+                    {
+                        deleteObjInfos.Add(objCtrlInf1);
+                    }
+                }
+
+                // 삭제 대상 stop 처리
+                foreach(ObjectCtrlInfo objCtrlInfo in deleteObjInfos)
+                {
+                    if (_self._ociObjectMgmt.TryGetValue(objCtrlInfo.GetHashCode(), out var windData))
+                    {
+                        windData.wind_status = Status.STOP;
+                    }
+                }
+
+                Logic.TryAllocateObject(selectedObjCtrlInfos); 
 
                 return true;
             }
@@ -631,30 +653,22 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
+                ObjectCtrlInfo unselectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+
+                if (_self._ociObjectMgmt.TryGetValue(unselectedCtrlInfo.GetHashCode(), out var windData))
+                {
+                    windData.wind_status = Status.STOP;
+                    _self._ociObjectMgmt.Remove(unselectedCtrlInfo.GetHashCode());
+                }
 
                 foreach (ObjectCtrlInfo ctrlInfo in _self._selectedOCIs)
                 {
-                    OCIChar ociChar = ctrlInfo as OCIChar;
-                    if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData1))
+                    if (ctrlInfo == unselectedCtrlInfo)
                     {
-                        if (windData1.coroutine != null)
-                        {
-                            windData1.wind_status = Status.STOP;
-                        }
+                        _self._selectedOCIs.Remove(unselectedCtrlInfo);
+                        break;
                     }
-#if FEATURE_SUPPORT_ITEM
-                    OCIItem ociItem = ctrlInfo as OCIItem;
-                    if (ociItem != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData2))
-                    {
-                        if (windData2.coroutine != null)
-                        {
-                            windData2.wind_status = Status.STOP;
-                        }
-                    }
-#endif
                 }
-
-                _self._selectedOCIs.Clear();
 
                 return true;
             }
@@ -665,39 +679,9 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
+                ObjectCtrlInfo unselectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
 
-                foreach (ObjectCtrlInfo ctrlInfo in _self._selectedOCIs)
-                {
-                    OCIChar ociChar = ctrlInfo as OCIChar;
-
-                    if (ociChar != null) {
-                        if (_self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
-                        {
-                            if (windData.coroutine != null)
-                            {
-                                windData.wind_status = Status.DESTROY;                            
-                            }
-                        }
-                        _self._ociObjectMgmt.Remove(ociChar.GetHashCode());
-                    }
-#if FEATURE_SUPPORT_ITEM
-                    OCIItem ociItem = ctrlInfo as OCIItem;
-
-                    if (ociItem != null) {
-                        if (_self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
-                        {
-                            if (windData.coroutine != null)
-                            {
-                                windData.wind_status = Status.DESTROY;                     
-                            }
-                        }
-                        _self._ociObjectMgmt.Remove(ociItem.GetHashCode());
-                    }             
-#endif       
-                }
-
-                _self._selectedOCIs.Clear();
-
+                _self.MgmtInit();
                 return true;
             }
         }
@@ -707,13 +691,10 @@ namespace WindPhysics
         {
             public static void Postfix(OCIChar __instance, string _path)
             {
-                ChaControl chaControl = __instance.GetChaControl();
+                List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>();
+                objCtrlInfos.Add(__instance);
 
-                if (chaControl != null)
-                {
-                    if (_self._ociObjectMgmt.TryGetValue(chaControl.GetHashCode(), out var windData))
-                        chaControl.StartCoroutine(Logic.ExecuteDynamicBoneAfterFrame(windData));
-                }
+                Logic.TryAllocateObject(objCtrlInfos);
             }
         }
 
@@ -727,8 +708,10 @@ namespace WindPhysics
 
                 if (ociChar != null)
                 {
-                    if (_self._ociObjectMgmt.TryGetValue(ociChar.GetHashCode(), out var windData))
-                        __instance.StartCoroutine(Logic.ExecuteDynamicBoneAfterFrame(windData));
+                    List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>();
+                    objCtrlInfos.Add(ociChar);
+
+                    Logic.TryAllocateObject(objCtrlInfos);
                 }
             }
         }
@@ -743,8 +726,10 @@ namespace WindPhysics
 
                 if (ociChar != null)
                 {
-                    if (_self._ociObjectMgmt.TryGetValue(ociChar.GetHashCode(), out var windData))
-                        __instance.StartCoroutine(Logic.ExecuteDynamicBoneAfterFrame(windData));
+                    List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>();
+                    objCtrlInfos.Add(ociChar);
+
+                    Logic.TryAllocateObject(objCtrlInfos);
                 }
             }
         }
@@ -759,32 +744,13 @@ namespace WindPhysics
 
                 if (ociChar != null)
                 {
-                    if (_self._ociObjectMgmt.TryGetValue(ociChar.GetHashCode(), out var windData))
-                        __instance.StartCoroutine(Logic.ExecuteDynamicBoneAfterFrame(windData));
+                    List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>();
+                    objCtrlInfos.Add(ociChar);
+
+                    Logic.TryAllocateObject(objCtrlInfos);
                 }
             }
         }
-
-        //[HarmonyPatch(typeof(OCIItem), "OnVisible", typeof(bool))]
-        //private static class OCIItem_OnVisible_Patches
-        //{
-        //    private static void Postfix(OCIItem __instance, bool _visible)
-        //    {                
-        //        OCIItem item = __instance as OCIItem;
-        //        UnityEngine.Debug.Log($">> OCIItem OnVisible {item.guideObject.name}");
-
-        //    }
-        //}
-
-        //[HarmonyPatch(typeof(OCIItem), "OnDelete")]
-        //private static class OCIItem_OnDelete_Patches
-        //{
-        //    private static void Postfix(OCIItem __instance)
-        //    {                
-        //        // OCIItem item = _child as OCIItem;
-        //        UnityEngine.Debug.Log($">> OCIItem OnDelete");
-        //    }
-        //}   
 
         [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
         private static class Studio_InitScene_Patches

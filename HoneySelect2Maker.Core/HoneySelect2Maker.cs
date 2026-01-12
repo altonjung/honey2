@@ -37,7 +37,7 @@ using UnityEngine.Video;
 using AIChara;
 #endif
 
-namespace HoneySelect2Ext
+namespace HoneySelect2Maker
 {
 
 #if BEPINEX
@@ -49,16 +49,16 @@ namespace HoneySelect2Ext
 #endif
     [BepInDependency("com.bepis.bepinex.extendedsave")]
 #endif
-    public class HoneySelect2Ext : GenericPlugin
+    public class HoneySelect2Maker : GenericPlugin
 #if IPA
                             , IEnhancedPlugin
 #endif
     {
         #region Constants
-        public const string Name = "HoneySelect2Ext";
+        public const string Name = "HoneySelect2Maker";
         public const string Version = "0.9.0.0";
-        public const string GUID = "com.alton.illusionplugins.HoneySelect2Ext";
-        internal const string _ownerId = "HoneySelect2Ext";
+        public const string GUID = "com.alton.illusionplugins.HoneySelect2Maker";
+        internal const string _ownerId = "Alton";
 #if FEATURE_PUBLIC_RELEASE
         internal const int VIDEO_MAX_COUNT = 2;
 #else
@@ -82,7 +82,7 @@ namespace HoneySelect2Ext
         #region Private Variables
 
         internal static new ManualLogSource Logger;
-        internal static HoneySelect2Ext _self;
+        internal static HoneySelect2Maker _self;
 
         internal string _video_title_scene_path = Application.dataPath + "/video_scene/title/";
 
@@ -261,7 +261,7 @@ namespace HoneySelect2Ext
             return mp4List;
         }
 
-        private static void PlayTitleSceneVideo(string videoPath) {
+        private static void PlayTitleSceneVideo(string videoPath, bool isLoop = false) {
 
             // UnityEngine.Debug.Log($">> PlayTitleSceneVideo in TitleScene");
             // 1. 메인 카메라 확보
@@ -284,7 +284,7 @@ namespace HoneySelect2Ext
                 _self.titleSceneVideoPlayer.url = videoPath;
 
                 _self.titleSceneVideoPlayer.playOnAwake = false;
-                _self.titleSceneVideoPlayer.isLooping = false;
+                _self.titleSceneVideoPlayer.isLooping = isLoop;
                 _self.titleSceneVideoPlayer.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None;
 
                 // 2. 카메라 Near Plane 출력 (Quad 없음)
@@ -490,9 +490,14 @@ namespace HoneySelect2Ext
                 {                      
                     int idx = UnityEngine.Random.Range(0, Mathf.Min(VIDEO_MAX_COUNT, video_files.Count));
                     string path = video_path + video_files[idx];
+                    bool isLoop = false;
+                    if (video_files[idx].Contains("_loop"))
+                    {
+                        isLoop = true;
+                    }
 
                     if (scene.name.Contains("Title") || scene.name.Contains("NightPool")) {
-                        PlayTitleSceneVideo(path);
+                        PlayTitleSceneVideo(path, isLoop);
                     }
 
                     // if (scene.name.Contains("MyRoom")) {
