@@ -1,6 +1,0 @@
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\ChaCardSupport.HS2\obj\Debug\ChaCardSupport.HS2.csproj.AssemblyReference.cache
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\ChaCardSupport.HS2\obj\Debug\ChaCardSupport.HS2.csproj.CoreCompileInputs.cache
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\ChaCardSupport.dll
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\ChaCardSupport.pdb
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\ChaCardSupport.HS2\obj\Debug\ChaCardSupport.dll
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\ChaCardSupport.HS2\obj\Debug\ChaCardSupport.pdb

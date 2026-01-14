@@ -49,7 +49,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.5.1";
+        public const string Version = "0.9.5.2";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -258,8 +258,8 @@ namespace WindPhysics
                                 OCIChar ociChar1 = windData.objectCtrlInfo as OCIChar;
 
                                 if (windData.coroutine == null)
-                                {              
-                                    windData.wind_status = Status.RUN;        
+                                {                      
+                                    windData.wind_status = Status.RUN;
                                     windData.coroutine = ociChar1.charInfo.StartCoroutine(WindRoutine(windData));
                                 }
                             } 
@@ -581,11 +581,17 @@ namespace WindPhysics
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
                 ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+                UnityEngine.Debug.Log($">> OnSelectSingle {selectedCtrlInfo}");
+
+                if (selectedCtrlInfo == null)
+                    return true;
+
                 List<ObjectCtrlInfo> deleteObjInfos = new List<ObjectCtrlInfo>();
+
                 // 삭제 대상 선별 
                 foreach(ObjectCtrlInfo objCtrlInfo in _self._selectedOCIs)
                 {
-                    if (objCtrlInfo != selectedCtrlInfo)
+                    if (objCtrlInfo != null && objCtrlInfo != selectedCtrlInfo)
                     {
                         deleteObjInfos.Add(objCtrlInfo);
                     }
@@ -616,9 +622,13 @@ namespace WindPhysics
             private static bool Prefix(object __instance)
             {
                 List<ObjectCtrlInfo> selectedObjCtrlInfos = new List<ObjectCtrlInfo>(); 
+
                 foreach (TreeNodeObject node in Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes)
                 {
                     ObjectCtrlInfo ctrlInfo = Studio.Studio.GetCtrlInfo(node);
+                    if (ctrlInfo == null)
+                        continue;
+
                     selectedObjCtrlInfos.Add(ctrlInfo);                  
                 }
 
@@ -627,7 +637,7 @@ namespace WindPhysics
                 foreach(ObjectCtrlInfo objCtrlInf1 in _self._selectedOCIs)
                 {
                     foreach(ObjectCtrlInfo objCtrlInfo2 in selectedObjCtrlInfos)
-                    if (objCtrlInf1 != objCtrlInfo2)
+                    if (objCtrlInf1 != null && objCtrlInf1 != objCtrlInfo2)
                     {
                         deleteObjInfos.Add(objCtrlInf1);
                     }
@@ -654,6 +664,8 @@ namespace WindPhysics
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
                 ObjectCtrlInfo unselectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+                if (unselectedCtrlInfo == null)
+                    return true;
 
                 if (_self._ociObjectMgmt.TryGetValue(unselectedCtrlInfo.GetHashCode(), out var windData))
                 {
@@ -680,6 +692,9 @@ namespace WindPhysics
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
                 ObjectCtrlInfo unselectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+
+                if (unselectedCtrlInfo == null)
+                    return true;
 
                 _self.MgmtInit();
                 return true;

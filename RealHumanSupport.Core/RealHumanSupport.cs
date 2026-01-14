@@ -65,7 +65,7 @@ namespace RealHumanSupport
     {
         #region Constants
         public const string Name = "RealHumanSupport";
-        public const string Version = "0.9.0.6";
+        public const string Version = "0.9.0.5";
         public const string GUID = "com.alton.illusionplugins.RealHuman";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -91,7 +91,7 @@ namespace RealHumanSupport
         private static string _assemblyLocation;
         internal bool _loaded = false;
 
-        internal OCIChar _selectedOciChar;
+        internal ObjectCtrlInfo _selectedOCI;
 
         private AssetBundle _bundle;
 
@@ -120,10 +120,6 @@ namespace RealHumanSupport
         internal ComputeBuffer _body_areaBuffer;
 
         internal bool  extraColliderDebugObjAdded;
-
-    #if FEATURE_IK_INGAME
-        internal bool _isNeckPressed;
-    #endif
 
         internal Dictionary<int, RealHumanData> _ociCharMgmt = new Dictionary<int, RealHumanData>();
 
@@ -223,78 +219,44 @@ namespace RealHumanSupport
         }
 #endif
 
-#if FEATURE_IK_INGAME           
+       
         protected override void Update()
         {
             if (_loaded == false)
                 return;
-
-            if (Input.GetMouseButtonDown(0)) {
-                CheckNeckClick();
-            }
         }
 
-        protected override void LateUpdate() {
-            if (_loaded == false)
-                return;
+        //protected override void LateUpdate()
+        //{
+        //    if (_loaded == false)
+        //        return;
 
-            // 마우스가 놓였을때.. 처리
-            if (_isNeckPressed) {
-                if (_ociCharMgmt.Count > 0) {                
-                    foreach (var kvp in _self._ociCharMgmt) {
-                        RealHumanData realHumanData = kvp.Value;
+        //    // 마우스가 놓였을때.. 처리
+        //    // if (_isNeckPressed) {
+        //    if (_ociCharMgmt.Count > 0)
+        //    {
+        //        foreach (var kvp in _self._ociCharMgmt)
+        //        {
+        //            RealHumanData realHumanData = kvp.Value;
 
-                        if (realHumanData != null && realHumanData.charControl != null) {
-                            float yaw   = Input.GetAxis("Mouse X") * 2.0f;
-                            float pitch = -Input.GetAxis("Mouse Y") * 2.0f;     
-                            Logic.UpdateIKHead(realHumanData, yaw, pitch);
-                            Logic.ReflectIKToAnimation(realHumanData);
-                        }
-                    }
-                }                
-            }
-        }
+        //            if (realHumanData != null && realHumanData.charControl != null)
+        //            {
+        //                if (realHumanData.cf_J_LegUp00_L != null)
+        //                {
+        //                    float y = Mathf.Sin(Time.time * 0.3f) * 5f;
 
-        void CheckNeckClick()
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        //                    realHumanData.cf_J_LegUp00_L.localPosition = realHumanData.legup00_L_basePos + Vector3.down * y;
+        //                    realHumanData.cf_J_LegLow01_L.localPosition = realHumanData.legLow01_L_basePos + Vector3.down * y;
+        //                    realHumanData.cf_J_LegUp00_R.localPosition = realHumanData.legup00_R_basePos + Vector3.down * y;
+        //                    realHumanData.cf_J_LegLow01_R.localPosition = realHumanData.legLow01_R_basePos + Vector3.down * y;
+        //                    UnityEngine.Debug.Log($"rotation={realHumanData.cf_J_LegLow01_R.localPosition}");
 
-            if (!Physics.Raycast(ray, out RaycastHit hit, 50f))
-                return;
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
 
-            if (IsNeckClicked(hit))
-            {
-                _isNeckPressed = true;
-                // 여기서 neck 선택 처리                
-            } else {
-                _isNeckPressed = false;
-            }
-        }
-
-        bool IsNeckClicked(RaycastHit hit)
-        {
-            // Raycast에 맞은 Collider가
-            // neck 본의 자식인가?
-            foreach (var kvp in _ociCharMgmt)
-            {
-                RealHumanData realHumanData = kvp.Value;
-                if (realHumanData != null && realHumanData.charControl != null)
-                {
-                    if (hit.collider.transform.IsChildOf(realHumanData.head_ik_data.neck))
-                        return true;
-                }
-            }
-
-            return false;
-        }
-#else
-        protected override void Update()
-       {
-            if (_loaded == false)
-                return;
-        }
-      
-#endif        
         #endregion
 
         #region Private Methods
@@ -374,9 +336,9 @@ namespace RealHumanSupport
             _self._body_areaBuffer = new ComputeBuffer(24, sizeof(float) * 6); 
         }
 
-        private void MgmtInit()
+        private void SceneInit()
         {
-            // UnityEngine.Debug.Log($">> MgmtInit()");
+            // UnityEngine.Debug.Log($">> SceneInit()");
             if (StudioAPI.InsideStudio)
             {
                 foreach (var kvp in _ociCharMgmt)
@@ -399,24 +361,25 @@ namespace RealHumanSupport
         {
             while (true) // 무한 반복
             {
-                if (_selectedOciChar != null)
+                OCIChar ociChar = objectCtrlInfo as OCIChar;
+                if (ociChar != null)
                 {
                     if (!ExtraColliderDebug.Value && extraColliderDebugObjAdded)
                     {   
-                        if (_selectedOciChar.GetChaControl()) {
-                            Logic.DeleteExtraDynamicBoneCollider(_selectedOciChar.GetChaControl().objAnim);
+                        if (ociChar.GetChaControl()) {
+                            Logic.DeleteExtraDynamicBoneCollider(ociChar.GetChaControl().objAnim);
                         }
                     }
 
                     if (!Input.GetMouseButton(0)) {
-                        if (_ociCharMgmt.TryGetValue(_selectedOciChar.GetChaControl().GetHashCode(), out var realHumanData))
+                        if (_ociCharMgmt.TryGetValue(ociChar.GetChaControl().GetHashCode(), out var realHumanData))
                         {
                             if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
-                                realHumanData = Logic.GetMaterials(_selectedOciChar.GetChaControl(), realHumanData);
+                                realHumanData = Logic.GetMaterials(ociChar.GetChaControl(), realHumanData);
 
                             if (
-                                (Logic.GetBoneRotationFromIK(realHumanData.lk_left_foot_bone)._q != realHumanData.prev_lk_left_foot_rot) ||
-                                (Logic.GetBoneRotationFromIK(realHumanData.lk_right_foot_bone)._q != realHumanData.prev_lk_right_foot_rot) ||
+                                //(Logic.GetBoneRotationFromIK(realHumanData.lk_left_foot_bone)._q != realHumanData.prev_lk_left_foot_rot) ||
+                                //(Logic.GetBoneRotationFromIK(realHumanData.lk_right_foot_bone)._q != realHumanData.prev_lk_right_foot_rot) ||
                                 (Logic.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q != realHumanData.prev_fk_left_foot_rot) ||
                                 (Logic.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q != realHumanData.prev_fk_right_foot_rot) ||
                                 (Logic.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q != realHumanData.prev_fk_left_knee_rot) ||
@@ -430,7 +393,7 @@ namespace RealHumanSupport
                                 (Logic.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q != realHumanData.prev_fk_right_shoulder_rot)
                             )
                             {
-                                Logic.SupportBodyBumpEffect(_selectedOciChar.charInfo, realHumanData);
+                                Logic.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
                             }                          
                         }                        
                     }                  
@@ -692,14 +655,13 @@ namespace RealHumanSupport
             int frameCount = 30;
             for (int i = 0; i < frameCount; i++)
                 yield return null;
-
-#if FEATURE_IK_INGAME
-            Logic.SupportIKOnScene(chaControl, realHumanData);
-#endif            
+            
             Logic.SupportExtraDynamicBones(chaControl, realHumanData);
             Logic.SupportEyeFastBlinkEffect(chaControl, realHumanData);
             Logic.SupportBodyBumpEffect(chaControl, realHumanData);
-            // Logic.SupportFaceBumpEffect(chaControl, realHumanData);
+#if FEATURE_FACEBUMP_SUPPORT            
+            Logic.SupportFaceBumpEffect(chaControl, realHumanData);
+#endif            
         }        
 
         #endregion
@@ -715,26 +677,38 @@ namespace RealHumanSupport
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
                 ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);   
+                if (objectCtrlInfo == null)
+                    return true;
+                    
                 OCIChar ociChar = objectCtrlInfo as OCIChar;
 
                 if (ociChar != null)
                 {
-                                                            
-                    _self.MgmtInit();
-                    _self._selectedOciChar = ociChar;
+                    _self._selectedOCI = ociChar;
 
-                    RealHumanData realHumanData2 = new RealHumanData();
-                    realHumanData2 = Logic.InitRealHumanData(ociChar.GetChaControl(), realHumanData2);
-
-                    if (realHumanData2 != null)
-                    {
-                        realHumanData2.coroutine = ociChar.charInfo.StartCoroutine(_self.RoutineForStudio(realHumanData2));                    
-                        _self._ociCharMgmt.Add(ociChar.GetChaControl().GetHashCode(), realHumanData2);
-                        ociChar.GetChaControl().StartCoroutine(_self.ExecuteAfterFrame(ociChar.GetChaControl(), realHumanData2));
-                    } else
-                    {
-                        Logger.LogMessage($"Body skin not has bumpmap2");
+                    if (_self._ociCharMgmt.TryGetValue(ociChar.GetChaControl().GetHashCode(), out var realHumanData))
+                    {                    
+                        if (realHumanData.coroutine != null)
+                        {
+                            ociChar.GetChaControl().StopCoroutine(realHumanData.coroutine);
+                            ociChar.GetChaControl().StartCoroutine(_self.ExecuteAfterFrame(ociChar.GetChaControl(), realHumanData));
+                        }                    
                     } 
+                    else
+                    {
+                        RealHumanData realHumanData2 = new RealHumanData();
+                        realHumanData2 = Logic.InitRealHumanData(ociChar.GetChaControl(), realHumanData2);
+
+                        if (realHumanData2 != null)
+                        {
+                            realHumanData2.coroutine = ociChar.charInfo.StartCoroutine(_self.RoutineForStudio(realHumanData2));                    
+                            _self._ociCharMgmt.Add(ociChar.GetChaControl().GetHashCode(), realHumanData2);
+                            ociChar.GetChaControl().StartCoroutine(_self.ExecuteAfterFrame(ociChar.GetChaControl(), realHumanData2));
+                        } else
+                        {
+                            Logger.LogMessage($"Body skin not has bumpmap2");
+                        }                    
+                    }    
                 }
 
                 return true;
@@ -746,7 +720,7 @@ namespace RealHumanSupport
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
-                _self._selectedOciChar = null;
+                _self._selectedOCI = null;
                 return true;
             }
         }
@@ -756,11 +730,13 @@ namespace RealHumanSupport
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {        
-
                 ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);   
-                OCIChar ociChar = objectCtrlInfo as OCIChar;
+                _self._selectedOCI = null;
 
-                _self._selectedOciChar = null;
+                if (objectCtrlInfo == null)
+                    return true;
+                
+                OCIChar ociChar = objectCtrlInfo as OCIChar;
 
                 if (ociChar != null && _self._ociCharMgmt.TryGetValue(ociChar.GetChaControl().GetHashCode(), out var realHumanData))
                 {
@@ -808,7 +784,7 @@ namespace RealHumanSupport
                             Logger.LogMessage($"Body skin not has bumpmap2");
                         }                    
 
-                        _self._selectedOciChar = __instance;
+                        _self._selectedOCI = __instance;
                     }            
                 }
             }
@@ -889,7 +865,7 @@ namespace RealHumanSupport
         {
             private static bool Prefix(object __instance, bool _close)
             {
-                _self.MgmtInit();
+                _self.SceneInit();
                 return true;
             }
         }        
