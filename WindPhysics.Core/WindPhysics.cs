@@ -581,7 +581,7 @@ namespace WindPhysics
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
                 ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-                UnityEngine.Debug.Log($">> OnSelectSingle {selectedCtrlInfo}");
+                // UnityEngine.Debug.Log($">> OnSelectSingle {selectedCtrlInfo}");
 
                 if (selectedCtrlInfo == null)
                     return true;

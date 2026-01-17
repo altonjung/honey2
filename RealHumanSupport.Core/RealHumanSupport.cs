@@ -65,7 +65,7 @@ namespace RealHumanSupport
     {
         #region Constants
         public const string Name = "RealHumanSupport";
-        public const string Version = "0.9.0.5";
+        public const string Version = "0.9.0.6";
         public const string GUID = "com.alton.illusionplugins.RealHuman";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -91,7 +91,7 @@ namespace RealHumanSupport
         private static string _assemblyLocation;
         internal bool _loaded = false;
 
-        internal ObjectCtrlInfo _selectedOCI;
+        internal OCIChar _selectedOCIChar;
 
         private AssetBundle _bundle;
 
@@ -361,21 +361,20 @@ namespace RealHumanSupport
         {
             while (true) // 무한 반복
             {
-                OCIChar ociChar = objectCtrlInfo as OCIChar;
-                if (ociChar != null)
+                if (_selectedOCIChar != null)
                 {
                     if (!ExtraColliderDebug.Value && extraColliderDebugObjAdded)
                     {   
-                        if (ociChar.GetChaControl()) {
-                            Logic.DeleteExtraDynamicBoneCollider(ociChar.GetChaControl().objAnim);
+                        if (_selectedOCIChar.GetChaControl()) {
+                            Logic.DeleteExtraDynamicBoneCollider(_selectedOCIChar.GetChaControl().objAnim);
                         }
                     }
 
                     if (!Input.GetMouseButton(0)) {
-                        if (_ociCharMgmt.TryGetValue(ociChar.GetChaControl().GetHashCode(), out var realHumanData))
+                        if (_ociCharMgmt.TryGetValue(_selectedOCIChar.GetChaControl().GetHashCode(), out var realHumanData))
                         {
                             if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
-                                realHumanData = Logic.GetMaterials(ociChar.GetChaControl(), realHumanData);
+                                realHumanData = Logic.GetMaterials(_selectedOCIChar.GetChaControl(), realHumanData);
 
                             if (
                                 //(Logic.GetBoneRotationFromIK(realHumanData.lk_left_foot_bone)._q != realHumanData.prev_lk_left_foot_rot) ||
@@ -393,7 +392,7 @@ namespace RealHumanSupport
                                 (Logic.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q != realHumanData.prev_fk_right_shoulder_rot)
                             )
                             {
-                                Logic.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
+                                Logic.SupportBodyBumpEffect(_selectedOCIChar.charInfo, realHumanData);
                             }                          
                         }                        
                     }                  
@@ -406,7 +405,7 @@ namespace RealHumanSupport
         private IEnumerator RoutineForStudio(RealHumanData realHumanData)
         {
             float tearValue = 0;
-            float refValue = 0;
+            //float refValue = 0;
             bool tearIncreasing = true;
             bool refIncreasing = true;
 
@@ -419,6 +418,8 @@ namespace RealHumanSupport
                     {
                         foreach (Material mat in realHumanData.c_m_eye)
                         {
+                            if (mat == null)
+                                continue;
                             // sin 파형 (0 ~ 1로 정규화)
                             float easedBump = (Mathf.Sin(time * Mathf.PI * 3.5f * 2f) + 1f) * 0.5f;
 
@@ -430,6 +431,7 @@ namespace RealHumanSupport
                         }
                     }
 
+                    // 수정 필요
                     if (BreathActive.Value)
                     {
                         float sinValue = (Mathf.Sin(time * BreathInterval.Value) + 1f) * 0.5f;
@@ -438,6 +440,7 @@ namespace RealHumanSupport
                         {
                             ctrl.infConfig.SetSliders(BellyTemplate.GetTemplate(1));
                             ctrl.infConfig.inflationSize = (1f - sinValue) * 10f * BreathStrong.Value;
+                            ctrl.infConfig.inflationMoveY = (1f - sinValue) * 0.25f * BreathStrong.Value;
                             ctrl.MeshInflate(new MeshInflateFlags(ctrl), "StudioSlider");
                         }
                     }
@@ -445,7 +448,7 @@ namespace RealHumanSupport
                     if (TearDropActive.Value)
                     {
                         float deltaTear = Time.deltaTime / 10f; // ← 여기만 수정 (10초)
-                        float deltaRef = Time.deltaTime / 10f; // ← 여기만 수정 (10초)
+                        // float deltaRef = Time.deltaTime / 15f; // ← 여기만 수정 (10초)
 
                         if (tearIncreasing)
                         {
@@ -459,42 +462,43 @@ namespace RealHumanSupport
                         else
                         {
                             tearValue -= deltaTear;
-                            if (tearValue <= 0f)
+                            if (tearValue <= 0.3f)
                             {
-                                tearValue = 0f;
+                                tearValue = 0.3f;
                                 tearIncreasing = true;
                             }
                         }
-                        float tearSin = Mathf.Sin(tearValue * Mathf.PI);
+                         float tearSin = Mathf.Sin(tearValue * Mathf.PI);
 
-                        if (refIncreasing)
-                        {
-                            refValue += deltaRef;
-                            if (refValue >= 1f)
-                            {
-                                refValue = 1f;
-                                refIncreasing = false;
-                            }
-                        }
-                        else
-                        {
-                            refValue -= deltaRef;
-                            if (refValue <= 0f)
-                            {
-                                refValue = 0f;
-                                refIncreasing = true;
-                            }
-                        }
+                        // if (refIncreasing)
+                        // {
+                        //     refValue += deltaTear;
+                        //     if (refValue >= 1f)
+                        //     {
+                        //         refValue = 1f;
+                        //         refIncreasing = false;
+                        //     }
+                        // }
+                        // else
+                        // {
+                        //     refValue -= deltaTear;
+                        //     if (refValue <= 0.3f)
+                        //     {
+                        //         refValue = 0.3f;
+                        //         refIncreasing = true;
+                        //     }
+                        // }
 
-                        float refSin = Mathf.Sin(deltaRef * Mathf.PI);
+                        //float refSin = Mathf.Sin(tearValue * Mathf.PI);
 
                         //  ---------------- 눈물 생성 ----------------
-                        realHumanData.m_tear_eye.SetFloat("_NamidaScale", tearSin);
-                        realHumanData.m_tear_eye.SetFloat("_RefractionScale", refSin);                        
+                        if (realHumanData.m_tear_eye != null) {
+                            realHumanData.m_tear_eye.SetFloat("_NamidaScale", tearSin);
+                            realHumanData.m_tear_eye.SetFloat("_RefractionScale", tearSin); 
+                        }
 
-                        // ---------------- 눈 흔들림 ----------------
-
-                        float amplitude = 0.001f; // HS2 기준, 필요하면 조절
+                        // ---------------- 눈주변 흔들림 ----------------
+                        float amplitude = UnityEngine.Random.Range(0.0002f, 0.0020f);// HS2 기준, 필요하면 조절
                         float easedBump = (Mathf.Sin(time * Mathf.PI * 4.5f * 2f) + 1f) * 0.5f;
                         float yOffset = (easedBump - 0.5f) * 1.5f * amplitude; // -amp ~ +amp                                             
 
@@ -504,17 +508,21 @@ namespace RealHumanSupport
                                  Vector3.zero + new Vector3(0f, yOffset * 7, 0f);
                         }
                         
-                        if (realHumanData.mouse_l != null)
-                        {
-                            realHumanData.mouse_l.localPosition =
-                                Vector3.zero + new Vector3(0f, yOffset * 10, 0f);
-                        }     
+                        // if (realHumanData.mouse_l != null)
+                        // {
+                        //     realHumanData.mouse_l.localPosition =
+                        //         Vector3.zero + new Vector3(0f, yOffset * 10, 0f);
+                        // }     
                     } else
                     {
-                        realHumanData.m_tear_eye.SetFloat("_NamidaScale", 0f);
-                        realHumanData.m_tear_eye.SetFloat("_RefractionScale", 0f);        
-                        realHumanData.nose_bridge_s.localPosition = Vector3.zero;     
-                        realHumanData.mouse_l.localPosition = Vector3.zero;    
+                        if (realHumanData.m_tear_eye != null) {
+                            realHumanData.m_tear_eye.SetFloat("_NamidaScale", 0f);
+                            realHumanData.m_tear_eye.SetFloat("_RefractionScale", 0f);   
+                            if (realHumanData.nose_bridge_s != null)     
+                                realHumanData.nose_bridge_s.localPosition = Vector3.zero;     
+                            if (realHumanData.mouse_l != null)    
+                                realHumanData.mouse_l.localPosition = Vector3.zero;    
+                        }
                     }
 
                     yield return null;
@@ -654,8 +662,8 @@ namespace RealHumanSupport
         {
             int frameCount = 30;
             for (int i = 0; i < frameCount; i++)
-                yield return null;
-            
+                yield return null;     
+
             Logic.SupportExtraDynamicBones(chaControl, realHumanData);
             Logic.SupportEyeFastBlinkEffect(chaControl, realHumanData);
             Logic.SupportBodyBumpEffect(chaControl, realHumanData);
@@ -676,7 +684,10 @@ namespace RealHumanSupport
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
+                // UnityEngine.Debug.Log($">> OnSelectSingle");
+
                 ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);   
+
                 if (objectCtrlInfo == null)
                     return true;
                     
@@ -684,7 +695,7 @@ namespace RealHumanSupport
 
                 if (ociChar != null)
                 {
-                    _self._selectedOCI = ociChar;
+                    _self._selectedOCIChar = ociChar;
 
                     if (_self._ociCharMgmt.TryGetValue(ociChar.GetChaControl().GetHashCode(), out var realHumanData))
                     {                    
@@ -701,7 +712,7 @@ namespace RealHumanSupport
 
                         if (realHumanData2 != null)
                         {
-                            realHumanData2.coroutine = ociChar.charInfo.StartCoroutine(_self.RoutineForStudio(realHumanData2));                    
+                            realHumanData2.coroutine = ociChar.GetChaControl().StartCoroutine(_self.RoutineForStudio(realHumanData2));                    
                             _self._ociCharMgmt.Add(ociChar.GetChaControl().GetHashCode(), realHumanData2);
                             ociChar.GetChaControl().StartCoroutine(_self.ExecuteAfterFrame(ociChar.GetChaControl(), realHumanData2));
                         } else
@@ -720,7 +731,13 @@ namespace RealHumanSupport
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
-                _self._selectedOCI = null;
+                ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node); 
+                if (objectCtrlInfo == null)
+                    return true;
+
+                if (_self._selectedOCIChar == objectCtrlInfo)
+                    _self._selectedOCIChar = null;
+
                 return true;
             }
         }
@@ -731,8 +748,6 @@ namespace RealHumanSupport
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {        
                 ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);   
-                _self._selectedOCI = null;
-
                 if (objectCtrlInfo == null)
                     return true;
                 
@@ -740,6 +755,7 @@ namespace RealHumanSupport
 
                 if (ociChar != null && _self._ociCharMgmt.TryGetValue(ociChar.GetChaControl().GetHashCode(), out var realHumanData))
                 {
+                    _self._selectedOCIChar = null;
                     if (realHumanData.coroutine != null)
                     {
                         ociChar.GetChaControl().StopCoroutine(realHumanData.coroutine);
@@ -784,7 +800,7 @@ namespace RealHumanSupport
                             Logger.LogMessage($"Body skin not has bumpmap2");
                         }                    
 
-                        _self._selectedOCI = __instance;
+                        _self._selectedOCIChar = __instance;
                     }            
                 }
             }

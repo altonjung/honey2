@@ -84,13 +84,13 @@ namespace HoneySelect2Maker
         internal static new ManualLogSource Logger;
         internal static HoneySelect2Maker _self;
 
-        internal string _video_title_scene_path = Application.dataPath + "/video_scene/title/";
+        internal string _video_title_scene_path = UserData.Path + "/video_scene/title/";
 
-        internal string _video_myroom_scene_path = Application.dataPath + "/video_scene/myroom/";
+        internal string _video_myroom_scene_path = UserData.Path + "/video_scene/myroom/";
 
-        internal string _video_myroom_desk_opended_scene_path = Application.dataPath + "/video_scene/myroom/desk_opened/";
+        internal string _video_myroom_desk_opended_scene_path = UserData.Path + "/video_scene/myroom/desk_opened/";
 
-        internal string _video_myroom_door_opended_scene_path = Application.dataPath + "/video_scene/myroom/door_opended/";
+        internal string _video_myroom_door_opended_scene_path = UserData.Path + "/video_scene/myroom/door_opended/";
 
         internal GameObject titleSceneVideoObj;
         internal GameObject myroomSceneVideoObj;
@@ -103,6 +103,11 @@ namespace HoneySelect2Maker
         internal bool _isAvaiableMyroomDoorVideo;
         internal bool _isAvaiableMyroomDeskVideo;
         
+#if FEATURE_IK_INGAME
+        internal bool _isNeckPressed;
+#endif
+
+
         private static string _assemblyLocation;
         private bool _loaded = false;
 
@@ -198,12 +203,79 @@ namespace HoneySelect2Maker
 #endif
 
         
+#if FEATURE_IK_INGAME           
         protected override void Update()
         {
             if (_loaded == false)
                 return;
+
+            if (Input.GetMouseButtonDown(0)) {
+                CheckNeckClick();
+            }
         }
-        #endregion
+
+        protected override void LateUpdate() {
+            if (_loaded == false)
+                return;
+
+            // 마우스가 놓였을때.. 처리
+            if (_isNeckPressed) {
+                if (_ociCharMgmt.Count > 0) {                
+                    foreach (var kvp in _self._ociCharMgmt) {
+                        RealHumanData realHumanData = kvp.Value;
+
+                        if (realHumanData != null && realHumanData.charControl != null) {
+
+                            float yaw   = Input.GetAxis("Mouse X") * 2.0f;
+                            float pitch = -Input.GetAxis("Mouse Y") * 2.0f;     
+                            Logic.UpdateIKHead(realHumanData, yaw, pitch);
+                            Logic.ReflectIKToAnimation(realHumanData);
+                        }
+                    }
+                }                
+            }
+        }
+
+        void CheckNeckClick()
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+            if (!Physics.Raycast(ray, out RaycastHit hit, 50f))
+                return;
+
+            if (IsNeckClicked(hit))
+            {
+                _isNeckPressed = true;
+                // 여기서 neck 선택 처리                
+            } else {
+                _isNeckPressed = false;
+            }
+        }
+
+        bool IsNeckClicked(RaycastHit hit)
+        {
+            // Raycast에 맞은 Collider가
+            // neck 본의 자식인가?
+            foreach (var kvp in _ociCharMgmt)
+            {
+                RealHumanData realHumanData = kvp.Value;
+                if (realHumanData != null && realHumanData.charControl != null)
+                {
+                    if (hit.collider.transform.IsChildOf(realHumanData.head_ik_data.neck))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+#else
+        protected override void Update()
+       {
+            if (_loaded == false)
+                return;
+        }
+      
+#endif    
 
         #region Private Methods
         private void Init()
@@ -215,6 +287,17 @@ namespace HoneySelect2Maker
         {
             // UnityEngine.Debug.Log($">> SceneInit()");
         }
+
+        private IEnumerator ExecuteAfterFrame(ChaControl chaControl, RealHumanData realHumanData)
+        {
+            int frameCount = 30;
+            for (int i = 0; i < frameCount; i++)
+                yield return null;
+
+#if FEATURE_IK_INGAME
+            Logic.SupportIKOnScene(chaControl, realHumanData);
+#endif            
+        }   
 
         #endregion
 

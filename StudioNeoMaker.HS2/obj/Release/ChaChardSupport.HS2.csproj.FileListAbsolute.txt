@@ -1,0 +1,4 @@
+C:\share\work\HSPlugins-main\bin\HS2\ChaCardSupport.dll
+C:\share\work\HSPlugins-main\ChaCardSupport.HS2\obj\Release\ChaChardSupport.HS2.csproj.AssemblyReference.cache
+C:\share\work\HSPlugins-main\ChaCardSupport.HS2\obj\Release\ChaChardSupport.HS2.csproj.CoreCompileInputs.cache
+C:\share\work\HSPlugins-main\ChaCardSupport.HS2\obj\Release\ChaCardSupport.dll

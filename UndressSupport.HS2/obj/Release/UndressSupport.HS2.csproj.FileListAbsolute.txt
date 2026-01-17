@@ -2,3 +2,7 @@ C:\share\work\HSPlugins-main\bin\HS2\UndressSupport.dll
 C:\share\work\HSPlugins-main\UndressSupport.HS2\obj\Release\UndressSupport.HS2.csproj.AssemblyReference.cache
 C:\share\work\HSPlugins-main\UndressSupport.HS2\obj\Release\UndressSupport.HS2.csproj.CoreCompileInputs.cache
 C:\share\work\HSPlugins-main\UndressSupport.HS2\obj\Release\UndressSupport.dll
+D:\work\hs2\working\hs2plugin\bin\HS2\UndressSupport.dll
+D:\work\hs2\working\hs2plugin\UndressSupport.HS2\obj\Release\UndressSupport.HS2.csproj.AssemblyReference.cache
+D:\work\hs2\working\hs2plugin\UndressSupport.HS2\obj\Release\UndressSupport.HS2.csproj.CoreCompileInputs.cache
+D:\work\hs2\working\hs2plugin\UndressSupport.HS2\obj\Release\UndressSupport.dll

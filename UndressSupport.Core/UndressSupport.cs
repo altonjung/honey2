@@ -11,6 +11,7 @@ using UILib;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using System.Numerics;
 
 #if IPA
 using Harmony;
@@ -77,8 +78,6 @@ namespace UndressSupport
         private Coroutine _UndressCoroutine;
 
 
-        internal static ConfigEntry<bool> ConfigKeyEnable { get; private set; } 
-
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressShortcut { get; private set; }
                 
         internal static ConfigEntry<float> ClothMaxDistanceTop { get; private set; }
@@ -114,21 +113,20 @@ namespace UndressSupport
         {
             base.Awake();
 
-            ConfigKeyEnable = Config.Bind("Undress", "Enable", true, "If this is enabled");
-
+            // Test
             ClothMaxDistanceTop = Config.Bind("Undress", "Top", 3.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            ClothMaxDistanceMiddle = Config.Bind("Undress", "Middle", 8.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            ClothMaxDistanceMiddle = Config.Bind("Undress", "Middle", 8.0f, new ConfigDescription("", new AcceptableValueRange<float>(5.0f, 15.0f)));
 
-            ClothMaxDistanceBottom = Config.Bind("Undress", "Bottom", 10.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            ClothMaxDistanceBottom = Config.Bind("Undress", "Bottom", 10.0f, new ConfigDescription("", new AcceptableValueRange<float>(10.0f, 20.0f)));
 
-            ClothAccBottom = Config.Bind("Undress", "Acc", 30.0f, new ConfigDescription("", new AcceptableValueRange<float>(30.0f, 300.0f)));
+            ClothAccBottom = Config.Bind("Undress", "Accelerator down", 30.0f, new ConfigDescription("", new AcceptableValueRange<float>(30.0f, 100.0f)));
 
-            ClothDamping = Config.Bind("Undress", "Damping", 1.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            ClothDamping = Config.Bind("Undress", "Damping", 0.3f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            ClothStiffness = Config.Bind("Undress", "Stiffness", 1.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            ClothStiffness = Config.Bind("Undress", "Stiffness", 2.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            ClothUndressDuration = Config.Bind("Undress", "Duration", 10.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 90.0f)));
+            ClothUndressDuration = Config.Bind("Undress", "Duration", 20.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 90.0f)));
 
             ConfigKeyDoUndressShortcut = Config.Bind("ShortKey", "Undress key", new KeyboardShortcut(KeyCode.LeftControl, KeyCode.U));
 
@@ -160,23 +158,14 @@ namespace UndressSupport
 
             if (ConfigKeyDoUndressShortcut.Value.IsDown())
             {
-                UnityEngine.Debug.Log($">> DoUnressCoroutine {ConfigKeyEnable.Value}, {_UndressCoroutine}");
+                if (_UndressCoroutine != null) {
+                    StopCoroutine(_UndressCoroutine);
+                    _UndressCoroutine = null;
+                }                                      
 
-                if (ConfigKeyEnable.Value)
-                {
-                    if (_UndressCoroutine == null) {
-                        _UndressCoroutine = StartCoroutine(DoUnressCoroutine());
-                    } 
-                } 
-                else
-                {
-                    if (_UndressCoroutine != null) {
-                        StopCoroutine(_UndressCoroutine);
-                        _UndressCoroutine = null;
-                    }
+                if (_UndressCoroutine == null) {
+                    _UndressCoroutine = StartCoroutine(DoUnressCoroutine());
                 }
-
-                ConfigKeyEnable.Value = !ConfigKeyEnable.Value;        
             }
         }
 
@@ -267,18 +256,21 @@ namespace UndressSupport
             }          
         }
 
-        private IEnumerator UndressAll(UndressData undressData, float duration, float topMaxDistance, float middleMaxDistance, float bottomMaxDistance, float externalAcc)
+        private IEnumerator UndressAll(UndressData undressData, float duration, float topMaxDistance, float middleMaxDistance, float bottomMaxDistance, float acceleration)
         {
             foreach (var cloth in undressData.clothes)
             {
                 if (cloth == null) continue;
 
                 // 물리 안정화
+                cloth.useGravity = true;
                 cloth.damping = ClothDamping.Value;
                 cloth.stiffnessFrequency = ClothStiffness.Value;
-                cloth.externalAcceleration = new Vector3(0, -1, -0.1f) * externalAcc;
+                cloth.externalAcceleration = Vector3.down * acceleration;
+                cloth.randomAcceleration = Vector3.down * acceleration;
+                cloth.worldAccelerationScale = 1.0f;
+                cloth.worldVelocityScale = 0.0f;
 
-                // MaxDistance 초기값 가져오기
                 var coeffs = cloth.coefficients;
                 float[] startDistances = new float[coeffs.Length];
                 for (int i = 0; i < coeffs.Length; i++)

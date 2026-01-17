@@ -25,9 +25,7 @@ using System;
 namespace UndressSupport
 {
     public class Logic
-    {
-        #region Private Methods        
-
+    {     
         internal static  UndressData GetCloth(ObjectCtrlInfo objCtrlInfo)
         {
             UndressData undressData = null;
@@ -58,8 +56,6 @@ namespace UndressSupport
                         undressData.originalMaxDistances.Add(cloth, maxDistances);
                     }
                 }
-
-                UnityEngine.Debug.Log($">> GetCloth {undressData}");
             }
 
             return undressData;
@@ -90,7 +86,7 @@ namespace UndressSupport
                 cloth.externalAcceleration = Vector3.zero;
             }
         }
-        private static SkinnedMeshRenderer GetBodyRenderer(Transform targetTransform)
+        internal static SkinnedMeshRenderer GetBodyRenderer(Transform targetTransform)
         {
             SkinnedMeshRenderer bodyRenderer = null;
 #if AISHOUJO || HONEYSELECT2
@@ -157,7 +153,7 @@ namespace UndressSupport
             return bodyRenderer;
         }
     }
-    #endregion
+
 
     class UndressData {
         public List<Cloth> clothes = new List<Cloth>();

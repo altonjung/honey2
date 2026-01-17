@@ -1,0 +1,5 @@
+C:\share\work\HSPlugins-main\bin\HS2\FrameCardExt.dll
+C:\share\work\HSPlugins-main\FrameCardExt.HS2\obj\Release\FrameCardExt.HS2.csproj.AssemblyReference.cache
+C:\share\work\HSPlugins-main\FrameCardExt.HS2\obj\Release\FrameCardExt.HS2.csproj.CoreCompileInputs.cache
+C:\share\work\HSPlugins-main\FrameCardExt.HS2\obj\Release\UpscaleT.44712360.Up2Date
+C:\share\work\HSPlugins-main\FrameCardExt.HS2\obj\Release\FrameCardExt.dll

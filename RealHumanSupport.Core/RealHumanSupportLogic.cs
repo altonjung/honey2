@@ -1174,7 +1174,7 @@ namespace RealHumanSupport
                     if (RealHumanSupport._self._head_rt == null || RealHumanSupport._self._head_rt.width != w || RealHumanSupport._self._head_rt.height != h)
                     {
                         if (RealHumanSupport._self._head_rt != null) RealHumanSupport._self._head_rt.Release();
-                        RealHumanSupport._self._head_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+                        RealHumanSupport._self._head_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32);
                         RealHumanSupport._self._head_rt.enableRandomWrite = true;
                         RealHumanSupport._self._head_rt.Create();
                     }        
@@ -1568,7 +1568,7 @@ namespace RealHumanSupport
                     if (RealHumanSupport._self._body_rt == null || RealHumanSupport._self._body_rt.width != w || RealHumanSupport._self._body_rt.height != h)
                     {
                         if (RealHumanSupport._self._body_rt != null) RealHumanSupport._self._body_rt.Release();
-                        RealHumanSupport._self._body_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+                        RealHumanSupport._self._body_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32);
                         RealHumanSupport._self._body_rt.enableRandomWrite = true;
                         RealHumanSupport._self._body_rt.Create();
                     }
@@ -1671,8 +1671,8 @@ namespace RealHumanSupport
                 width,
                 height,
                 0,
-                RenderTextureFormat.ARGB32,
-                RenderTextureReadWrite.Linear
+                RenderTextureFormat.ARGB32
+                // RenderTextureReadWrite.Linear // 검사
             );
 
             RenderTexture prev = RenderTexture.active;
@@ -1704,38 +1704,6 @@ namespace RealHumanSupport
 
             RenderTexture prev = RenderTexture.active;
             RenderTexture.active = rt;
-
-            Texture2D tex = new Texture2D(width, height, TextureFormat.ARGB32, false);
-            tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-            tex.Apply();
-
-            RenderTexture.active = prev;
-            RenderTexture.ReleaseTemporary(rt);
-
-            return tex;
-        }
-
-        internal static Texture2D MakeWritableTexturev2(Texture texture)
-        {
-            if (texture == null)
-                return null;
-
-            int width = texture.width;
-            int height = texture.height;
-
-            RenderTexture rt = RenderTexture.GetTemporary(
-                width,
-                height,
-                0,
-                RenderTextureFormat.ARGB32,
-                RenderTextureReadWrite.Linear
-            );
-
-            RenderTexture prev = RenderTexture.active;
-            RenderTexture.active = rt;
-
-            // Texture2D / RenderTexture 모두 대응
-            Graphics.Blit(texture, rt);
 
             Texture2D tex = new Texture2D(width, height, TextureFormat.ARGB32, false);
             tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
