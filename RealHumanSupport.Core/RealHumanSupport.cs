@@ -115,11 +115,7 @@ namespace RealHumanSupport
 
         internal Texture2D _bodyStrongFemale_A_BumpMap2;
 
-        internal Texture2D _bodyStrongFemale_B_BumpMap2;
-
         internal Texture2D _bodyStrongMale_A_BumpMap2;
-
-        internal Texture2D _bodyStrongMale_B_BumpMap2;
 
         internal ComputeShader _mergeComputeShader;
 
@@ -202,7 +198,7 @@ namespace RealHumanSupport
 
             BreathInterval = Config.Bind("Breath", "Cycle", 1.5f, new ConfigDescription("Breath Interval", new AcceptableValueRange<float>(1.0f,  5.0f)));;
 
-            BreathStrong = Config.Bind("Breath", "Strong", 0.6f, new ConfigDescription("Breath Amplitude", new AcceptableValueRange<float>(0.1f, 1.0f)));
+            BreathStrong = Config.Bind("Breath", "Strong", 0.2f, new ConfigDescription("Breath Amplitude", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
             ExtraColliderScale = Config.Bind("ExtraCollider", "Scale", 1.0f, new ConfigDescription("Extra collider Scale", new AcceptableValueRange<float>(0.1f, 10.0f)));
 
@@ -259,9 +255,7 @@ namespace RealHumanSupport
             }
 
             _bodyStrongFemale_A_BumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_F_BumpMap2");
-            _bodyStrongFemale_B_BumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_FB_BumpMap2");
             _bodyStrongMale_A_BumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_M_BumpMap2");
-            _bodyStrongMale_B_BumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_MB_BumpMap2");
 
 #if FEATURE_FACEBUMP_SUPPORT               
             _faceExpressionFemaleBumpMap2 = _bundle.LoadAsset<Texture2D>("Face_Expression_F_BumpMap2");
@@ -271,9 +265,9 @@ namespace RealHumanSupport
             _mergeComputeShader = _bundle.LoadAsset<ComputeShader>("MergeTextures.compute");
 
 #if FEATURE_FACEBUMP_SUPPORT            
-            _self._head_areaBuffer = new ComputeBuffer(16, sizeof(float) * 6);            
+            _self._head_areaBuffer = new ComputeBuffer(20, sizeof(float) * 6);            
 #endif
-            _self._body_areaBuffer = new ComputeBuffer(24, sizeof(float) * 6); 
+            _self._body_areaBuffer = new ComputeBuffer(30, sizeof(float) * 6); 
         }
 
         private void SceneInit()
@@ -381,7 +375,7 @@ namespace RealHumanSupport
                         {
                             float sinValue = (Mathf.Sin(time * BreathInterval.Value) + 1f) * 0.5f;
                         
-                            pregnantChaController.infConfig.SetSliders(BellyTemplate.GetTemplate(1));
+                            pregnantChaController.infConfig.SetSliders(BellyTemplate.GetTemplate(0));
                             pregnantChaController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * BreathStrong.Value;
                             pregnantChaController.MeshInflate(new MeshInflateFlags(pregnantChaController), "StudioSlider");
                         }
@@ -473,7 +467,7 @@ namespace RealHumanSupport
                         {
                             float sinValue = (Mathf.Sin(time * BreathInterval.Value) + 1f) * 0.5f;
                         
-                            pregnantChaController.infConfig.SetSliders(BellyTemplate.GetTemplate(1));
+                            pregnantChaController.infConfig.SetSliders(BellyTemplate.GetTemplate(0));
                             pregnantChaController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * BreathStrong.Value;
                             pregnantChaController.MeshInflate(new MeshInflateFlags(pregnantChaController), "StudioSlider");
                         }

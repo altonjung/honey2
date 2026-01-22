@@ -379,6 +379,32 @@ namespace ClothColliderVisualizer
         }
 
 #if FEATURE_GROUND_COLLIDER
+        internal static void CreateGroundClothCollider(ChaControl baseCharControl)
+        {
+            string bone_prefix_str = "cf_";
+            if(baseCharControl.sex == 0)
+                bone_prefix_str = "cm_";
+
+            CapsuleCollider groundCollider = null;
+            Transform groundTransform = baseCharControl.objBodyBone.transform.FindLoop(GROUND_COLLIDER_NAME);
+            Transform root_bone = baseCharControl.objBodyBone.transform.FindLoop(bone_prefix_str + "N_height");
+
+            // ground collider
+            if (groundTransform == null && root_bone == null)
+            {
+                GameObject groundObj = new GameObject(GROUND_COLLIDER_NAME);
+                groundCollider = AddCapsuleGroundCollider(groundObj, root_bone);
+
+                List<Cloth> clothes = baseCharControl.transform.GetComponentsInChildren<Cloth>(true).ToList();
+
+                foreach (Cloth cloth in clothes)
+                {
+                    // 새 capsuleCollider 교체
+                    cloth.capsuleColliders = new CapsuleCollider[] { groundCollider }.ToArray();
+                }
+            }
+        }
+
         internal static CapsuleCollider AddCapsuleGroundCollider(GameObject colliderObject, Transform bone)
         {
             colliderObject.transform.SetParent(bone, false);
@@ -392,35 +418,6 @@ namespace ClothColliderVisualizer
             return capsule;
         }
 
-        internal static void CreateGroundClothCollider(ChaControl baseCharControl)
-        {
-            CapsuleCollider groundCollider = null;
-            Transform groundTransform = baseCharControl.objBodyBone.transform.FindLoop(GROUND_COLLIDER_NAME);
-            Transform root_bone = baseCharControl.objBodyBone.transform.FindLoop("cf_J_Root");
-            // ground collider
-            if (groundTransform == null)
-            {
-                GameObject groundObj = new GameObject(GROUND_COLLIDER_NAME);
-                groundCollider = AddCapsuleGroundCollider(groundObj, root_bone);
-            }
-            else
-            {
-                groundCollider = groundTransform.GetComponent<CapsuleCollider>();
-
-                if (groundCollider == null)
-                {
-                    groundCollider = AddCapsuleGroundCollider(groundTransform.gameObject, root_bone);
-                }
-            }
-
-            List<Cloth> clothes = baseCharControl.transform.GetComponentsInChildren<Cloth>(true).ToList();
-
-            foreach (Cloth cloth in clothes)
-            {
-                // 새 capsuleCollider 교체
-                cloth.capsuleColliders = new CapsuleCollider[] { groundCollider }.ToArray();
-            }
-        }
 #endif
         internal static void AddVisualColliders(OCIChar ociChar, Update_Mode type)
         {

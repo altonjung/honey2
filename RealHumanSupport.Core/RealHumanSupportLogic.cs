@@ -1253,7 +1253,6 @@ namespace RealHumanSupport
                         }
                     }                
                 }
-
             } 
             else
             {
@@ -1268,7 +1267,7 @@ namespace RealHumanSupport
             if (realHumanData.m_skin_body == null)
                 return;
 
-            if (RealHumanSupport.BodyBlendingActive.Value && StudioAPI.InsideStudio)
+            if (StudioAPI.InsideStudio && RealHumanSupport.BodyBlendingActive.Value)
             {
                 OCIChar ociChar = chaCtrl.GetOCIChar();
 
@@ -1306,7 +1305,7 @@ namespace RealHumanSupport
                 {
                     strong_texture = RealHumanSupport._self._bodyStrongMale_A_BumpMap2;
                 }
-
+                
                 float left_shin = 0.0f;
                 float left_calf_bs = 0.0f;
                 float left_butt_bs = 0.0f;

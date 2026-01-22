@@ -65,7 +65,7 @@ namespace ClothColliderVisualizer
         private const string GROUP_SPHERE_COLLIDER = "Group: (S)Colliders";
 
 #if FEATURE_GROUND_COLLIDER        
-        private const string GROUND_COLLIDER_NAME = "Cloth colliders support_flat_ground";
+        private const string GROUND_COLLIDER_NAME = "Cloth colliders ground";
 #endif
         #region Private Types
         #endregion
@@ -579,7 +579,7 @@ namespace ClothColliderVisualizer
                         __instance.StartCoroutine(ExecuteAfterFrame(__instance.GetOCIChar(), Update_Mode.CHANGE));
                     else
                     {
-                        // 옷 부분 변경 시 물리 옷이 없는 옷의 경우에도 ground collider 대상으로 상태 update 는 해줘야 함
+                        // 물리 옷내 n_height 에 ground collider 대상 추가 지원
 #if FEATURE_GROUND_COLLIDER
                         CreateGroundClothCollider(__instance.GetOCIChar().charInfo);
 #endif                        
@@ -616,7 +616,7 @@ namespace ClothColliderVisualizer
                         __instance.StartCoroutine(ExecuteAfterFrame(__instance.GetOCIChar(), Update_Mode.CHANGE));
                     else
                     {
-                        // 옷 부분 변경 시 물리 옷이 없는 옷의 경우에도 ground collider 대상으로 상태 update 는 해줘야 함
+                        // 물리 옷내 n_height 에 ground collider 대상 추가 지원
 #if FEATURE_GROUND_COLLIDER
                         CreateGroundClothCollider(__instance.GetOCIChar().charInfo);
 #endif                        

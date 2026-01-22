@@ -2,3 +2,7 @@ C:\share\work\HSPlugins-main\StudioNeoMaker.HS2\obj\Release\StudioNeoMaker.HS2.c
 C:\share\work\HSPlugins-main\StudioNeoMaker.HS2\obj\Release\StudioNeoMaker.HS2.csproj.CoreCompileInputs.cache
 C:\share\work\HSPlugins-main\bin\HS2\StudioNeoMaker.dll
 C:\share\work\HSPlugins-main\StudioNeoMaker.HS2\obj\Release\StudioNeoMaker.dll
+D:\work\hs2\working\hs2plugin\StudioNeoMaker.HS2\obj\Release\StudioNeoMaker.HS2.csproj.AssemblyReference.cache
+D:\work\hs2\working\hs2plugin\StudioNeoMaker.HS2\obj\Release\StudioNeoMaker.HS2.csproj.CoreCompileInputs.cache
+D:\work\hs2\working\hs2plugin\StudioNeoMaker.HS2\obj\Release\StudioNeoMaker.dll
+D:\work\hs2\working\hs2plugin\bin\HS2\StudioNeoMaker.dll

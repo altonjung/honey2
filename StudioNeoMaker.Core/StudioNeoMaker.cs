@@ -54,7 +54,7 @@ namespace StudioNeoMaker
     {
         #region Constants
         public const string Name = "StudioNeoMaker";
-        public const string Version = "0.9.0.0";
+        public const string Version = "0.9.0.1";
         public const string GUID = "com.alton.illusionplugins.StudioNeoMaker";
         internal const string _ownerId = "Alton";
         #endregion
@@ -114,11 +114,25 @@ namespace StudioNeoMaker
                 Init();
         }
 #endif        
+
+        private void SceneInit()
+        {
+            StopFrameVideoIfPlaying();
+            SetupBgVideoPlayer();
+        }
+
         protected override void Update()
         {
             if (_loaded == false)
                 return;
         }
+
+        protected override void OnDestroy()
+        {
+            StopFrameVideoIfPlaying();
+            SetupBgVideoPlayer();
+        }
+
         #endregion
 
         #region Private Methods
@@ -138,7 +152,17 @@ namespace StudioNeoMaker
         {
             if (frameVideoPlayer != null) return;
 
-            GameObject go = new GameObject("FrameVideoPlayer");
+            // 🔍 이미 존재하는 오브젝트 탐색
+            var existing = GameObject.Find("StudioMaker_FrameVideoPlayer");
+            if (existing != null)
+            {
+                frameVideoPlayer = existing.GetComponent<UnityEngine.Video.VideoPlayer>();
+                if (frameVideoPlayer != null)
+                    return;
+            }
+
+            // 🆕 새로 생성
+            GameObject go = new GameObject("StudioMaker_FrameVideoPlayer");
             UnityEngine.Object.DontDestroyOnLoad(go);
 
             frameVideoPlayer = go.AddComponent<UnityEngine.Video.VideoPlayer>();
@@ -178,9 +202,20 @@ namespace StudioNeoMaker
 
         static void SetupBgVideoPlayer()
         {
-            if (bgVideoPlayer != null) return;
+            if (bgVideoPlayer != null)
+                return;
 
-            GameObject go = new GameObject("BackgroundVideoPlayer");
+            // 🔍 씬에 이미 존재하는지 확인
+            var existing = GameObject.Find("StudioMaker_BgVideoPlayer");
+            if (existing != null)
+            {
+                bgVideoPlayer = existing.GetComponent<UnityEngine.Video.VideoPlayer>();
+                if (bgVideoPlayer != null)
+                    return;
+            }
+
+            // 🆕 새로 생성
+            GameObject go = new GameObject("StudioMaker_BgVideoPlayer");
             UnityEngine.Object.DontDestroyOnLoad(go);
 
             bgVideoPlayer = go.AddComponent<UnityEngine.Video.VideoPlayer>();
@@ -189,7 +224,7 @@ namespace StudioNeoMaker
             bgVideoPlayer.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None;
             bgVideoPlayer.renderMode = UnityEngine.Video.VideoRenderMode.RenderTexture;
         }
-
+        
         static void OnBgVideoPrepared(UnityEngine.Video.VideoPlayer vp)
         {
             if (cachedBgCtrl == null || bgVideoRT == null)
@@ -217,33 +252,6 @@ namespace StudioNeoMaker
                 bgVideoRT = null;
             }
         }
-
-        // static void SetupBackgroundVideo()
-        // {
-        //     if (bgVideoPlayer != null) return;
-
-        //     GameObject go = new GameObject("BGVideoPlayer");
-        //     UnityEngine.Object.DontDestroyOnLoad(go);
-
-        //     bgVideoPlayer = go.AddComponent<VideoPlayer>();
-        //     bgVideoPlayer.playOnAwake = false;
-        //     bgVideoPlayer.isLooping = true;
-        //     bgVideoPlayer.audioOutputMode = VideoAudioOutputMode.None;
-        //     bgVideoPlayer.renderMode = VideoRenderMode.RenderTexture;
-
-        //     bgVideoRT = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGB32);
-        //     bgVideoRT.Create();
-
-        //     bgVideoPlayer.targetTexture = bgVideoRT;
-        // }
-        
-        // static void StopBgVideoIfPlaying()
-        // {
-        //     if (bgVideoPlayer != null && bgVideoPlayer.isPlaying)
-        //     {
-        //         bgVideoPlayer.Stop();
-        //     }
-        // }
 
         [HarmonyPatch]
         private static class Directory_Patch
@@ -406,7 +414,7 @@ namespace StudioNeoMaker
 
             static bool Prefix(Studio.FrameCtrl __instance, string _file, ref bool __result)
             {
-                UnityEngine.Debug.Log($">> Load in FrameCtrl");
+                // UnityEngine.Debug.Log($">> Load in FrameCtrl");
                 __result = false;
                 cachedFrameCtrl = __instance;
 
@@ -487,6 +495,17 @@ namespace StudioNeoMaker
                 StopFrameVideoIfPlaying();
             }
         }
+
+
+        [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
+        private static class Studio_InitScene_Patches
+        {
+            private static bool Prefix(object __instance, bool _close)
+            {
+                _self.SceneInit();
+                return true;
+            }
+        }        
     
 #endregion
     }
