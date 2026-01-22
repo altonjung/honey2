@@ -6,15 +6,11 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using BepInEx.Logging;
-using UILib;
-using UILib.ContextMenu;
-using UILib.EventHandlers;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using System.Threading.Tasks;
-using System.Security.Cryptography.X509Certificates;
 
 #if AISHOUJO || HONEYSELECT2
 using CharaUtils;
@@ -274,10 +270,15 @@ namespace RealHumanSupport
             string bone_prefix_str = "cf_";
             if(chaCtrl.sex == 0)
                 bone_prefix_str = "cm_";
-    
-            realHumanData.nose_bridge_s = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_NoseBridge_s"); 
-            realHumanData.mouse_l = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Mouth_L"); 
 
+#if FEATURE_EXPRESSION
+            realHumanData.nose_bridge_s = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_NoseBridge_s"); 
+            realHumanData.mouth_move = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_MouthMove"); 
+            realHumanData.mouth_down = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_MouthLow"); 
+            realHumanData.mouth_l = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Mouth_L"); 
+            realHumanData.mouth_r = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Mouth_R"); 
+
+#endif
             // test
             realHumanData.cf_J_LegUp00_L = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_LegUp02_L");
             realHumanData.cf_J_LegLow01_L = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_LegUp03_L");
@@ -351,7 +352,7 @@ namespace RealHumanSupport
             // }
         }
 
-#if FEATURE_STRAPON_SUPPORT        
+#if FEATURE_STRAPON_SUPPORT
         private static void SupportExtraDeviceRigidBody(CharContrl chaCtrl, RealHumanData realHumanData) {
             string childName = "RHTriggerRigidBody"; // 자식 이름
 
@@ -435,64 +436,10 @@ namespace RealHumanSupport
 
                 // boob/butt dynamicbone에 leg&arm&finger collider 연결                    
                 DynamicBoneCollider[] existingDynamicBoneColliders = chaCtrl.transform.FindLoop(bone_prefix_str+"J_Root").GetComponentsInChildren<DynamicBoneCollider>(true);
-                List<DynamicBoneCollider> extraLegAndArmColliders = new List<DynamicBoneCollider>();
+                List<DynamicBoneCollider> extraBoobColliders = new List<DynamicBoneCollider>();
 
-                foreach (DynamicBoneCollider collider in existingDynamicBoneColliders)
-                {
-                    if (collider.name.Contains("Leg") || collider.name.Contains("Arm") || collider.name.Contains("Hand"))
-                    {
-                        extraLegAndArmColliders.Add(collider);
-                    }
-                }
-                
-                foreach (var collider in extraLegAndArmColliders)
-                {
-                    if (collider == null)
-                        continue;
-
-                    if (!realHumanData.leftBoob.Colliders.Contains(collider))
-                    {
-                        realHumanData.leftBoob.Colliders.Add(collider);
-                    }
-                }
-
-                foreach (var collider in extraLegAndArmColliders) 
-                {
-                    if (collider == null)
-                        continue;
-
-                    if (!realHumanData.rightBoob.Colliders.Contains(collider))
-                    {
-                        realHumanData.rightBoob.Colliders.Add(collider);
-                    }
-                }
-
-                foreach (var collider in extraLegAndArmColliders){
-                    if (collider == null)
-                        continue;
-
-                    if (!realHumanData.leftButtCheek.Colliders.Contains(collider))
-                    {
-                        realHumanData.leftButtCheek.Colliders.Add(collider);
-                    }                    
-                }
-
-                foreach (var collider in extraLegAndArmColliders) {
-                    if (collider == null)
-                        continue;
-
-                    if (!realHumanData.rightButtCheek.Colliders.Contains(collider))
-                    {
-                        realHumanData.rightButtCheek.Colliders.Add(collider);
-                    }                    
-                }
-
-                
-                SetTearDrops(chaCtrl, realHumanData);
-                SetHairDown(chaCtrl, realHumanData);     
-
-                // hair dynamic bone 연결 대상 finger collider 생성
-                List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();       
+                Transform handLObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_L");
+                Transform handRObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_R");
 
                 Transform fingerThumb2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb02_L");
                 Transform fingerThumb3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb03_L");
@@ -518,48 +465,93 @@ namespace RealHumanSupport
                 Transform fingerRing2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring02_R");
                 Transform fingerRing3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring03_R");
 
-                // List<DynamicBoneCollider> extraFingerColliders = new List<DynamicBoneCollider>();
+                List<DynamicBoneCollider> extraFingerColliders = new List<DynamicBoneCollider>();
 
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2LObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0, new Vector3(0f, 0f, 0f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3LObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, new Vector3(0f, 0f, 0f)));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(handLObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(handRObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
 
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0, new Vector3(0f, 0f, 0f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, new Vector3(0f, 0f, 0f)));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2LObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.07f, Vector2.zero));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3LObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, Vector2.zero));
 
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0, new Vector3(0f, 0f, 0f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, new Vector3(0f, 0f, 0f)));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
           
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerRing2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0, new Vector3(0f, 0f, 0f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerRing3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, new Vector3(0f, 0f, 0f)));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerRing2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerRing3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
 
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0, new Vector3(0f, 0f, 0f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, new Vector3(0f, 0f, 0f)));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.07f, Vector2.zero));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, Vector2.zero));
 
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0, new Vector3(0f, 0f, 0f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, new Vector3(0f, 0f, 0f)));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
 
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0, new Vector3(0f, 0f, 0f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, new Vector3(0f, 0f, 0f)));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
          
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerRing2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0, new Vector3(0f, 0f, 0f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(fingerRing3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, new Vector3(0f, 0f, 0f)));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerRing2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+                extraFingerColliders.Add(AddExtraDynamicBoneCollider(fingerRing3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+                
+                extraBoobColliders.AddRange(extraFingerColliders);
+                
+                foreach (DynamicBoneCollider collider in existingDynamicBoneColliders)
+                {
+                    if (collider.name.Contains("Leg") || collider.name.Contains("Arm"))
+                    {
+                        extraBoobColliders.Add(collider);
+                    }
+                }
+                
+                foreach (var collider in extraBoobColliders)
+                {
+                    if (collider == null)
+                        continue;
 
-                // foreach (var bone in hairbones)
-                // {
-                //     if (bone == null)
-                //         continue;
+                    if (!realHumanData.leftBoob.Colliders.Contains(collider))
+                    {
+                        realHumanData.leftBoob.Colliders.Add(collider);
+                    }
+                }
 
-                //     foreach (var collider in extraFingerColliders)
-                //     {
-                //         if (collider == null)
-                //             continue;
+                foreach (var collider in extraBoobColliders) 
+                {
+                    if (collider == null)
+                        continue;
 
-                //         if (!bone.m_Colliders.Contains(collider))
-                //         {
-                //             bone.m_Colliders.Add(collider);
-                //         }
-                //     }
-                // }
+                    if (!realHumanData.rightBoob.Colliders.Contains(collider))
+                    {
+                        realHumanData.rightBoob.Colliders.Add(collider);
+                    }
+                }
+
+                foreach (var collider in extraBoobColliders){
+                    if (collider == null)
+                        continue;
+
+                    if (!realHumanData.leftButtCheek.Colliders.Contains(collider))
+                    {
+                        realHumanData.leftButtCheek.Colliders.Add(collider);
+                    }                    
+                }
+
+                foreach (var collider in extraBoobColliders) {
+                    if (collider == null)
+                        continue;
+
+                    if (!realHumanData.rightButtCheek.Colliders.Contains(collider))
+                    {
+                        realHumanData.rightButtCheek.Colliders.Add(collider);
+                    }                    
+                }
+
+                SetTearDrops(chaCtrl, realHumanData);
+                SetHairDown(chaCtrl, realHumanData); 
+                // hair dynamic bone 연결 대상 finger collider 생성
+                List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();       
+
+                extraHairColliders.AddRange(extraFingerColliders);
 
                 // hair dynamic bone 연결 대상 shoulder collider 생성                
                 // List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();
@@ -805,7 +797,7 @@ namespace RealHumanSupport
         {
             Texture2D headOriginTexture = null;
             Texture2D bodyOriginTexture = null;
-#if FEATURE_FACEBUMP_SUPPORT  
+#if FEATURE_FACEBUMP_SUPPORT
             if (realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_name) as Texture2D == null)
                 headOriginTexture = ConvertToTexture2D(realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_name) as RenderTexture);
             else 
@@ -815,9 +807,9 @@ namespace RealHumanSupport
                 bodyOriginTexture = ConvertToTexture2D(realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_name) as RenderTexture);
             else
                 bodyOriginTexture = realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_name) as Texture2D;
-#if FEATURE_FACEBUMP_SUPPORT  
+#if FEATURE_FACEBUMP_SUPPORT
             realHumanData.headOriginTexture = SetTextureSize(MakeWritableTexture(headOriginTexture), RealHumanSupport._self._faceExpressionFemaleBumpMap2.width, RealHumanSupport._self._faceExpressionFemaleBumpMap2.height);
-#endif            
+#endif
             realHumanData.bodyOriginTexture = SetTextureSize(MakeWritableTexture(bodyOriginTexture), RealHumanSupport._self._bodyStrongFemale_A_BumpMap2.width, RealHumanSupport._self._bodyStrongFemale_A_BumpMap2.height);
     
             return realHumanData;
@@ -825,7 +817,6 @@ namespace RealHumanSupport
 
         internal static RealHumanData GetMaterials(ChaControl charCtrl, RealHumanData realHumanData)
         {
-            //UnityEngine.Debug.Log($">> GetMaterials {charCtrl}");
             SkinnedMeshRenderer[] bodyRenderers = charCtrl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
             // UnityEngine.Debug.Log($">> bodyRenderers {bodyRenderers.Length}");
 
@@ -874,6 +865,80 @@ namespace RealHumanSupport
                     }
                 }
             }
+
+            // realHumanData.namida_e04_warai.render.Clear();
+            // realHumanData.namida_e05_damage.render.Clear();
+            // realHumanData.namida_e06_damage_r.render.Clear();
+            // Transform[] gameObjects = charCtrl.objAnim.GetComponentsInChildren<Transform>(true);
+
+            // foreach (Transform gameObj in gameObjects.ToList())
+            // {
+            //     if (gameObj.name.Equals("o_namida"))
+            //     {
+            //         //  UnityEngine.Debug.Log($">> Transform {gameObj.name}");
+            //         SkinnedMeshRenderer[] renderers =  gameObj.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            //     }
+            // }
+//             FBSTargetInfo[] fbsTargetInfo = charCtrl.fbsCtrl.EyesCtrl.FBSTarget;
+
+//             foreach (FBSTargetInfo fbsTarget in fbsTargetInfo) {
+//                     SkinnedMeshRenderer render = fbsTarget.GetSkinnedMeshRenderer();
+
+//                 // foreach (SkinnedMeshRenderer render in renderers.ToList())
+//                 // {
+// #if FEATURE_EXPRESSION
+//                     // var mesh = render.sharedMesh;
+//                     // for (int i = 0; i < mesh.blendShapeCount; i++)
+//                     // {
+//                     //     string name = mesh.GetBlendShapeName(i);
+
+//                     //     if (name.Equals("namida.e04_warai"))
+//                     //     {
+//                     //         realHumanData.namida_e04_warai.render.Add(render);
+//                     //         realHumanData.namida_e04_warai.idx = render.sharedMesh.GetBlendShapeIndex("namida.e04_warai");
+//                     //         realHumanData.namida_e04_warai.name = "namida.e04_warai";
+//                     //     }
+//                     //     if (name.Equals("namida.e05_damage"))
+//                     //     {
+//                     //         realHumanData.namida_e05_damage.render.Add(render);
+//                     //         realHumanData.namida_e05_damage.idx = render.sharedMesh.GetBlendShapeIndex("namida.e05_damage");
+//                     //         realHumanData.namida_e05_damage.name = "namida.e05_damage";
+//                     //     }
+//                     //     if (name.Equals("namida.e06_damage_R"))
+//                     //     {
+//                     //         realHumanData.namida_e06_damage_r.render.Add(render);
+//                     //         realHumanData.namida_e06_damage_r.idx = render.sharedMesh.GetBlendShapeIndex("namida.e06_damage_R");
+//                     //         realHumanData.namida_e06_damage_r.name = "namida.e06_damage_R";
+//                     //     }
+//                     // }
+//                         // if (name.Equals("tang.k05_sitadasi1"))
+//                         // {
+//                         //     realHumanData.mouthMeshRender = render;
+//                         //     realHumanData.tang_k05_sitadasi1 = render.sharedMesh.GetBlendShapeIndex("tang.k05_sitadasi1");
+//                         // }
+//                         // if (name.Equals("tang.k06_sitadasi2"))
+//                         // {
+//                         //     realHumanData.tang_k06_sitadasi2 = render.sharedMesh.GetBlendShapeIndex("tang.k06_sitadasi2");
+//                         // }
+//                         // if (name.Equals("tang.k07_sitadasi3"))
+//                         // {
+//                         //     realHumanData.tang_k07_sitadasi3 = render.sharedMesh.GetBlendShapeIndex("tang.k07_sitadasi3");
+//                         // }
+//                         // if (name.Equals("tang.k09_ahe2"))
+//                         // {
+//                         //     realHumanData.tang_k09_ahe2 = render.sharedMesh.GetBlendShapeIndex("tang.k09_ahe2");
+//                         // }
+//                         // if (name.Equals("tang.k02_open1"))
+//                         // {
+//                         //     realHumanData.tang_k02_open1 = render.sharedMesh.GetBlendShapeIndex("tang.k02_open1");
+//                         // }
+//                         // if (name.Equals("tang.k04_fera"))
+//                         // {
+//                         //     realHumanData.tang_k04_fera = render.sharedMesh.GetBlendShapeIndex("tang.k04_fera");
+//                         // }
+//                     // }
+// #endif
+//             }
 
             return realHumanData;
         }
@@ -925,6 +990,7 @@ namespace RealHumanSupport
                 if (realHumanData.m_skin_body != null && realHumanData.m_skin_body.GetTexture("_BumpMap2") != null)
                 {
                     realHumanData.body_bumpmap_name = "_BumpMap2";
+                    realHumanData.m_skin_body.SetFloat("_BumpScale2", 0.80f);
                 } 
                 else if (realHumanData.m_skin_body != null && realHumanData.m_skin_body.GetTexture("_BumpMap") != null)
                 {
@@ -1138,74 +1204,63 @@ namespace RealHumanSupport
                 if (chaCtrl.sex == 1) // female
                 {
                     express_texture = RealHumanSupport._self._faceExpressionFemaleBumpMap2;
-                }
-                else
-                {
-                    express_texture = RealHumanSupport._self._faceExpressionMaleBumpMap2;
-                }
+                    List<BArea> areas = new List<BArea>();
 
-                List<BArea> areas = new List<BArea>();
+                    // eye
+                    areas.Add(InitBArea(440, 445, 40, 40, 0.2f));
+                    areas.Add(InitBArea(590, 445, 40, 40, 0.2f));
+                    areas.Add(InitBArea(445, 490, 60, 25, 0.1f));
+                    areas.Add(InitBArea(575, 490, 60, 25, 0.1f));
+                    // face
+                    areas.Add(InitBArea(330, 650, 110, 160, 0.5f));
+                    areas.Add(InitBArea(700, 650, 110, 160, 0.5f));
+                    // mouth
+                    areas.Add(InitBArea(512, 600, 74, 80, 0.3f));
 
-                RealFaceData realFaceData = null;
-
-                if (RealHumanSupport._self._faceMouthMgmt.TryGetValue(RealHumanSupport._self._mouth_type, out realFaceData))
-                {
-                    foreach(BArea area in realFaceData.areas)
+                    if (origin_texture != null)
                     {
-                        areas.Add(area);
-                    }
+                        int kernel = RealHumanSupport._self._mergeComputeShader.FindKernel("CSMain");
+                        int w = 1024;
+                        int h = 1024;
+
+                        // RenderTexture 초기화 및 재사용
+                        if (RealHumanSupport._self._head_rt == null || RealHumanSupport._self._head_rt.width != w || RealHumanSupport._self._head_rt.height != h)
+                        {
+                            if (RealHumanSupport._self._head_rt != null) RealHumanSupport._self._head_rt.Release();
+                            RealHumanSupport._self._head_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+                            RealHumanSupport._self._head_rt.enableRandomWrite = true;
+                            RealHumanSupport._self._head_rt.Create();
+                        }        
+
+                    // 영역 데이터가 변경된 경우만 업데이트
+                        if (areas.Count > 0)
+                        {                         
+                            RealHumanSupport._self._head_areaBuffer.SetData(areas.ToArray());
+                            // 셰이더 파라미터 설정
+                            RealHumanSupport._self._mergeComputeShader.SetInt("Width", w);
+                            RealHumanSupport._self._mergeComputeShader.SetInt("Height", h);
+                            RealHumanSupport._self._mergeComputeShader.SetInt("AreaCount", areas.Count);
+                            RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexA", origin_texture);
+                            RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexB", express_texture);
+                            RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "Result", RealHumanSupport._self._head_rt);
+                            RealHumanSupport._self._mergeComputeShader.SetBuffer(kernel, "Areas", RealHumanSupport._self._head_areaBuffer);
+
+                            // Dispatch 실행
+                            RealHumanSupport._self._mergeComputeShader.Dispatch(kernel, Mathf.CeilToInt(w / 8f), Mathf.CeilToInt(h / 8f), 1);
+
+                            // 결과를 바로 Material에 적용 (CPU로 복사 안 함)    
+                            realHumanData.m_skin_head.SetTexture(realHumanData.head_bumpmap_name, RealHumanSupport._self._head_rt);                
+                        }
+                    }                
                 }
 
-                if (RealHumanSupport._self._faceEyesMgmt.TryGetValue(RealHumanSupport._self._eye_type, out realFaceData))
-                {
-                    foreach(BArea area in realFaceData.areas)
-                    {
-                        areas.Add(area);
-                    }
-                }
-
-                if (origin_texture != null)
-                {
-                    int kernel = RealHumanSupport._self._mergeComputeShader.FindKernel("CSMain");
-                    int w = 1024;
-                    int h = 1024;
-
-                    // RenderTexture 초기화 및 재사용
-                    if (RealHumanSupport._self._head_rt == null || RealHumanSupport._self._head_rt.width != w || RealHumanSupport._self._head_rt.height != h)
-                    {
-                        if (RealHumanSupport._self._head_rt != null) RealHumanSupport._self._head_rt.Release();
-                        RealHumanSupport._self._head_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32);
-                        RealHumanSupport._self._head_rt.enableRandomWrite = true;
-                        RealHumanSupport._self._head_rt.Create();
-                    }        
-
-                // 영역 데이터가 변경된 경우만 업데이트
-                    if (areas.Count > 0)
-                    {                         
-                        RealHumanSupport._self._head_areaBuffer.SetData(areas.ToArray());
-                        // 셰이더 파라미터 설정
-                        RealHumanSupport._self._mergeComputeShader.SetInt("Width", w);
-                        RealHumanSupport._self._mergeComputeShader.SetInt("Height", h);
-                        RealHumanSupport._self._mergeComputeShader.SetInt("AreaCount", areas.Count);
-                        RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexA", origin_texture);
-                        RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexB", express_texture);
-                        RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "Result", RealHumanSupport._self._head_rt);
-                        RealHumanSupport._self._mergeComputeShader.SetBuffer(kernel, "Areas", RealHumanSupport._self._head_areaBuffer);
-
-                        // Dispatch 실행
-                        RealHumanSupport._self._mergeComputeShader.Dispatch(kernel, Mathf.CeilToInt(w / 8f), Mathf.CeilToInt(h / 8f), 1);
-
-                        // 결과를 바로 Material에 적용 (CPU로 복사 안 함)    
-                        realHumanData.m_skin_head.SetTexture(realHumanData.head_bumpmap_name, RealHumanSupport._self._head_rt);                
-                    }
-                }                
             } 
             else
             {
                 realHumanData.m_skin_head.SetTexture(realHumanData.head_bumpmap_name, realHumanData.headOriginTexture);
             }
         }
-#endif        
+#endif
 
         internal static void SupportBodyBumpEffect(ChaControl chaCtrl, RealHumanData realHumanData)
         {
@@ -1291,7 +1346,7 @@ namespace RealHumanSupport
                         if (angle >= 20.0f) {
                             // 내전근 강조 
                             left_thigh_bk_bs += Math.Min(Remap(angle, 20.0f, 120.0f, 0.2f, 1.0f), 1.0f);
-                            left_thigh_inside_bs += bumpscale * 0.5f;
+                            left_thigh_inside_bs += bumpscale * 0.9f;
                             // 허벅지 open 여부 확인
                         }
                     }
@@ -1310,7 +1365,7 @@ namespace RealHumanSupport
                         if (angle >= 20.0f) {      
                             // 내전근 강조                      
                             right_thigh_bk_bs += Math.Min(Remap(angle, 20.0f, 120.0f, 0.2f, 1.0f), 1.0f);
-                            right_thigh_inside_bs += bumpscale * 0.5f;
+                            right_thigh_inside_bs += bumpscale * 0.9f;
                             // 허벅지 open 여부 확인
                         }
                     }
@@ -1324,10 +1379,10 @@ namespace RealHumanSupport
                         left_thigh_bk_bs += bumpscale * 0.3f;
                         left_thigh_ft_bs += bumpscale * 0.3f;
                         
-                        if (angle >= 110)  {
-                            bumpscale = Math.Min(Remap(angle, 110.0f, 160.0f, 0.2f, 1.0f), 1.0f);
+                        if (angle >= 90)  {
+                            bumpscale = Math.Min(Remap(angle, 90.0f, 160.0f, 0.4f, 1.0f), 1.0f);
                             left_shin += bumpscale * 0.5f;
-                            left_thigh_inside_bs += bumpscale * 0.9f;
+                            left_thigh_inside_bs += bumpscale * 1.0f;
                             left_thigh_bk_bs += bumpscale * 0.5f;
                         }
                     }
@@ -1341,10 +1396,10 @@ namespace RealHumanSupport
                         right_thigh_ft_bs += bumpscale * 0.3f;
                         right_thigh_bk_bs += bumpscale * 0.3f;
 
-                        if (angle >= 110)  {
-                            bumpscale = Math.Min(Remap(angle, 110.0f, 160.0f, 0.2f, 1.0f), 1.0f);
+                        if (angle >= 90)  {
+                            bumpscale = Math.Min(Remap(angle, 90.0f, 160.0f, 0.4f, 1.0f), 1.0f);
                             right_shin += bumpscale * 0.5f;
-                            right_thigh_inside_bs += bumpscale * 0.9f;
+                            right_thigh_inside_bs += bumpscale * 1.0f;
                             right_thigh_bk_bs += bumpscale * 0.5f;
                         }
                     }
@@ -1487,7 +1542,7 @@ namespace RealHumanSupport
                 }                                                       
                 if (left_thigh_inside_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(340, 970, 55, 120, Math.Min(left_thigh_inside_bs, 2.0f))); // 앞 허벅지 인쪽
+                    areas.Add(InitBArea(340, 970, 55, 160, Math.Min(left_thigh_inside_bs, 3.0f))); // 앞 허벅지 인쪽
                 }                 
                 if (left_shin != 0.0f)
                 {
@@ -1495,6 +1550,7 @@ namespace RealHumanSupport
                 }
                 if (left_thigh_bk_bs != 0.0f)
                 { 
+                    areas.Add(InitBArea(265, 780, 40, 140, Math.Min(left_thigh_bk_bs, 2.0f)));  // 전립선 
                     areas.Add(InitBArea(660, 1030, 95, 160, Math.Min(left_thigh_bk_bs, 2.0f))); // 뒷 허벅지                  
                 }                                      
                 if (left_butt_bs != 0.0f)
@@ -1521,7 +1577,8 @@ namespace RealHumanSupport
                 }
                 if (right_thigh_inside_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(180, 970, 55, 120, Math.Min(right_thigh_inside_bs, 2.0f))); // 앞 허벅지 안쪽                          
+                    areas.Add(InitBArea(265, 780, 40, 140, Math.Min(left_thigh_bk_bs, 2.0f))); // 전립선
+                    areas.Add(InitBArea(180, 970, 55, 160, Math.Min(right_thigh_inside_bs, 3.0f))); // 앞 허벅지 안쪽                          
                 } 
                 if (right_shin != 0.0f)
                 {
@@ -1568,7 +1625,7 @@ namespace RealHumanSupport
                     if (RealHumanSupport._self._body_rt == null || RealHumanSupport._self._body_rt.width != w || RealHumanSupport._self._body_rt.height != h)
                     {
                         if (RealHumanSupport._self._body_rt != null) RealHumanSupport._self._body_rt.Release();
-                        RealHumanSupport._self._body_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32);
+                        RealHumanSupport._self._body_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
                         RealHumanSupport._self._body_rt.enableRandomWrite = true;
                         RealHumanSupport._self._body_rt.Create();
                     }
@@ -1670,9 +1727,9 @@ namespace RealHumanSupport
             RenderTexture rt = RenderTexture.GetTemporary(
                 width,
                 height,
-                0,
+                24,
                 RenderTextureFormat.ARGB32
-                // RenderTextureReadWrite.Linear // 검사
+                // RenderTextureReadWrite.Linear
             );
 
             RenderTexture prev = RenderTexture.active;
@@ -1743,7 +1800,7 @@ namespace RealHumanSupport
             return resized;
         }        
 
-        #endregion
+#endregion
     }
 
     // enum BODY_SHADER
@@ -1817,7 +1874,7 @@ namespace RealHumanSupport
 
     class RealHumanData
     {
-        public ChaControl   charControl;
+        public ChaControl charControl;
         public Coroutine coroutine;
 
         public string head_bumpmap_name;
@@ -1901,9 +1958,6 @@ namespace RealHumanSupport
 
         public Transform root_bone;
 
-        public Transform nose_bridge_s;
-        public Transform mouse_l;
-
         public List<DynamicBone> hairDynamicBones = new List<DynamicBone>();
 
         public Dictionary<DynamicBone, Transform> hairTipCache = new Dictionary<DynamicBone, Transform>();
@@ -1945,13 +1999,28 @@ namespace RealHumanSupport
         public Vector3 legLow01_L_basePos;
         public Vector3 legup00_R_basePos;
         public Vector3 legLow01_R_basePos;
+#if FEATURE_EXPRESSION
+        // expression
+        public Transform nose_bridge_s;
+        public Transform mouth_move;
+        public Transform mouth_down;
+        public Transform mouth_l;
+        public Transform mouth_r;
+#endif
 
         public RealHumanData()
         {
         }        
     }
 
-#if FEATURE_STRAPON_SUPPORT  
+    public class ExpressionData
+    {
+        public List<SkinnedMeshRenderer> render = new List<SkinnedMeshRenderer>();
+        public int idx;
+        public string name;
+    }
+
+#if FEATURE_STRAPON_SUPPORT
     public class CapsuleTrigger : MonoBehaviour
     {
         void OnTriggerEnter(Collider other)

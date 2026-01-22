@@ -307,7 +307,7 @@ namespace StudioNeoMaker
 
             static bool Prefix(Studio.BackgroundCtrl __instance, string _file, ref bool __result)
             {
-                UnityEngine.Debug.Log(">> Load in BackgroundCtrl");
+                // UnityEngine.Debug.Log(">> Load in BackgroundCtrl");
 
                 __result = false;
                 cachedBgCtrl = __instance;

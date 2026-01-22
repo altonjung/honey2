@@ -30,7 +30,7 @@
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\bin\HS2\</OutputPath>
-    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX</DefineConstants>
+    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX;FEATURE_FACEBUMP_SUPPORT;FEATURE_EXPRESSION</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -63,6 +63,9 @@
     <Reference Include="HS2_ExtensibleSaveFormat, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\ExtensibleSaveFormat.HoneySelect2.18.2.0\lib\net46\HS2_ExtensibleSaveFormat.dll</HintPath>
       <Private>False</Private>
+    </Reference>
+    <Reference Include="HS2PE">
+      <HintPath>.\HS2PE.dll</HintPath>
     </Reference>
     <Reference Include="HS2_PregnancyPlus">
       <HintPath>.\HS2_PregnancyPlus.dll</HintPath>
@@ -168,7 +171,7 @@
     <Analyzer Include="..\packages\Microsoft.Unity.Analyzers.1.19.0\analyzers\dotnet\cs\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
   <Import Project="..\RealHumanSupport.Core\RealHumanSupport.Core.projitems" Label="Shared" />
-  <Import Project="..\UIUtility\UIUtility.projitems" Label="Shared" />
+  <!-- <Import Project="..\UIUtility\UIUtility.projitems" Label="Shared" /> -->
   <Import Project="..\ToolBox\ToolBox.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
