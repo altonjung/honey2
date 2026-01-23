@@ -866,6 +866,33 @@ namespace RealHumanSupport
                 }
             }
 
+            // FBSTargetInfo[] fbsTargetInfo = charCtrl.fbsCtrl.EyesCtrl.FBSTarget;
+
+            // foreach (FBSTargetInfo fbsTarget in fbsTargetInfo) {
+            //         SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
+
+            //     var mesh = srender.sharedMesh;
+            //     for (int i = 0; i < mesh.blendShapeCount; i++)
+            //     {
+            //         string name = mesh.GetBlendShapeName(i);
+
+            //         UnityEngine.Debug.Log($">> name in EyesCtrl {name}, index {srender.sharedMesh.GetBlendShapeIndex(name)} ");
+            //     }
+            // }
+
+            // fbsTargetInfo = charCtrl.fbsCtrl.MouthCtrl.FBSTarget;
+
+            // foreach (FBSTargetInfo fbsTarget in fbsTargetInfo) {
+            //         SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
+
+            //     var mesh = srender.sharedMesh;
+            //     for (int i = 0; i < mesh.blendShapeCount; i++)
+            //     {
+            //         string name = mesh.GetBlendShapeName(i);
+
+            //         UnityEngine.Debug.Log($">> name in MouthCtrl {name}, index {srender.sharedMesh.GetBlendShapeIndex(name)} ");
+            //     }
+            // }            
             // realHumanData.namida_e04_warai.render.Clear();
             // realHumanData.namida_e05_damage.render.Clear();
             // realHumanData.namida_e06_damage_r.render.Clear();
