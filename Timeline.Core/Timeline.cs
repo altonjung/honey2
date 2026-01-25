@@ -1,4 +1,4 @@
-﻿using Studio;
+using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -69,7 +69,7 @@ namespace Timeline
     {
         #region Constants
         public const string Name = "Timeline";
-        public const string Version = "1.5.4";
+        public const string Version = "1.5.5";
         public const string GUID = "com.joan6694.illusionplugins.timeline";
         internal const string _ownerId = "Timeline";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -425,7 +425,7 @@ namespace Timeline
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyframeDeleteAllShortcut { get; private set; }
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyframeMoveLeftShortcut { get; private set; }
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyframeMoveRightShortcut { get; private set; }       
-        internal static ConfigEntry<int>              ConfigAutogenInterval { get; private set; }
+        internal static ConfigEntry<int>              ConfigAugenFramePerSecond { get; private set; }
 #endif
 
 #if FEATURE_UNDO
@@ -450,27 +450,28 @@ namespace Timeline
             base.Awake();
 
             ConfigMainWindowShortcut = Config.Bind("Config", "Open Timeline UI", new KeyboardShortcut(KeyCode.T, KeyCode.LeftControl));
-            ConfigPlayPauseShortcut = Config.Bind("Config", "Play or Pause Timeline", new KeyboardShortcut(KeyCode.T, KeyCode.LeftShift));
-            ConfigKeyframeCopyShortcut = Config.Bind("Config", "Copy Keyframes", new KeyboardShortcut(KeyCode.C, KeyCode.LeftControl));
-            ConfigKeyframeCutShortcut = Config.Bind("Config", "Cut Keyframes", new KeyboardShortcut(KeyCode.X, KeyCode.LeftControl));
-            ConfigKeyframePasteShortcut = Config.Bind("Config", "PasteKeyframes", new KeyboardShortcut(KeyCode.V, KeyCode.LeftControl));
+            ConfigPlayPauseShortcut = Config.Bind("Config", "Play|Pause Timeline", new KeyboardShortcut(KeyCode.T, KeyCode.LeftShift));
             ConfigAutoplay = Config.Bind("Config", "Autoplay", Autoplay.Ignore);
 
+            ConfigKeyframeCopyShortcut = Config.Bind("ShortKey", "Copy Keyframes", new KeyboardShortcut(KeyCode.C, KeyCode.LeftControl));
+            ConfigKeyframeCutShortcut = Config.Bind("ShortKey", "Cut Keyframes", new KeyboardShortcut(KeyCode.X, KeyCode.LeftControl));
+            ConfigKeyframePasteShortcut = Config.Bind("ShortKey", "PasteKeyframes", new KeyboardShortcut(KeyCode.V, KeyCode.LeftControl));
+
 #if FEATURE_AUTOGEN
-            ConfigKeyframeSelectAllShortcut  = Config.Bind("Config", "Select Keyframes all", new KeyboardShortcut(KeyCode.A, KeyCode.LeftControl));
-            ConfigKeyframeDeleteAllShortcut  = Config.Bind("Config", "Delete Keyframes all", new KeyboardShortcut(KeyCode.Delete));
-            ConfigKeyframeMoveLeftShortcut = Config.Bind("Config", "MoveLeft Keyframes", new KeyboardShortcut(KeyCode.LeftArrow, KeyCode.LeftControl));
-            ConfigKeyframeMoveRightShortcut = Config.Bind("Config", "MoveRight Keyframes", new KeyboardShortcut(KeyCode.RightArrow, KeyCode.LeftControl));            
-            ConfigAutogenInterval = Config.Bind("Config", "Generating Interval",5, "3,5,7");
+            ConfigKeyframeSelectAllShortcut  = Config.Bind("ShortKey", "Select Keyframes all", new KeyboardShortcut(KeyCode.A, KeyCode.LeftControl));
+            ConfigKeyframeDeleteAllShortcut  = Config.Bind("ShortKey", "Delete Keyframes all", new KeyboardShortcut(KeyCode.Delete));
+            ConfigKeyframeMoveLeftShortcut = Config.Bind("ShortKey", "MoveLeft Keyframes", new KeyboardShortcut(KeyCode.LeftArrow, KeyCode.LeftControl));
+            ConfigKeyframeMoveRightShortcut = Config.Bind("ShortKey", "MoveRight Keyframes", new KeyboardShortcut(KeyCode.RightArrow, KeyCode.LeftControl));            
+            ConfigAugenFramePerSecond = Config.Bind("Autogen", "Generating FPS", 5, new ConfigDescription("Frame Per Second", new AcceptableValueRange<int>(1, 30)));
 #endif
 
 #if FEATURE_UNDO
-            ConfigKeyframeUndoShortcut  = Config.Bind("Config", "Undo", new KeyboardShortcut(KeyCode.U, KeyCode.LeftControl));
-            ConfigKeyframeRedoShortcut  = Config.Bind("Config", "Redo", new KeyboardShortcut(KeyCode.Y, KeyCode.LeftControl));
+            ConfigKeyframeUndoShortcut  = Config.Bind("Rollback", "Undo", new KeyboardShortcut(KeyCode.U, KeyCode.LeftControl));
+            ConfigKeyframeRedoShortcut  = Config.Bind("Rollback", "Redo", new KeyboardShortcut(KeyCode.Y, KeyCode.LeftControl));
 #if FEATURE_PUBLIC            
-            ConfigKeyEnableUndoRedo = Config.Bind("Enable", $"Undo/Redo", true, "If this is enabled, undo/redo activated limit 3"); 
+            ConfigKeyEnableUndoRedo = Config.Bind("Active", $"Undo/Redo", true, "If this is enabled, undo/redo activated limit 3"); 
 #else
-            ConfigKeyEnableUndoRedo = Config.Bind("Enable", $"Undo/Redo", true, "If this is enabled, undo/redo activated limit 10");
+            ConfigKeyEnableUndoRedo = Config.Bind("Active", $"Undo/Redo", true, "If this is enabled, undo/redo activated limit 10");
 #endif
 #endif
             _self = this;
@@ -2181,7 +2182,7 @@ namespace Timeline
 #endif
                                         float time = _playbackTime % _duration;
                                         foreach (Interpolable selectedInterpolable in currentlySelectedInterpolables)
-                                            AddKeyframe(selectedInterpolable, time);
+                                            AddKeyframev2(selectedInterpolable, time);
 
                                         UpdateGrid();
                                     }
@@ -2442,7 +2443,7 @@ namespace Timeline
                                         _interpolablesTree.Recurse(display.group, (n, d) =>
                                         {
                                             if (n.type == INodeType.Leaf)
-                                                AddKeyframe(((LeafNode<Interpolable>)n).obj, time);
+                                                AddKeyframev2(((LeafNode<Interpolable>)n).obj, time);
                                         });
                                         UpdateGrid();
                                     }
@@ -3219,7 +3220,7 @@ namespace Timeline
                         UndoPushAction();
 #endif
                         foreach (Interpolable selectedInterpolable in _selectedInterpolables)
-                            AddKeyframe(selectedInterpolable, time);
+                            AddKeyframev2(selectedInterpolable, time);
                         
                         UpdateGrid();
                     }
@@ -3270,7 +3271,7 @@ namespace Timeline
 #if FEATURE_UNDO
                                     UndoPushAction();
 #endif
-                                    AddKeyframe(interpolable, time);
+                                    AddKeyframev2(interpolable, time);
                                     UpdateGrid();
                                 }
 #else
@@ -3315,10 +3316,6 @@ namespace Timeline
 #endif
                         Pause();
 
-                        if (ConfigAutogenInterval.Value != 3 && ConfigAutogenInterval.Value != 5 && ConfigAutogenInterval.Value != 7) {
-                            ConfigAutogenInterval.Value = 5;
-                        }
-
                         float _keyframe = 0.0f;
                         int _animation_cnt = 0;
                         List<object> prevInterpolableValues = new List<object>();
@@ -3337,28 +3334,36 @@ namespace Timeline
                                 
                                 if (a1 is System.Single[] arr && a2 is System.Single[] arrOther) {
                                     if (!arr.SequenceEqual(arrOther)) {
-                                        AddKeyframe(enabledInterpolables[idx], startTime); 
+                                        AddKeyframev2(enabledInterpolables[idx], startTime); 
                                     }
                                 } else {
                                     if (!a1.Equals(a2)) {
-                                        AddKeyframe(enabledInterpolables[idx], startTime);
+                                        AddKeyframev2(enabledInterpolables[idx], startTime);
                                     }
                                 }
                             }    
 
-                        } else if (_currentAutogenAnimType == AutoGenAnimType.EMBED_ANIM) {
-                            OICharInfo.AnimeInfo _aniInfo = _character.oiCharInfo.animeInfo;                  
+                        } 
+                        else if (_currentAutogenAnimType == AutoGenAnimType.EMBED_ANIM)
+                        {
+                            OICharInfo.AnimeInfo _aniInfo = _character.oiCharInfo.animeInfo;
                             Animator _animator = _character.charAnimeCtrl.animator;
 
                             // speed set to none-zero
                             AnimatorStateInfo stateInfo = _animator.GetCurrentAnimatorStateInfo(0);
                             if (stateInfo.loop == true)
                             {
-                                Logger.LogMessage($"Start Generating for loop");
-                                List < KeyValuePair<float, Keyframe>> generatedKeyPairs = new List<KeyValuePair<float, Keyframe>>();
+                                Logger.LogMessage($"Start Generating for loop at FPS {ConfigAugenFramePerSecond.Value}");
+
+                                List<KeyValuePair<float, Keyframe>> generatedKeyPairs =
+                                    new List<KeyValuePair<float, Keyframe>>();
 
                                 Stopwatch stopWatch = new Stopwatch();
                                 Stopwatch idleWatch = new Stopwatch();
+
+                                // FPS 기반 캡처를 위한 시간 누적 변수
+                                float captureInterval = 1f / ConfigAugenFramePerSecond.Value;
+                                float captureTimer = 0f;
 
                                 reflectAnimationToFKIK();
                                 yield return new WaitForEndOfFrame();
@@ -3367,34 +3372,44 @@ namespace Timeline
                                 yield return new WaitForEndOfFrame();
 
                                 // 초기 프레임 저장 및 이전 상태 생성
-                                prevInterpolableValues.AddRange(GetCurrentValueFromInterpolables(enabledInterpolables));
-                                generatedKeyPairs.AddRange(AddKeyframes(enabledInterpolables, startTime));
+                                prevInterpolableValues.AddRange(
+                                    GetCurrentValueFromInterpolables(enabledInterpolables)
+                                );
+                                generatedKeyPairs.AddRange(
+                                    AddKeyframes(enabledInterpolables, startTime)
+                                );
 
                                 while (isAutoGenerating)
                                 {
-                                    // Studio.Studio.Instance.manipulatePanelCtrl.active = true;
-
                                     reflectAnimationToFKIK();
                                     yield return new WaitForEndOfFrame();
 
-                                    if (_animation_cnt % ConfigAutogenInterval.Value == 0)
+                                    // ===== 수정된 핵심 로직 =====
+                                    captureTimer += Time.deltaTime;
+
+                                    if (captureTimer >= captureInterval)
                                     {
+                                        captureTimer -= captureInterval; // 누적 오차 방지
+
                                         if (stopWatch.ElapsedMilliseconds > 0.0f)
                                         {
-                                            _keyframe = startTime + stopWatch.ElapsedMilliseconds / 1000.0f;
+                                            _keyframe = startTime +
+                                                        stopWatch.ElapsedMilliseconds / 1000.0f;
 
                                             int genCount = generatedKeyPairs.Count;
+
                                             for (int idx = 0; idx < enabledInterpolables.Count; idx++)
                                             {
-
                                                 object a1 = enabledInterpolables[idx].GetValue();
                                                 object a2 = prevInterpolableValues[idx];
 
-                                                if (a1 is System.Single[] arr && a2 is System.Single[] arrOther)
+                                                if (a1 is float[] arr && a2 is float[] arrOther)
                                                 {
                                                     if (!arr.SequenceEqual(arrOther))
                                                     {
-                                                        generatedKeyPairs.Add(AddKeyframe(enabledInterpolables[idx], _keyframe));
+                                                        generatedKeyPairs.Add(
+                                                            AddKeyframev2(enabledInterpolables[idx], _keyframe)
+                                                        );
                                                         prevInterpolableValues[idx] = a1;
                                                     }
                                                 }
@@ -3402,32 +3417,35 @@ namespace Timeline
                                                 {
                                                     if (!a1.Equals(a2))
                                                     {
-                                                        generatedKeyPairs.Add(AddKeyframe(enabledInterpolables[idx], _keyframe));
+                                                        generatedKeyPairs.Add(
+                                                            AddKeyframev2(enabledInterpolables[idx], _keyframe)
+                                                        );
                                                         prevInterpolableValues[idx] = a1;
                                                     }
                                                 }
                                             }
 
-                                            if (idleWatch.ElapsedMilliseconds == 0.0f || genCount < generatedKeyPairs.Count)
+                                            if (idleWatch.ElapsedMilliseconds == 0.0f ||
+                                                genCount < generatedKeyPairs.Count)
                                             {
                                                 idleWatch.Reset();
                                                 idleWatch.Start();
                                             }
 
-                                            if (idleWatch.ElapsedMilliseconds / 1000.0f > 3.5)
+                                            if (idleWatch.ElapsedMilliseconds / 1000.0f > 3.5f)
                                             {
                                                 isAutoGenerating = false;
                                             }
                                         }
                                         else
                                         {
+                                            // 최초 움직임 감지
                                             for (int idx = 0; idx < enabledInterpolables.Count; idx++)
                                             {
-
                                                 object a1 = enabledInterpolables[idx].GetValue();
                                                 object a2 = prevInterpolableValues[idx];
 
-                                                if (a1 is System.Single[] arr && a2 is System.Single[] arrOther)
+                                                if (a1 is float[] arr && a2 is float[] arrOther)
                                                 {
                                                     if (!arr.SequenceEqual(arrOther))
                                                     {
@@ -3448,8 +3466,6 @@ namespace Timeline
 
                                         UpdateGrid();
                                     }
-
-                                    _animation_cnt++;
                                 }
 
                                 idleWatch.Stop();
@@ -3497,14 +3513,14 @@ namespace Timeline
                                             {
                                                 if (!arr.SequenceEqual(arrOther))
                                                 {
-                                                    AddKeyframe(enabledInterpolables[idx], _keyframe);
+                                                    AddKeyframev2(enabledInterpolables[idx], _keyframe);
                                                 }
                                             }
                                             else
                                             {
                                                 if (!a1.Equals(a2))
                                                 {
-                                                    AddKeyframe(enabledInterpolables[idx], _keyframe);
+                                                    AddKeyframev2(enabledInterpolables[idx], _keyframe);
                                                 }
                                             }
                                         }
@@ -3512,7 +3528,7 @@ namespace Timeline
                                     }
                                     else
                                     {
-                                        if (_animation_cnt % ConfigAutogenInterval.Value == 0)
+                                        if (_animation_cnt % ConfigAugenFramePerSecond.Value == 0)
                                         {
                                             _currentNormalizedTime = stateInfo.normalizedTime % 1.0f;
                                             _keyframe = startTime + _currentNormalizedTime * stateInfo.length;
@@ -3526,7 +3542,7 @@ namespace Timeline
                                                 {
                                                     if (!arr.SequenceEqual(arrOther))
                                                     {
-                                                        AddKeyframe(enabledInterpolables[idx], _keyframe);
+                                                        AddKeyframev2(enabledInterpolables[idx], _keyframe);
                                                         prevInterpolableValues[idx] = a1;
                                                     }
                                                 }
@@ -3534,7 +3550,7 @@ namespace Timeline
                                                 {
                                                     if (!a1.Equals(a2))
                                                     {
-                                                        AddKeyframe(enabledInterpolables[idx], _keyframe);
+                                                        AddKeyframev2(enabledInterpolables[idx], _keyframe);
                                                         prevInterpolableValues[idx] = a1;
                                                     }
                                                 }
@@ -3885,7 +3901,7 @@ namespace Timeline
         }
 #endif
 #if FEATURE_AUTOGEN
-        private KeyValuePair<float, Keyframe> AddKeyframe(Interpolable interpolable, float time)
+        private KeyValuePair<float, Keyframe> AddKeyframev2(Interpolable interpolable, float time)
         {
             Keyframe keyframe;
             KeyValuePair<float, Keyframe> keyValuePair = new KeyValuePair<float, Keyframe>(0f, null);
@@ -3905,6 +3921,25 @@ namespace Timeline
             }
 
             return keyValuePair;
+        }
+
+        private void AddKeyframe(Interpolable interpolable, float time)
+        {
+            try
+            {
+                Keyframe keyframe;
+                KeyValuePair<float, Keyframe> pair = interpolable.keyframes.LastOrDefault(k => k.Key < time);
+                if (pair.Value != null)
+                    keyframe = new Keyframe(interpolable.GetValue(), interpolable, new AnimationCurve(pair.Value.curve.keys));
+                else
+                    keyframe = new Keyframe(interpolable.GetValue(), interpolable, AnimationCurve.Linear(0f, 0f, 1f, 1f));
+                interpolable.keyframes.Add(time, keyframe);
+                UpdateGrid();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError("couldn't add keyframe to interpolable with value:" + interpolable + "\n" + e);
+            }
         }
 #else
         private void AddKeyframe(Interpolable interpolable, float time)
