@@ -54,9 +54,13 @@ namespace StudioNeoMaker
     {
         #region Constants
         public const string Name = "StudioNeoMaker";
-        public const string Version = "0.9.0.1";
+        public const string Version = "0.9.0.2";
         public const string GUID = "com.alton.illusionplugins.StudioNeoMaker";
         internal const string _ownerId = "Alton";
+#if KOIKATSU || AISHOUJO || HONEYSELECT2
+        private const int _saveVersion = 0;
+        private const string _extSaveKey2 = "videoBGSscene";
+#endif
         #endregion
 
 #if IPA
@@ -104,6 +108,10 @@ namespace StudioNeoMaker
 
             var harmonyInstance = HarmonyExtensions.CreateInstance(GUID);
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
+
+            // ExtensibleSaveFormat.ExtendedSave.SceneBeingLoaded += OnSceneLoad;
+            // ExtensibleSaveFormat.ExtendedSave.SceneBeingImported += OnSceneImport;
+            // ExtensibleSaveFormat.ExtendedSave.SceneBeingSaved += OnSceneSave;
         }
 
 #if SUNSHINE || HONEYSELECT2 || AISHOUJO
@@ -131,6 +139,18 @@ namespace StudioNeoMaker
         {
             StopFrameVideoIfPlaying();
             SetupBgVideoPlayer();
+        }
+
+        private void OnSceneSave(string path)
+        {   
+        }
+
+        private void OnSceneLoad(string path)
+        {   
+        }
+            
+        private void OnSceneImport(string path)
+        {         
         }
 
         #endregion
@@ -174,7 +194,7 @@ namespace StudioNeoMaker
 
         static void OnFrameVideoPrepared(UnityEngine.Video.VideoPlayer vp)
         {
-            if (cachedFrameCtrl == null || frameVideoRT == null)
+            if (cachedFrameCtrl == null && frameVideoRT != null)
                 return;
 
             cachedFrameCtrl.imageFrame.texture = frameVideoRT;
@@ -354,7 +374,7 @@ namespace StudioNeoMaker
                 // =========================
                 // VIDEO
                 // =========================
-                else if (ext == ".mp4" || ext == ".webm" || ext == ".ogv")
+                else if (ext == ".mp4" || ext == ".webm")
                 {
                     SetupBgVideoPlayer();
 
@@ -380,17 +400,24 @@ namespace StudioNeoMaker
                         bgVideoPlayer.Prepare();
                     } catch
                     {
-                        Logger.LogMessage($"mp4 and webm(v8) only support");
+                        Logger.LogMessage($"only mp4 support");
+                        __result = false;
                     }
 
                     __instance.isVisible = true;
                     __result = true;
+                } else
+                {
+                    Logger.LogMessage($"png or mp4 only support");
+                    __result = false;
                 }
 
-                Singleton<Studio.Studio>.Instance.sceneInfo.background = _file;
+                if (__result) {
+                    Singleton<Studio.Studio>.Instance.sceneInfo.background = _file;
 
-                Resources.UnloadUnusedAssets();
-                GC.Collect();
+                    Resources.UnloadUnusedAssets();
+                    GC.Collect();
+                }
 
                 return false;
             }
@@ -447,7 +474,7 @@ namespace StudioNeoMaker
                 // =========================
                 // VIDEO
                 // =========================
-                else if (ext == ".mp4" || ext == ".webm" || ext == ".ogv")
+                else if (ext == ".webm")
                 {
                     SetupFrameVideoPlayer(__instance.cameraUI);
 
@@ -470,17 +497,26 @@ namespace StudioNeoMaker
                     frameVideoPlayer.prepareCompleted += OnFrameVideoPrepared;
                     try {
                         frameVideoPlayer.Prepare();
-                    } catch
-                    {
-                        Logger.LogMessage($"mp4 and webm(v8) only support");
                     }
+                    catch (Exception e)
+                    {
+                        Logger.LogMessage($"only webm(vp8) support");
+                        __result = false;
+                    }
+
                     __result = true;
+                } else
+                {
+                    Logger.LogMessage($"png or webm(vp8) only support");
+                    __result = false;
                 }
 
-                Singleton<Studio.Studio>.Instance.sceneInfo.frame = _file;
+                if (__result) {
+                    Singleton<Studio.Studio>.Instance.sceneInfo.background = _file;
 
-                Resources.UnloadUnusedAssets();
-                GC.Collect();
+                    Resources.UnloadUnusedAssets();
+                    GC.Collect();
+                }
 
                 return false;
             }
