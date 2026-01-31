@@ -1,4 +1,4 @@
-﻿﻿using Studio;
+using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -84,8 +84,6 @@ namespace RealHumanSupport
         #region Private Types
 
         enum WinkState { Idle, Playing }
-        enum KissState { Idle, Playing }
-
         #endregion
 
         #region Private Variables
@@ -102,8 +100,7 @@ namespace RealHumanSupport
 
 
         private WinkState _winkState = WinkState.Idle;
-        private KissState _kissState = KissState.Idle;
-
+        
         float _winkTime = 0f;
         float _kissTime = 0f;
         float _mouthPhase = 0f;
@@ -116,6 +113,8 @@ namespace RealHumanSupport
         internal Texture2D _bodyStrongFemale_A_BumpMap2;
 
         internal Texture2D _bodyStrongMale_A_BumpMap2;
+
+        internal Texture2D _TearDropImg;
 
         internal ComputeShader _mergeComputeShader;
 
@@ -134,8 +133,6 @@ namespace RealHumanSupport
         internal float _expressionTimer = 0f;
         internal const float _ExpressionInterval = 0.1f;
         internal float _winkValue = 0f;
-        internal float _kissValue = 0f;
-        internal bool  _kissActive = false;
 
 
         internal Dictionary<int, RealHumanData> _ociCharMgmt = new Dictionary<int, RealHumanData>();
@@ -148,15 +145,12 @@ namespace RealHumanSupport
         #region Accessors
         internal static ConfigEntry<KeyboardShortcut> ConfigWinkShortcut { get; private set; }
 
-        internal static ConfigEntry<KeyboardShortcut> ConfigKissShortcut { get; private set; }
-
+        internal static ConfigEntry<bool> TearDropActive { get; private set; }
         internal static ConfigEntry<bool> EyeShakeActive { get; private set; }
 
         internal static ConfigEntry<bool> ExBoneColliderActive { get; private set; }
 
         internal static ConfigEntry<bool> BreathActive { get; private set; }
-
-        internal static ConfigEntry<bool> TearDropActive { get; private set; }
 
         internal static ConfigEntry<bool> FaceBlendingActive { get; private set; }
 
@@ -177,9 +171,7 @@ namespace RealHumanSupport
         {
             base.Awake();
 
-            ConfigWinkShortcut = Config.Bind("Studio/InGame", "Toggle Wink", new KeyboardShortcut(KeyCode.W,  KeyCode.LeftControl));
-
-            ConfigKissShortcut = Config.Bind("Studio/InGame", "Toggle Kiss", new KeyboardShortcut(KeyCode.K,  KeyCode.LeftControl));
+            ConfigWinkShortcut = Config.Bind("Expresison", "Toggle Wink", new KeyboardShortcut(KeyCode.W,  KeyCode.LeftControl));
 
             EyeShakeActive = Config.Bind("Studio/InGame", "Eye Shaking", true, new ConfigDescription("Enable/Disable"));
 
@@ -254,6 +246,7 @@ namespace RealHumanSupport
             _bodyStrongFemale_A_BumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_F_BumpMap2");
             _bodyStrongMale_A_BumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_M_BumpMap2");
 
+            _TearDropImg = _bundle.LoadAsset<Texture2D>("teardrop");
 #if FEATURE_FACEBUMP_SUPPORT               
             _faceExpressionFemaleBumpMap2 = _bundle.LoadAsset<Texture2D>("Face_Expression_F_BumpMap2");
             _faceExpressionMaleBumpMap2 = _bundle.LoadAsset<Texture2D>("Face_Expression_M_BumpMap2");
@@ -334,20 +327,25 @@ namespace RealHumanSupport
             }
         }
 
-        private IEnumerator RoutineForStudio(RealHumanData realHumanData)
+        private IEnumerator RoutineForBody(RealHumanData realHumanData)
         {
             float tearValue = 0;
             float refValue = 0;
             bool tearIncreasing = true;
             bool refIncreasing = true;
 
-            PregnancyPlusCharaController pregnantChaController = realHumanData.charControl.GetComponent<KK_PregnancyPlus.PregnancyPlusCharaController>();
-            float initBellySize = pregnantChaController.infConfig.inflationSize;
-            
+            float previosBellySize = 0.0f;
+            float initBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
+
             while (true)
             {
                 if (_loaded == true)
                 {
+                    if (realHumanData.coroutine_pause)
+                    {
+                        yield return null;
+                    }
+
                     float time = Time.time;
                     if (EyeShakeActive.Value)
                     {
@@ -368,13 +366,30 @@ namespace RealHumanSupport
                     
                     if (BreathActive.Value)
                     {
-                        if (pregnantChaController != null)
-                        {
-                            float sinValue = (Mathf.Sin(time * BreathInterval.Value) + 1f) * 0.5f;
-                        
-                            pregnantChaController.infConfig.SetSliders(BellyTemplate.GetTemplate(0));
-                            pregnantChaController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * BreathStrong.Value;
-                            pregnantChaController.MeshInflate(new MeshInflateFlags(pregnantChaController), "StudioSlider");
+                        if (realHumanData.pregnancyController != null)
+                        {   
+                            if(previosBellySize != realHumanData.pregnancyController.infConfig.inflationSize)
+                            {
+                                initBellySize = previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
+
+                                if (initBellySize > 30.0f)
+                                {
+                                    initBellySize = 30.0f;
+                                }
+                            } else
+                            {
+                                float sinValue = (Mathf.Sin(time * BreathInterval.Value) + 1f) * 0.5f;
+
+                                if (realHumanData.cloth_changed)
+                                {
+                                    realHumanData.pregnancyController.infConfig.inflationRoundness += 0.0001f;
+                                    realHumanData.cloth_changed = false;
+                                }
+
+                                realHumanData.pregnancyController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * BreathStrong.Value;
+                                realHumanData.pregnancyController.MeshInflate(new MeshInflateFlags(realHumanData.pregnancyController), "StudioSlider");
+                                previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
+                            }
                         }
                     }
 
@@ -425,118 +440,6 @@ namespace RealHumanSupport
             }
         }    
 
-        private IEnumerator RoutineForInGame(RealHumanData realHumanData)
-        {
-
-            float tearValue = 0;
-            float refValue = 0;
-            bool tearIncreasing = true;
-            bool refIncreasing = true;
-
-            PregnancyPlusCharaController pregnantChaController = realHumanData.charControl.GetComponent<KK_PregnancyPlus.PregnancyPlusCharaController>();
-            float initBellySize = pregnantChaController.infConfig.inflationSize;
-
-            while (true)
-            {
-                if (_loaded == true)
-                {
-                    float time = Time.time;
-
-                    // eye shaking
-                    {
-                        foreach (Material mat in realHumanData.c_m_eye)
-                        {
-                            // sin 파형 (0 ~ 1로 정규화)
-                            float easedBump = (Mathf.Sin(time * Mathf.PI * 3.5f * 2f) + 1f) * 0.5f;
-
-                            float eyeScale = Mathf.Lerp(0.18f, 0.21f, easedBump);
-                            mat.SetFloat("_Texture4Rotator", eyeScale);
-
-                            eyeScale = Mathf.Lerp(0.1f, 0.2f, easedBump);
-                            mat.SetFloat("_Parallax", eyeScale);
-                        }
-                    }
-
-                    // belly bumping
-                    if (BreathActive.Value)
-                    {
-                        if (pregnantChaController != null)
-                        {
-                            float sinValue = (Mathf.Sin(time * BreathInterval.Value) + 1f) * 0.5f;
-                        
-                            pregnantChaController.infConfig.SetSliders(BellyTemplate.GetTemplate(0));
-                            pregnantChaController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * BreathStrong.Value;
-                            pregnantChaController.MeshInflate(new MeshInflateFlags(pregnantChaController), "StudioSlider");
-                        }
-                    }
-
-                    // tear drop
-                    if (realHumanData.shouldTearing)
-                    {
-                       float deltaTear = Time.deltaTime / 10f; // ← 여기만 수정 (10초)
-                        float deltaRef = Time.deltaTime / 10f; // ← 여기만 수정 (10초)
-
-                        if (tearIncreasing)
-                        {
-                            tearValue += deltaTear;
-                            if (tearValue >= 1f)
-                            {
-                                tearValue = 1f;
-                                tearIncreasing = false;
-                            }
-                        }
-                        else
-                        {
-                            tearValue -= deltaTear;
-                            if (tearValue <= 0f)
-                            {
-                                tearValue = 0f;
-                                tearIncreasing = true;
-                            }
-                        }
-                        float tearSin = Mathf.Sin(tearValue * Mathf.PI);
-
-                        if (refIncreasing)
-                        {
-                            refValue += deltaRef;
-                            if (refValue >= 1f)
-                            {
-                                refValue = 1f;
-                                refIncreasing = false;
-                            }
-                        }
-                        else
-                        {
-                            refValue -= deltaRef;
-                            if (refValue <= 0f)
-                            {
-                                refValue = 0f;
-                                refIncreasing = true;
-                            }
-                        }
-
-                        float refSin = Mathf.Sin(deltaRef * Mathf.PI);
-
-                        //  ---------------- 눈물 생성 ----------------
-                        realHumanData.m_tear_eye.SetFloat("_NamidaScale", tearSin);
-                        realHumanData.m_tear_eye.SetFloat("_RefractionScale", refSin);                        
-
-                        // ---------------- 눈 흔들림 ----------------
-
-                        float amplitude = 0.001f; // HS2 기준, 필요하면 조절
-                        float easedBump = (Mathf.Sin(time * Mathf.PI * 4.5f * 2f) + 1f) * 0.5f;
-                        float yOffset = (easedBump - 0.5f) * 1.5f * amplitude; // -amp ~ +amp
-                    }
-
-                    yield return null;
-                }
-                else
-                {
-                    yield return new WaitForSeconds(1);
-                }
-            }
-        }    
-
         private IEnumerator ExecuteAfterFrame(ChaControl chaControl, RealHumanData realHumanData)
         {
             int frameCount = 30;
@@ -549,6 +452,15 @@ namespace RealHumanSupport
 #if FEATURE_FACEBUMP_SUPPORT            
             Logic.SupportFaceBumpEffect(chaControl, realHumanData);
 #endif            
+
+            // MeshInflateFlags meshInflateFlags = new MeshInflateFlags(realHumanData.pregnancyController);
+            // // meshInflateFlags.freshStart = true;
+            // // realHumanData.pregnancyController.infConfig.inflationMultiplier += 0.0001f;
+            //     realHumanData.pregnancyController.infConfig.SetSliders(BellyTemplate.GetTemplate(0));
+            // realHumanData.pregnancyController.MeshInflate(meshInflateFlags, "StudioSlider"); 
+
+                // UnityEngine.Debug.Log($">> realHumanData.m_skin_body {realHumanData.m_skin_body}");
+
         }        
 
         #endregion
@@ -579,8 +491,6 @@ namespace RealHumanSupport
                     {                    
                         if (realHumanData.coroutine != null)
                         {
-                            ociChar.GetChaControl().StopCoroutine(realHumanData.coroutine);
-                            realHumanData.coroutine = ociChar.charInfo.StartCoroutine(_self.RoutineForStudio(realHumanData));
                             ociChar.GetChaControl().StartCoroutine(_self.ExecuteAfterFrame(ociChar.GetChaControl(), realHumanData));
                         }
                     }
@@ -591,7 +501,7 @@ namespace RealHumanSupport
 
                         if (realHumanData2 != null)
                         {
-                            realHumanData2.coroutine = ociChar.charInfo.StartCoroutine(_self.RoutineForStudio(realHumanData2));                    
+                            realHumanData2.coroutine = ociChar.charInfo.StartCoroutine(_self.RoutineForBody(realHumanData2));                    
                             _self._ociCharMgmt.Add(ociChar.GetChaControl().GetHashCode(), realHumanData2);
                             ociChar.GetChaControl().StartCoroutine(_self.ExecuteAfterFrame(ociChar.GetChaControl(), realHumanData2));
                         } else
@@ -605,16 +515,6 @@ namespace RealHumanSupport
             }
         }
     
-        // [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnDeselectSingle), typeof(TreeNodeObject))]
-        // internal static class WorkspaceCtrl_OnDeselectSingle_Patches
-        // {
-        //     private static bool Prefix(object __instance, TreeNodeObject _node)
-        //     {
-        //         _self._selectedOCI = null;
-        //         return true;
-        //     }
-        // }
-
         [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnDeleteNode), typeof(TreeNodeObject))]
         internal static class WorkspaceCtrl_OnDeleteNode_Patches
         {
@@ -635,7 +535,6 @@ namespace RealHumanSupport
                         ociChar.GetChaControl().StopCoroutine(realHumanData.coroutine);
                     }
                     realHumanData.c_m_eye.Clear();
-
                     _self._ociCharMgmt.Remove(ociChar.GetChaControl().GetHashCode());
                 }
                     
@@ -654,21 +553,15 @@ namespace RealHumanSupport
                 {                    
                     if (_self._ociCharMgmt.TryGetValue(__instance.GetChaControl().GetHashCode(), out var realHumanData))
                     {
-                        _self._ociCharMgmt.Remove(__instance.GetChaControl().GetHashCode());
-                        if (realHumanData.coroutine != null)
-                        {
-                            __instance.charInfo.StopCoroutine(realHumanData.coroutine);
-                        }
+                        realHumanData.coroutine_pause = true;
                         realHumanData.c_m_eye.Clear();
+                        // 재 추가 
+                        realHumanData = Logic.InitRealHumanData(__instance.GetChaControl(), realHumanData);
 
-                        RealHumanData realHumanData2 = new RealHumanData();
-                        realHumanData2 = Logic.InitRealHumanData(__instance.GetChaControl(), realHumanData2);
-
-                        if (realHumanData2 != null)
+                        if (realHumanData != null)
                         {
-                            realHumanData2.coroutine = __instance.charInfo.StartCoroutine(_self.RoutineForStudio(realHumanData2));     
-                            _self._ociCharMgmt.Add(__instance.GetChaControl().GetHashCode(), realHumanData2);
-                            __instance.charInfo.StartCoroutine(_self.ExecuteAfterFrame(__instance.GetChaControl(), realHumanData2));
+                            realHumanData.coroutine_pause = false;
+                            __instance.charInfo.StartCoroutine(_self.ExecuteAfterFrame(__instance.GetChaControl(), realHumanData));
                         } else
                         {
                             Logger.LogMessage($"Body skin not has bumpmap2");
@@ -680,7 +573,22 @@ namespace RealHumanSupport
             }
         }
 
-    
+        [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
+        internal static class ChaControl_SetAccessoryStateAll_Patches
+        {
+            public static void Postfix(ChaControl __instance, bool show)
+            {
+
+                if (__instance != null)
+                {                    
+                    if (_self._ociCharMgmt.TryGetValue(__instance.GetHashCode(), out var realHumanData))
+                    {
+                        realHumanData.cloth_changed = true;
+                    }            
+                }
+            }
+        }
+
         // 눈물 흘릴 시 마다
         [HarmonyPatch(typeof(AIChara.ChaControl), "ChangeTearsRate", typeof(float))]
         private static class ChaControl_ChangeTearsRate_Patches
@@ -689,6 +597,7 @@ namespace RealHumanSupport
             {
                 if (_self._ociCharMgmt.TryGetValue(__instance.GetHashCode(), out var realHumanData))
                 {
+                    
                    realHumanData.shouldTearing = true;
                 }
                 return true;
@@ -779,218 +688,102 @@ namespace RealHumanSupport
                     {
                         var cha = ociChar.GetChaControl();
 
-                        if (ConfigWinkShortcut.Value.IsDown() && _self._winkState == WinkState.Idle)
+                        if (_self._ociCharMgmt.TryGetValue(cha.GetHashCode(), out var realHumanData))
                         {
-                            _self._winkState = WinkState.Playing;
-                            _self._winkTime = 0f;
-                            // cha.ChangeMouthPtn(5, true);
-                        }
-                        if (ConfigKissShortcut.Value.IsDown())
-                        {
-                            if (_self._kissState == KissState.Idle)
+                            if (ConfigWinkShortcut.Value.IsDown() && _self._winkState == WinkState.Idle)
                             {
-                                _self._kissState = KissState.Playing;
-                                _self._kissTime = 0f;
-                                _self._mouthPhase = 0f;                               
-                            }
-                            else
-                            {
-                                _self._kissState = KissState.Idle;
-                                cha.ChangeMouthPtn(0, true);
-                            }
-                        }
-
-                        if (_self._winkState == WinkState.Playing)
-                        {
-                            _self._winkTime += Time.deltaTime;
-
-                            const float CLOSE_TIME = 0.3f;
-                            const float HOLD_TIME  = 1.0f;
-                            const float TOTAL_TIME = CLOSE_TIME + HOLD_TIME;
-
-                            float weight = 80f;
-
-                            if (_self._winkTime < CLOSE_TIME)
-                            {
-                                // 천천히 감김
-                                float t = Mathf.Clamp01(_self._winkTime / CLOSE_TIME);
-                                weight = Mathf.SmoothStep(0f, 95f, t);
-                            }
-
-                            if (_self._winkTime >= TOTAL_TIME)
-                            {
-                                weight = 0f;
-                                _self._winkState = WinkState.Idle;
+                                _self._winkState = WinkState.Playing;
                                 _self._winkTime = 0f;
+                                // cha.ChangeMouthPtn(5, true);
+                            }
 
-                                cha.ChangeMouthPtn(1, true);                                
-                            }                                    
-
-                            foreach (var fbsTarget in __instance.EyesCtrl.FBSTarget)
+                            if (_self._winkState == WinkState.Playing)
                             {
-                                SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
-                                var mesh = srender.sharedMesh;      
-                                if (mesh &&  mesh.blendShapeCount > 0)
+                                _self._winkTime += Time.deltaTime;
+
+                                const float CLOSE_TIME = 0.3f;
+                                const float HOLD_TIME  = 1.0f;
+                                const float TOTAL_TIME = CLOSE_TIME + HOLD_TIME;
+
+                                float weight = 80f;
+
+                                if (_self._winkTime < CLOSE_TIME)
                                 {
-                                    string name = mesh.GetBlendShapeName(0);
-                                    if (name.Contains("head"))
-                                    {
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                                .SetBlendShapeWeight(1, 0f); // 눈감김 원천 봉쇄
-
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                            .SetBlendShapeWeight(10, weight);                                        
-                                    } else if (name.Contains("namida"))
-                                    {
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                                .SetBlendShapeWeight(1, 0f); // 눈감김 원천 봉쇄
-
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                            .SetBlendShapeWeight(10, weight);                                          
-                                        
-                                    } else 
-                                    {
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                                .SetBlendShapeWeight(0, 0f); // 눈감김 원천 봉쇄
-
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                            .SetBlendShapeWeight(9, weight);                                          
-                                    }
+                                    // 천천히 감김
+                                    float t = Mathf.Clamp01(_self._winkTime / CLOSE_TIME);
+                                    weight = Mathf.SmoothStep(0f, 95f, t);
                                 }
-                            }        
-                                // //입모양
-                            foreach (var fbsTarget in __instance.MouthCtrl.FBSTarget)
-                            {
-                                SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
-                                var mesh = srender.sharedMesh;      
-                                if (mesh &&  mesh.blendShapeCount > 0)
+
+                                if (_self._winkTime >= TOTAL_TIME)
                                 {
-                                    string name = mesh.GetBlendShapeName(0);
-    
-                                    if (name.Contains("head"))
-                                    {
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                            .SetBlendShapeWeight(38, 100);                                                                                                                
-                                    }
-                                }
-                            }                                                        
-                        }                      
+                                    weight = 0f;
+                                    _self._winkState = WinkState.Idle;
+                                    _self._winkTime = 0f;
 
-                       if (_self._kissState == KissState.Playing)
-                        {
-                            _self._kissTime += Time.deltaTime;
-                            _self._mouthPhase += Time.deltaTime * 0.55f;
-
-                            float loop = Mathf.Repeat(_self._kissTime, 20f);
-
-                            int mouthType;
-                            int tongueType = 4;
-                            float eyeClose;
-                            float mouthStrong = 60f;
-
-                            if (loop < 5f)
-                            {
-                                mouthType = 12;
-                                eyeClose = 40f;
-                                if (_self._ociCharMgmt.TryGetValue(ociChar.GetChaControl().GetHashCode(), out var realHumanData))
-                                {
-                                    realHumanData.mouth_down.localPosition = new Vector3(0.0f, 0.0f, 0.04f);
+                                    cha.ChangeMouthPtn(1, true);                                
                                 }                                    
-                            }
-                            else if (loop < 10f)
-                            {
-                                mouthType = 15;
-                                tongueType = 4;
-                                eyeClose = 70f;
-                                if (_self._ociCharMgmt.TryGetValue(ociChar.GetChaControl().GetHashCode(), out var realHumanData))
-                                {
-                                    realHumanData.mouth_down.localPosition = new Vector3(0.0f, 0.0f, 0.01f);
-                                }                                 
-                            }
-                            else if (loop < 15f)
-                            {
-                                mouthType = 16;
-                                tongueType = 4;
-                                eyeClose = 90f;
-                                if (_self._ociCharMgmt.TryGetValue(ociChar.GetChaControl().GetHashCode(), out var realHumanData))
-                                {
-                                    realHumanData.mouth_down.localPosition = new Vector3(0.0f, 0.0f, 0.01f);
-                                }                                 
-                            }
-                            else
-                            {
-                                mouthType = 15;
-                                tongueType = 4;
-                                eyeClose = 60f;
-                            }
 
-                            ociChar.GetChaControl().ChangeMouthPtn(mouthType, true);
-
-                            float m = Mathf.Sin(_self._mouthPhase * Mathf.PI * 2f);
-                            float mouthMove = (m * 0.5f + 0.5f) * mouthStrong;
-
-                            foreach (var fbsTarget in __instance.MouthCtrl.FBSTarget)
-                            {
-                                SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
-                                var mesh = srender.sharedMesh;      
-                                if (mesh &&  mesh.blendShapeCount > 0)
+                                foreach (var fbsTarget in __instance.EyesCtrl.FBSTarget)
                                 {
-                                    string name = mesh.GetBlendShapeName(0);
-// 혀 처리                                    
-                                    if (name.Contains("tang"))
+                                    SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
+                                    var mesh = srender.sharedMesh;      
+                                    if (mesh &&  mesh.blendShapeCount > 0)
                                     {
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                            .SetBlendShapeWeight(tongueType, mouthMove / 2.0f);                                        
-                                    } 
-// 입 모양 처리                                    
-                                    else if (name.Contains("head"))
-                                    {
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                            .SetBlendShapeWeight(34, mouthMove * 0.7f);        
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                            .SetBlendShapeWeight(45, mouthMove * 0.2f);
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                            .SetBlendShapeWeight(47, mouthMove * 0.6f);                                                                                                                    
+                                        string name = mesh.GetBlendShapeName(0);
+                                        if (name.Contains("head"))
+                                        {
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                    .SetBlendShapeWeight(realHumanData.eye_close_idx_in_head_of_eyectrl, 0f); // 눈감김 원천 봉쇄
+
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_head_of_eyectrl, weight);                                        
+                                        } else if (name.Contains("namida"))
+                                        {
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                    .SetBlendShapeWeight(realHumanData.eye_close_idx_in_namida_of_eyectrl, 0f); // 눈감김 원천 봉쇄
+
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_namida_of_eyectrl, weight);
+                                        } else if (name.Contains("lash."))
+                                        {
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                    .SetBlendShapeWeight(realHumanData.eye_close_idx_in_lash_of_eyectrl, 0f); // 눈감김 원천 봉쇄
+
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_lash_of_eyectrl, weight);                                          
+                                        }
                                     }
                                 }
-                            }
 
-// 윗눈 반감김 처리
-                            foreach (var fbsTarget in __instance.EyesCtrl.FBSTarget)
-                            {
-                                SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
-                                var mesh = srender.sharedMesh;      
-                                if (mesh &&  mesh.blendShapeCount > 0)
+                                foreach (var fbsTarget in __instance.MouthCtrl.FBSTarget)
                                 {
-                                    string name = mesh.GetBlendShapeName(0);
-                                    if (name.Contains("head"))
+                                    SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
+                                    var mesh = srender.sharedMesh;      
+                                    if (mesh &&  mesh.blendShapeCount > 0)
                                     {
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                                .SetBlendShapeWeight(1, eyeClose); // 눈감김
-                                     
-                                    } else if (name.Contains("namida"))
-                                    {
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                                .SetBlendShapeWeight(1, eyeClose); // 눈감김                                       
-                                    } else 
-                                    {
-                                        fbsTarget.GetSkinnedMeshRenderer()
-                                                .SetBlendShapeWeight(0, eyeClose); // 눈감김                                   
+                                        string name = mesh.GetBlendShapeName(0);
+                                        if (name.Contains("head"))
+                                        {
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                    .SetBlendShapeWeight(realHumanData.eye_close_idx_in_head_of_mouthctrl, 0f); // 눈감김 원천 봉쇄
+
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_head_of_mouthctrl, weight);   
+    //입모양
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                            .SetBlendShapeWeight(38, 100);   
+
+                                        } else if (name.Contains("namida"))
+                                        {
+                                               fbsTarget.GetSkinnedMeshRenderer()
+                                                    .SetBlendShapeWeight(realHumanData.eye_close_idx_in_namida_of_mouthctrl, 0f); // 눈감김 원천 봉쇄
+
+                                            fbsTarget.GetSkinnedMeshRenderer()
+                                                .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_namida_of_mouthctrl, weight);                                      
+                                        }
                                     }
-                                }
-                            }
-                        }
-
-                        if (_self._kissState == KissState.Idle && TearDropActive.Value)
-                        {
-                            _self._tearPhase += Time.deltaTime * 5f;
-                            float tear = Mathf.PingPong(_self._tearPhase, 1f) * 5f;
-
-                            foreach (var fbsTarget in __instance.EyesCtrl.FBSTarget)
-                            {
-                                fbsTarget.GetSkinnedMeshRenderer()
-                                    .SetBlendShapeWeight(12, tear);
-                            }
+                                }                                             
+                            }                       
                         }
                     }
                 }
