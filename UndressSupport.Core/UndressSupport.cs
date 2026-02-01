@@ -1,4 +1,4 @@
-﻿using Studio;
+using Studio;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -47,7 +47,7 @@ namespace UndressSupport
     {
         #region Constants
         public const string Name = "UndressSupport";
-        public const string Version = "0.9.0.2";
+        public const string Version = "0.9.0.0";
         public const string GUID = "com.alton.illusionplugins.UndressSupport";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -70,7 +70,11 @@ namespace UndressSupport
         internal static new ManualLogSource Logger;
         internal static UndressSupport _self;
         private static string _assemblyLocation;
-        
+
+#if FEATURE_SPINE_COLLIDER
+        internal const string SPINE_COLLIDER_NAME = "Cloth colliders support_spine";
+#endif
+
         private bool _loaded = false;
         private Status _status = Status.IDLE;
         private ObjectCtrlInfo _selectedOCI;
@@ -80,13 +84,7 @@ namespace UndressSupport
 
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressShortcut { get; private set; }
                 
-        internal static ConfigEntry<float> ClothMaxDistanceTop { get; private set; }
-
-        internal static ConfigEntry<float> ClothMaxDistanceMiddle { get; private set; }
-
-        internal static ConfigEntry<float> ClothMaxDistanceBottom { get; private set; }
-
-        internal static ConfigEntry<float> ClothAccBottom { get; private set; }
+        internal static ConfigEntry<int> ClothUndressSpeed { get; private set; }
 
         internal static ConfigEntry<float> ClothDamping { get; private set; }
 
@@ -113,20 +111,19 @@ namespace UndressSupport
         {
             base.Awake();
 
-            // Test
-            ClothMaxDistanceTop = Config.Bind("Undress", "Top", 3.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            ClothDamping = Config.Bind("Cloth", "Damping", 0.3f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            ClothMaxDistanceMiddle = Config.Bind("Undress", "Middle", 8.0f, new ConfigDescription("", new AcceptableValueRange<float>(5.0f, 15.0f)));
+            ClothStiffness = Config.Bind("Cloth", "Stiffness", 2.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            ClothMaxDistanceBottom = Config.Bind("Undress", "Bottom", 10.0f, new ConfigDescription("", new AcceptableValueRange<float>(10.0f, 20.0f)));
+            ClothUndressSpeed = Config.Bind("Option", "Speed", 3, new ConfigDescription("multiple", new AcceptableValueRange<int>(1, 5)));
 
-            ClothAccBottom = Config.Bind("Undress", "Accelerator down", 30.0f, new ConfigDescription("", new AcceptableValueRange<float>(30.0f, 100.0f)));
+            // ClothMaxDistanceTop = Config.Bind("Option", "Top", 3.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            ClothDamping = Config.Bind("Undress", "Damping", 0.3f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            // ClothMaxDistanceMiddle = Config.Bind("Option", "Middle", 8.0f, new ConfigDescription("", new AcceptableValueRange<float>(5.0f, 15.0f)));
 
-            ClothStiffness = Config.Bind("Undress", "Stiffness", 2.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            // ClothMaxDistanceBottom = Config.Bind("Option", "Bottom", 10.0f, new ConfigDescription("", new AcceptableValueRange<float>(10.0f, 20.0f)));
 
-            ClothUndressDuration = Config.Bind("Undress", "Duration", 20.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 90.0f)));
+            ClothUndressDuration = Config.Bind("Option", "Duration", 10.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 90.0f)));
 
             ConfigKeyDoUndressShortcut = Config.Bind("ShortKey", "Undress key", new KeyboardShortcut(KeyCode.LeftControl, KeyCode.U));
 
@@ -158,13 +155,12 @@ namespace UndressSupport
 
             if (ConfigKeyDoUndressShortcut.Value.IsDown())
             {
-                if (_UndressCoroutine != null) {
-                    StopCoroutine(_UndressCoroutine);
-                    _UndressCoroutine = null;
-                }                                      
-
+            
                 if (_UndressCoroutine == null) {
                     _UndressCoroutine = StartCoroutine(DoUnressCoroutine());
+                } else
+                {
+                    Logger.LogMessage($"wait until undress finished"); 
                 }
             }
         }
@@ -186,22 +182,25 @@ namespace UndressSupport
         {
             UIUtility.Init();
             _loaded = true;
-
-            UnityEngine.Debug.Log($">> Init()");
         }        
 
         private IEnumerator UndressPart(
             Cloth cloth,
             float[] startDistances,
             float duration,
-            float topMaxDistance,
-            float midMaxDistance,
-            float bottomMaxDistance)
+            int speed)
         {
-            if (cloth != null) {
-                 var coeffs = cloth.coefficients;
+            if (cloth != null)
+            {
+                var coeffs = cloth.coefficients;
                 SkinnedMeshRenderer smr = cloth.GetComponent<SkinnedMeshRenderer>();
                 Vector3[] vertices = smr.sharedMesh.vertices;
+
+                cloth.useGravity = true;
+
+                // 🔹 아래로 당기는 힘 설정
+                float startPull = 0.0f;    // 시작은 거의 없음
+                float endPull   = 1.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
 
                 // y좌표 기반 정규화
                 float minY = float.MaxValue;
@@ -222,41 +221,49 @@ namespace UndressSupport
                 }
 
                 float timer = 0f;
+                int topMaxDistance = 5 * speed;
+                int midMaxDistance = 20 * speed;
+                int bottomMaxDistance = 50 * speed;
+
                 while (timer < duration)
                 {
                     float t = timer / duration;
                     float tSmooth = Mathf.SmoothStep(0f, 1f, t);
 
-                    float topScale = Mathf.Lerp(1f, 2f, tSmooth);
+                    // ⭐ 시간이 갈수록 아래로 당기는 힘 증가
+                    float pullForce = Mathf.Lerp(startPull, endPull, tSmooth);
+                    cloth.externalAcceleration = Vector3.down * pullForce;
+
+                    float topScale = Mathf.Lerp(1f, 1.5f, tSmooth);
                     float midScale = Mathf.Lerp(1f, 1.5f, tSmooth);
-                    float bottomScale = Mathf.Lerp(1f, 3f, tSmooth);
+                    float bottomScale = Mathf.Lerp(1f, 1.5f, tSmooth);
 
                     for (int i = 0; i < coeffs.Length; i++)
                     {
                         float targetMaxDistance;
-                        if (normalizedYs[i] > 0.66f) // 상단
+                        if (normalizedYs[i] > 0.66f)
                             targetMaxDistance = Mathf.Lerp(startDistances[i], topMaxDistance * topScale, tSmooth);
-                        else if (normalizedYs[i] > 0.33f) // 중단
+                        else if (normalizedYs[i] > 0.33f)
                             targetMaxDistance = Mathf.Lerp(startDistances[i], midMaxDistance * midScale, tSmooth);
-                        else // 하단
+                        else
                             targetMaxDistance = Mathf.Lerp(startDistances[i], bottomMaxDistance * bottomScale, tSmooth);
 
                         coeffs[i].maxDistance = targetMaxDistance;
                     }
-                    
-                    if (cloth == null) {
-                        timer = duration;
-                        continue;
-                    }
+
+                    if (cloth == null)
+                        break;
 
                     cloth.coefficients = coeffs;
                     timer += Time.deltaTime;
                     yield return null;
                 }
-            }          
+
+                // ❗ 종료 시 외력은 RestoreMaxDistances에서 정리
+            }
         }
 
-        private IEnumerator UndressAll(UndressData undressData, float duration, float topMaxDistance, float middleMaxDistance, float bottomMaxDistance, float acceleration)
+        private IEnumerator UndressAll(UndressData undressData, float duration, int speed)
         {
             foreach (var cloth in undressData.clothes)
             {
@@ -266,8 +273,6 @@ namespace UndressSupport
                 cloth.useGravity = true;
                 cloth.damping = ClothDamping.Value;
                 cloth.stiffnessFrequency = ClothStiffness.Value;
-                cloth.externalAcceleration = Vector3.down * acceleration;
-                cloth.randomAcceleration = Vector3.down * acceleration;
                 cloth.worldAccelerationScale = 1.0f;
                 cloth.worldVelocityScale = 0.0f;
 
@@ -276,41 +281,30 @@ namespace UndressSupport
                 for (int i = 0; i < coeffs.Length; i++)
                     startDistances[i] = coeffs[i].maxDistance;
 
-                yield return StartCoroutine(UndressPart(cloth, startDistances, duration, topMaxDistance, middleMaxDistance, bottomMaxDistance));
+                yield return StartCoroutine(UndressPart(cloth, startDistances, duration, speed));
             }
         }
 
         private IEnumerator DoUnressCoroutine()
         {
-            UnityEngine.Debug.Log($">> DoUnressCoroutine");
-
             UndressData undressData = Logic.GetCloth(_selectedOCI);
             if (undressData != null) {
                 _status = Status.RUN;
 
-                while (true)
+                while (_status == Status.RUN)
                 {
                     if (_loaded == true)
                     {
-                        if (_status == Status.RUN)
-                        {
-                            yield return StartCoroutine(UndressAll(undressData,ClothUndressDuration.Value, ClothMaxDistanceTop.Value, ClothMaxDistanceMiddle.Value, ClothMaxDistanceBottom.Value, ClothAccBottom.Value));
-                            Logic.RestoreMaxDistances(undressData);
-
-                            _status = Status.IDLE;
-                        }
-                        else if (_status == Status.DESTORY)
-                        {
-                            _status = Status.IDLE;
-                            Logic.RestoreMaxDistances(undressData);                     
-                        }
+                        yield return StartCoroutine(UndressAll(undressData, ClothUndressDuration.Value, ClothUndressSpeed.Value));
+                        _status = Status.DESTORY;
                     }
 
                     yield return null;
                 }
+                
+                Logic.RestoreMaxDistances(undressData); 
+                _UndressCoroutine = null;
             }
-
-            _UndressCoroutine = null;
         }
 
         #endregion
@@ -345,7 +339,15 @@ namespace UndressSupport
         {
             public static void Postfix(OCIChar __instance, string _path)
             {
-                _self._status = Status.DESTORY;
+                UndressData undressData = Logic.GetCloth(_self._selectedOCI);
+                if (undressData != null)
+                {
+                    if (_self._UndressCoroutine != null) {
+                        _self.StopCoroutine(_self._UndressCoroutine);
+                        Logic.RestoreMaxDistances(undressData);
+                        _self._UndressCoroutine = null;
+                    }
+                }
             }
         }
 
@@ -355,7 +357,35 @@ namespace UndressSupport
         {
             private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange)
             {
-                _self._status = Status.DESTORY;
+                UndressData undressData = Logic.GetCloth(_self._selectedOCI);
+                if (undressData != null)
+                {
+                    if (_self._UndressCoroutine != null)
+                    {
+                        _self.StopCoroutine(_self._UndressCoroutine);
+                        Logic.RestoreMaxDistances(undressData);
+                        _self._UndressCoroutine = null;
+                    }
+                }
+            }
+        }
+
+        // 코디네이션 변경
+        [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
+        internal static class ChaControl_SetAccessoryStateAll_Patches
+        {
+            public static void Postfix(ChaControl __instance, bool show)
+            {
+                UndressData undressData = Logic.GetCloth(_self._selectedOCI);
+                if (undressData != null)
+                {
+                    if (_self._UndressCoroutine != null)
+                    {
+                        _self.StopCoroutine(_self._UndressCoroutine);
+                        Logic.RestoreMaxDistances(undressData);
+                        _self._UndressCoroutine = null;
+                    }
+                }
             }
         }
 
@@ -364,7 +394,16 @@ namespace UndressSupport
         {
             private static bool Prefix(object __instance, bool _close)
             {
-                _self._status = Status.DESTORY;
+                UndressData undressData = Logic.GetCloth(_self._selectedOCI);
+                if (undressData != null)
+                {
+                    if (_self._UndressCoroutine != null)
+                    {
+                        _self.StopCoroutine(_self._UndressCoroutine);
+                        Logic.RestoreMaxDistances(undressData);
+                        _self._UndressCoroutine = null;
+                    }
+                }
                 _self._selectedOCI = null;
 
                 return true;
