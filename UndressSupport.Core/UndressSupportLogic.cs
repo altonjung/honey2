@@ -41,40 +41,65 @@ namespace UndressSupport
             var capsule = colliderObject.AddComponent<CapsuleCollider>();
             capsule.center = new Vector3(0, 0, 0);
             capsule.radius = 0.9f;
-            capsule.height = 3.0f;
+            capsule.height = 2.0f;
             capsule.direction = 1; // Y축 기준
 
             return capsule;
+        }
+
+        static void AddCapsuleColliderToCloth_NoReset(Cloth cloth, CapsuleCollider col)
+        {
+            // 1. 기존 collider 복사
+            CapsuleCollider[] old = cloth.capsuleColliders;
+
+            // 2. 중복 방지
+            if (old != null)
+            {
+                for (int i = 0; i < old.Length; i++)
+                {
+                    if (old[i] == col)
+                        return;
+                }
+            }
+
+            // 3. 새 배열 생성 (append)
+            int oldCount = old != null ? old.Length : 0;
+            CapsuleCollider[] next = new CapsuleCollider[oldCount + 1];
+
+            if (oldCount > 0)
+                System.Array.Copy(old, next, oldCount);
+
+            next[oldCount] = col;
+
+            // 4. ❗ enabled 토글 없이 재할당
+            cloth.capsuleColliders = next;
         }
 
         private static void CreateSpineClothCollider(ChaControl charControl, List<Cloth> clothes)
         {
             // UnityEngine.Debug.Log($">> CreateSpineClothCollider()");
 
-            CapsuleCollider groundCollider = null;
-            Transform groundTransform = charControl.objBodyBone.transform.FindLoop(UndressSupport.SPINE_COLLIDER_NAME);
+            CapsuleCollider spineCollider = null;
+            Transform spineTransform = charControl.objBodyBone.transform.FindLoop(UndressSupport.SPINE_COLLIDER_NAME);
             Transform root_bone = charControl.objBodyBone.transform.FindLoop("cf_J_Kosi02");
             // ground collider
-            if (groundTransform == null)
+            if (spineTransform == null)
             {
-                GameObject groundObj = new GameObject(UndressSupport.SPINE_COLLIDER_NAME);
-                groundCollider = AddCapsuleSpineCollider(groundObj, root_bone);
+                GameObject spineObj = new GameObject(UndressSupport.SPINE_COLLIDER_NAME);
+                spineCollider = AddCapsuleSpineCollider(spineObj, root_bone);
             }
             else
             {
-                groundCollider = groundTransform.GetComponent<CapsuleCollider>();
+                spineCollider = spineTransform.GetComponent<CapsuleCollider>();
 
-                if (groundCollider == null)
+                if (spineCollider == null)
                 {
-                    groundCollider = AddCapsuleSpineCollider(groundTransform.gameObject, root_bone);
+                    spineCollider = AddCapsuleSpineCollider(spineTransform.gameObject, root_bone);
                 }
             }
 
             foreach (Cloth cloth in clothes)
-            {
-                // 새 capsuleCollider 교체
-                cloth.capsuleColliders = new CapsuleCollider[] { groundCollider }.ToArray();
-            }
+                AddCapsuleColliderToCloth_NoReset(cloth, spineCollider);
         }
 #endif
 
