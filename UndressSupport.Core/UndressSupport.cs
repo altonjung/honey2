@@ -200,7 +200,7 @@ namespace UndressSupport
 
                 // 🔹 아래로 당기는 힘 설정
                 float startPull = 0.0f;    // 시작은 거의 없음
-                float endPull   = 1.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
+                float endPull   = 10.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
 
                 // y좌표 기반 정규화
                 float minY = float.MaxValue;
@@ -234,16 +234,16 @@ namespace UndressSupport
                     float pullForce = Mathf.Lerp(startPull, endPull, tSmooth);
                     cloth.externalAcceleration = Vector3.down * pullForce;
 
-                    float topScale = Mathf.Lerp(1f, 1.5f, tSmooth);
+                    float topScale = Mathf.Lerp(1f, 1.0f, tSmooth);
                     float midScale = Mathf.Lerp(1f, 1.5f, tSmooth);
-                    float bottomScale = Mathf.Lerp(1f, 1.5f, tSmooth);
+                    float bottomScale = Mathf.Lerp(1f, 2f, tSmooth);
 
                     for (int i = 0; i < coeffs.Length; i++)
                     {
                         float targetMaxDistance;
-                        if (normalizedYs[i] > 0.66f)
+                        if (normalizedYs[i] > 0.80f)
                             targetMaxDistance = Mathf.Lerp(startDistances[i], topMaxDistance * topScale, tSmooth);
-                        else if (normalizedYs[i] > 0.33f)
+                        else if (normalizedYs[i] > 0.50f)
                             targetMaxDistance = Mathf.Lerp(startDistances[i], midMaxDistance * midScale, tSmooth);
                         else
                             targetMaxDistance = Mathf.Lerp(startDistances[i], bottomMaxDistance * bottomScale, tSmooth);
