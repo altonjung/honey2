@@ -1,4 +1,4 @@
-﻿using Studio;
+using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -49,7 +49,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.5.2";
+        public const string Version = "0.9.5.3";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -97,6 +97,7 @@ namespace WindPhysics
         internal static ConfigEntry<bool> ConfigKeyEnableWind { get; private set; }
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyEnableWindShortcut { get; private set; }
 
+        internal static ConfigEntry<float> Gravity { get; private set; }
         internal static ConfigEntry<float> WindDirection { get; private set; }
         internal static ConfigEntry<float> WindInterval { get; private set; }
         internal static ConfigEntry<float> WindUpForce { get; private set; }
@@ -125,14 +126,18 @@ namespace WindPhysics
         {
             base.Awake();
             // Environment 
+            Gravity = Config.Bind("All", "Gravity", -0.03f, new ConfigDescription("Gravity", new AcceptableValueRange<float>(-0.1f, 0.1f)));
+
             WindDirection = Config.Bind("All", "Direction", 0f, new ConfigDescription("wind direction from 0 to 360 degree", new AcceptableValueRange<float>(0.0f, 359.0f)));
 
-            WindUpForce = Config.Bind("All", "ForceUp", 0.0f, new ConfigDescription("wind up force", new AcceptableValueRange<float>(0.0f, 0.1f)));
+            WindUpForce = Config.Bind("All", "ForceUp", 0.0f, new ConfigDescription("wind up force", new AcceptableValueRange<float>(0.0f, 0.5f)));
 
             WindForce = Config.Bind("All", "Force", 0.1f, new ConfigDescription("wind force", new AcceptableValueRange<float>(0.1f, 1.0f)));
-
-            WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 10.0f)));
-
+#if FEATURE_PUBLIC
+            WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(1.0f, 10.0f)));
+#else
+            WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 30.0f)));
+#endif
             // clothes
             ClotheForce = Config.Bind("Cloth", "Force", 1.0f, new ConfigDescription("cloth force", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
@@ -323,11 +328,21 @@ namespace WindPhysics
                 bone.m_Stiffness = HairStiffness.Value;
                 bone.m_Force = finalWind;
 
-                bone.m_Gravity = new Vector3(
+                if (Gravity.Value >= 0)
+                {
+                    bone.m_Gravity = new Vector3(
                     0,
-                    UnityEngine.Random.Range(-0.005f, -0.03f),
+                    UnityEngine.Random.Range(Gravity.Value, Gravity.Value + 0.02f),
                     0
-                );
+                    );   
+                } else
+                {
+                    bone.m_Gravity = new Vector3(
+                    0,
+                    UnityEngine.Random.Range(Gravity.Value, -0.005f),
+                    0
+                    );  
+                }
             }
 
             // =========================
@@ -348,11 +363,21 @@ namespace WindPhysics
                 bone.m_Stiffness = AccesoriesStiffness.Value;
                 bone.m_Force = finalWind;
 
-                bone.m_Gravity = new Vector3(
+                if (Gravity.Value >= 0)
+                {
+                    bone.m_Gravity = new Vector3(
                     0,
-                    UnityEngine.Random.Range(-0.005f, -0.05f),
+                    UnityEngine.Random.Range(Gravity.Value, Gravity.Value + 0.03f),
                     0
-                );
+                    );   
+                } else
+                {
+                    bone.m_Gravity = new Vector3(
+                    0,
+                    UnityEngine.Random.Range(Gravity.Value - 0.02f, -0.01f),
+                    0
+                    );  
+                }
             }
 
             // =========================
@@ -402,21 +427,30 @@ namespace WindPhysics
                 // =========================
                 // Cloth physics
                 // =========================
-                cloth.useGravity = true;
                 cloth.worldAccelerationScale = 1.0f;
                 cloth.worldVelocityScale = 0.0f;
 
-                cloth.externalAcceleration =
-                    externalWind * 30f * factor * 20;
+                if (Gravity.Value >= 0) {
+                    cloth.useGravity = false;
+                    // 위로 작용하는 가짜 중력
+                    cloth.externalAcceleration = Vector3.up * Gravity.Value;
 
-                cloth.randomAcceleration =
-                    randomWind * 80f * factor * 20;
+                    cloth.randomAcceleration =
+                        randomWind * 20f * factor * 20;
+                } else
+                {
+                    cloth.useGravity = true;
 
+                    cloth.externalAcceleration =
+                        externalWind * 30f * factor * 20;    
+                
+                    cloth.randomAcceleration =
+                        randomWind * 80f * factor * 20;
+                }
+                
                 // 🔧 하강 시 damping 증가 → elastic 제거 핵심
                 float downDampingBoost = 2.0f;
                 cloth.damping = ClothDamping.Value;
-
-
 
                 cloth.stiffnessFrequency = ClothStiffness.Value;
             }
@@ -516,8 +550,8 @@ namespace WindPhysics
                         Quaternion globalRotation = Quaternion.Euler(0f, WindDirection.Value, 0f);
 
                         // 방향에 랜덤성 부여 (약한 변화만 허용)
-                        float angleY = UnityEngine.Random.Range(-15, 15); // 좌우 유지
-                        float angleX = UnityEngine.Random.Range(-7, 7);   // 위/아래 유지 (음수면 아래 방향, 양수면 위 방향)
+                        float angleY = UnityEngine.Random.Range(-15, 15); // 위/아래 유지 (음수면 아래 방향, 양수면 위 방향)
+                        float angleX = UnityEngine.Random.Range(-7, 7);    // 좌우 유지
                         Quaternion localRotation = Quaternion.Euler(angleX, angleY, 0f);
 
                         Quaternion rotation = globalRotation * localRotation;
@@ -529,20 +563,12 @@ namespace WindPhysics
 
                         // 적용
                         ApplyWind(windEffect, 1.0f, windData);
-                        // if (WindInterval.Value > 0.1f) {
                         yield return new WaitForSeconds(0.2f);
 
                         // 자연스럽게 사라짐
-                        float minDelayFadeTime = 0.0f;
-                        float maxDelayFadeTime = 1.5f;
-                        
-                        if (WindInterval.Value <= 1.0f)
-                        {
-                            minDelayFadeTime  = 0.2f;
-                            maxDelayFadeTime  = 0.5f;
-                        }
+                        float keepwindTime = WindInterval.Value/2;
 
-                        float fadeTime = Mathf.Lerp(WindInterval.Value - minDelayFadeTime, WindInterval.Value + maxDelayFadeTime, WindForce.Value);
+                        float fadeTime = Mathf.Lerp(keepwindTime, keepwindTime, WindForce.Value);
                         float t = 0f;
                         while (t < fadeTime)
                         {
@@ -551,6 +577,12 @@ namespace WindPhysics
                             ApplyWind(windEffect, factor, windData);
                             yield return null;
                         }
+                        
+                        if (keepwindTime <= 0.3)
+                            yield return null;
+                        else    
+                            yield return new WaitForSeconds(WindInterval.Value - keepwindTime);
+
                     }
                     else if (windData.wind_status == Status.STOP)
                     {
@@ -622,7 +654,6 @@ namespace WindPhysics
             private static bool Prefix(object __instance)
             {
                 List<ObjectCtrlInfo> selectedObjCtrlInfos = new List<ObjectCtrlInfo>(); 
-
                 foreach (TreeNodeObject node in Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes)
                 {
                     ObjectCtrlInfo ctrlInfo = Studio.Studio.GetCtrlInfo(node);
@@ -664,6 +695,7 @@ namespace WindPhysics
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
                 ObjectCtrlInfo unselectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+
                 if (unselectedCtrlInfo == null)
                     return true;
 
