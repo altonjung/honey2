@@ -72,7 +72,7 @@ namespace UndressSupport
         private static string _assemblyLocation;
 
 #if FEATURE_SPINE_COLLIDER
-        internal const string SPINE_COLLIDER_NAME = "Cloth colliders support_spine";
+        internal const string CLOTH_COLLIDER_PREFIX = "Cloth colliders";
 #endif
 
         private bool _loaded = false;
@@ -83,11 +83,8 @@ namespace UndressSupport
 
 
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressShortcut { get; private set; }
-                
         internal static ConfigEntry<int> ClothUndressSpeed { get; private set; }
-
         internal static ConfigEntry<float> ClothDamping { get; private set; }
-
         internal static ConfigEntry<float> ClothStiffness { get; private set; }
 
         internal static ConfigEntry<float> ClothUndressDuration { get; private set; }        
@@ -155,12 +152,15 @@ namespace UndressSupport
 
             if (ConfigKeyDoUndressShortcut.Value.IsDown())
             {
-            
-                if (_UndressCoroutine == null) {
-                    _UndressCoroutine = StartCoroutine(DoUnressCoroutine());
-                } else
+                 UndressData undressData = Logic.GetCloth(_self._selectedOCI);
+                if (undressData != null)
                 {
-                    Logger.LogMessage($"wait until undress finished"); 
+                    if (_UndressCoroutine != null) {
+                        _self.StopCoroutine(_self._UndressCoroutine);
+                        Logic.RestoreMaxDistances(undressData);
+                    }
+
+                    _UndressCoroutine = StartCoroutine(DoUnressCoroutine());
                 }
             }
         }
@@ -185,10 +185,10 @@ namespace UndressSupport
         }        
 
         private IEnumerator UndressPart(
+            UndressData undressData,
             Cloth cloth,
             float[] startDistances,
-            float duration,
-            int speed)
+            float duration)
         {
             if (cloth != null)
             {
@@ -196,11 +196,9 @@ namespace UndressSupport
                 SkinnedMeshRenderer smr = cloth.GetComponent<SkinnedMeshRenderer>();
                 Vector3[] vertices = smr.sharedMesh.vertices;
 
-                cloth.useGravity = true;
-
                 // 🔹 아래로 당기는 힘 설정
                 float startPull = 0.0f;    // 시작은 거의 없음
-                float endPull   = 10.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
+                float endPull   = 3.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
 
                 // y좌표 기반 정규화
                 float minY = float.MaxValue;
@@ -221,29 +219,31 @@ namespace UndressSupport
                 }
 
                 float timer = 0f;
-                int topMaxDistance = 5 * speed;
-                int midMaxDistance = 20 * speed;
-                int bottomMaxDistance = 50 * speed;
+                int topMaxDistance = 5 * ClothUndressSpeed.Value;
+                int midMaxDistance = 15 * ClothUndressSpeed.Value;
+                int bottomMaxDistance = 25 * ClothUndressSpeed.Value;
 
                 while (timer < duration)
                 {
                     float t = timer / duration;
                     float tSmooth = Mathf.SmoothStep(0f, 1f, t);
 
+                    undressData.spineCollider.radius = Mathf.Lerp(0.8f, 5f, Mathf.Clamp01(t));
+
                     // ⭐ 시간이 갈수록 아래로 당기는 힘 증가
                     float pullForce = Mathf.Lerp(startPull, endPull, tSmooth);
                     cloth.externalAcceleration = Vector3.down * pullForce;
 
-                    float topScale = Mathf.Lerp(1f, 1.0f, tSmooth);
-                    float midScale = Mathf.Lerp(1f, 1.5f, tSmooth);
-                    float bottomScale = Mathf.Lerp(1f, 2f, tSmooth);
+                    float topScale = Mathf.Lerp(1f, 1.5f, tSmooth);
+                    float midScale = Mathf.Lerp(1f, 2.0f, tSmooth);
+                    float bottomScale = Mathf.Lerp(1f, 2.5f, tSmooth);
 
                     for (int i = 0; i < coeffs.Length; i++)
                     {
                         float targetMaxDistance;
                         if (normalizedYs[i] > 0.80f)
                             targetMaxDistance = Mathf.Lerp(startDistances[i], topMaxDistance * topScale, tSmooth);
-                        else if (normalizedYs[i] > 0.50f)
+                        else if (normalizedYs[i] > 0.40f)
                             targetMaxDistance = Mathf.Lerp(startDistances[i], midMaxDistance * midScale, tSmooth);
                         else
                             targetMaxDistance = Mathf.Lerp(startDistances[i], bottomMaxDistance * bottomScale, tSmooth);
@@ -254,16 +254,15 @@ namespace UndressSupport
                     if (cloth == null)
                         break;
 
-                    cloth.coefficients = coeffs;
                     timer += Time.deltaTime;
+                    cloth.coefficients = coeffs;
+
                     yield return null;
                 }
-
-                // ❗ 종료 시 외력은 RestoreMaxDistances에서 정리
             }
         }
 
-        private IEnumerator UndressAll(UndressData undressData, float duration, int speed)
+        private IEnumerator UndressAll(UndressData undressData, float duration)
         {
             foreach (var cloth in undressData.clothes)
             {
@@ -281,7 +280,7 @@ namespace UndressSupport
                 for (int i = 0; i < coeffs.Length; i++)
                     startDistances[i] = coeffs[i].maxDistance;
 
-                yield return StartCoroutine(UndressPart(cloth, startDistances, duration, speed));
+                yield return StartCoroutine(UndressPart(undressData, cloth, startDistances, duration));
             }
         }
 
@@ -295,7 +294,10 @@ namespace UndressSupport
                 {
                     if (_loaded == true)
                     {
-                        yield return StartCoroutine(UndressAll(undressData, ClothUndressDuration.Value, ClothUndressSpeed.Value));
+                        yield return StartCoroutine(UndressAll(undressData, ClothUndressDuration.Value));
+                        // 기본 spine collider
+                        undressData.spineCollider.radius = 0.8f;
+
                         _status = Status.DESTORY;
                     }
 
