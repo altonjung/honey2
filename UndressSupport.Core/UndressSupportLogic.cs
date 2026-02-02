@@ -34,15 +34,15 @@ namespace UndressSupport
     {     
 
 #if FEATURE_SPINE_COLLIDER
-        private static CapsuleCollider AddCapsuleSpineCollider(GameObject colliderObject, Transform bone)
+        private static CapsuleCollider AddCapsuleSpineCollider(GameObject colliderObject, Transform bone, Vector3 position, float radius=1.2f, float height=2.0f, int direction=1)
         {
             colliderObject.transform.SetParent(bone, false);
 
             var capsule = colliderObject.AddComponent<CapsuleCollider>();
-            capsule.center = new Vector3(0, 0, 0);
-            capsule.radius = 0.9f;
-            capsule.height = 2.0f;
-            capsule.direction = 1; // Y축 기준
+            capsule.center = position;
+            capsule.radius = radius;
+            capsule.height = height;
+            capsule.direction = direction; // Y축 기준
 
             return capsule;
         }
@@ -75,32 +75,49 @@ namespace UndressSupport
             cloth.capsuleColliders = next;
         }
 
-        private static void CreateSpineClothCollider(ChaControl charControl, List<Cloth> clothes)
+        private static CapsuleCollider CreateSpineClothCollider(ChaControl charControl, List<Cloth> clothes, string name, float radius, float height)
         {
-            // UnityEngine.Debug.Log($">> CreateSpineClothCollider()");
-
             CapsuleCollider spineCollider = null;
-            Transform spineTransform = charControl.objBodyBone.transform.FindLoop(UndressSupport.SPINE_COLLIDER_NAME);
-            Transform root_bone = charControl.objBodyBone.transform.FindLoop("cf_J_Kosi02");
-            // ground collider
-            if (spineTransform == null)
-            {
-                GameObject spineObj = new GameObject(UndressSupport.SPINE_COLLIDER_NAME);
-                spineCollider = AddCapsuleSpineCollider(spineObj, root_bone);
-            }
-            else
-            {
-                spineCollider = spineTransform.GetComponent<CapsuleCollider>();
 
-                if (spineCollider == null)
-                {
-                    spineCollider = AddCapsuleSpineCollider(spineTransform.gameObject, root_bone);
+            Transform root_bone = charControl.objBodyBone.transform.FindLoop(name);
+
+            if (root_bone != null) {
+                Transform colliderTr = root_bone.Find(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Spine");
+
+                if (colliderTr == null) {
+                    // spine collider
+                    GameObject spineObj = new GameObject(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Spine");
+                    spineCollider = AddCapsuleSpineCollider(spineObj, root_bone, Vector3.zero, radius, height);
+            
+                    foreach (Cloth cloth in clothes)
+                        AddCapsuleColliderToCloth_NoReset(cloth, spineCollider);
+                } else {
+                    spineCollider = colliderTr.GetComponentInChildren<CapsuleCollider>();
                 }
             }
 
-            foreach (Cloth cloth in clothes)
-                AddCapsuleColliderToCloth_NoReset(cloth, spineCollider);
+            return spineCollider;
         }
+
+        private static void CreateGroundCollider(ChaControl charControl, List<Cloth> clothes)
+        {
+            CapsuleCollider groundCollider = null;
+            
+            Transform root_bone = charControl.objBodyBone.transform.FindLoop("cf_N_height");
+
+            if (root_bone != null) {
+
+                if (!root_bone.name.Contains(UndressSupport.CLOTH_COLLIDER_PREFIX)) {
+                    // ground collider
+                    GameObject groundObj = new GameObject(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Ground");
+                    groundCollider = AddCapsuleSpineCollider(groundObj, root_bone, new Vector3(0.0f, -60.0f, 0.0f), 60.0f, 1.0f);
+                
+                    foreach (Cloth cloth in clothes)
+                        AddCapsuleColliderToCloth_NoReset(cloth, groundCollider);
+                }
+            }
+        }
+
 #endif
 
         internal static UndressData GetCloth(ObjectCtrlInfo objCtrlInfo)
@@ -130,7 +147,8 @@ namespace UndressSupport
 #if FEATURE_SPINE_COLLIDER
             if (undressData.clothes.Count > 0)
             {
-                CreateSpineClothCollider(ociChar.GetChaControl(), undressData.clothes);
+                undressData.spineCollider = CreateSpineClothCollider(ociChar.GetChaControl(), undressData.clothes, "cf_J_Spine01", 0.1f, 3.0f);
+                CreateGroundCollider(ociChar.GetChaControl(), undressData.clothes);
             }
 #endif
 
@@ -179,7 +197,7 @@ namespace UndressSupport
                 }
 
                 // 3️⃣ 정상 물리 복원
-                cloth.worldVelocityScale = 1f;
+                cloth.worldVelocityScale = 0f;
                 cloth.worldAccelerationScale = 1f;
                 cloth.useGravity = true;
             }
@@ -258,5 +276,7 @@ namespace UndressSupport
         public List<Cloth> clothes = new List<Cloth>();
         public Dictionary<Cloth, float[]> originalMaxDistances = new Dictionary<Cloth, float[]>();
         public SkinnedMeshRenderer meshRenderer;
+        public CapsuleCollider spineCollider;
+
     }
 }
