@@ -32,8 +32,6 @@ namespace UndressSupport
 {
     public class Logic
     {     
-
-#if FEATURE_SPINE_COLLIDER
         private static CapsuleCollider AddCapsuleSpineCollider(GameObject colliderObject, Transform bone, Vector3 position, float radius=1.2f, float height=2.0f, int direction=1)
         {
             colliderObject.transform.SetParent(bone, false);
@@ -93,7 +91,6 @@ namespace UndressSupport
 
             return spineCollider;
         }
-#endif
 
         internal static UndressData GetUndressData(Cloth cloth, OCIChar ociChar)
         {
@@ -127,7 +124,6 @@ namespace UndressSupport
             // UnityEngine.Debug.Log($">> isTop {undressData.IsTop}");
             
             // top, down 확인 필요
-#if FEATURE_SPINE_COLLIDER
             // ground
             if (undressData.IsTop) {
                 undressData.collider = CreateClothCollider(ociChar.GetChaControl(), undressData.cloth, "cf_J_Neck", 0.3f, 2.0f);
@@ -135,7 +131,7 @@ namespace UndressSupport
                 undressData.collider = CreateClothCollider(ociChar.GetChaControl(), undressData.cloth, "cf_J_Spine01", 0.6f, 2.0f);
                 CreateClothCollider(ociChar.GetChaControl(), undressData.cloth, "cf_J_Kosi02", 0.8f, 3.0f);
             }
-#endif
+            
             // 🔹 Cloth 기준 coefficients 저장
             ClothSkinningCoefficient[] coeffs = cloth.coefficients;
             float[] maxDistances = new float[coeffs.Length];

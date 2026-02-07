@@ -53,13 +53,13 @@ namespace ClothCollideVisualizer
 #endif
     {
         #region Constants
-        public const string Name = "ClothCollideVisualizerVisualizer";
-        public const string Version = "0.9.0.2";
+        public const string Name = "ClothCollideVisualizer";
+        public const string Version = "0.9.0.3";
         public const string GUID = "com.alton.illusionplugins.ClothCollideVisualizer";
-        internal const string _ownerId = "Alton";
+        internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
-        private const string _extSaveKey = "cloth_physics_visualizer";
+        private const string _extSaveKey = "cloth_collide_visualizer";
 #endif
         #endregion
 
@@ -88,7 +88,7 @@ namespace ClothCollideVisualizer
         private static string _assemblyLocation;
         private bool _loaded = false;
 
-        private ObjectCtrlInfo _selectedOCI;
+        private OCIChar _selectedOCI;
 
         private Dictionary<OCIChar, PhysicCollider> _ociCharMgmt = new Dictionary<OCIChar, PhysicCollider>();
 
@@ -98,15 +98,15 @@ namespace ClothCollideVisualizer
             IDLE
         }
 
-        internal enum Update_Mode
-        {
-            SELECTION,
-            CHANGE
-        }        
+        // internal enum Update_Mode
+        // {
+        //     SELECTION,
+        //     CHANGE
+        // }        
 
         #endregion
 
-        #region Accessors
+        #region Accessors     
         #endregion
 
 
@@ -128,6 +128,7 @@ namespace ClothCollideVisualizer
             ExtensibleSaveFormat.ExtendedSave.SceneBeingImported += OnSceneImport;
             ExtensibleSaveFormat.ExtendedSave.SceneBeingSaved += OnSceneSave;
 #endif
+
             var harmony = HarmonyExtensions.CreateInstance(GUID);
             harmony.PatchAll(Assembly.GetExecutingAssembly());
         }
@@ -645,6 +646,12 @@ namespace ClothCollideVisualizer
             {
                 foreach (var rend in kvp.Value)
                 {
+                    if (rend == null)
+                    {
+                        Logger.LogMessage($"Reselect character to refresh colliders");
+                        break;    
+                    }
+
                     Color c = rend.material.color;
                     // 선택된 것만 빨강, 나머지는 원래 녹색 계열 유지
                     if (kvp.Key == selected)
@@ -771,7 +778,8 @@ namespace ClothCollideVisualizer
 
         private static void ClearPhysicCollier(PhysicCollider value)
         {
-            // UnityEngine.Debug.Log($">> ClearPhysicCollier start");
+            if (value == null)
+                return;
 
             foreach (var obj in value.debugCapsuleCollideVisibleObjects)
             {
@@ -793,38 +801,54 @@ namespace ClothCollideVisualizer
 #endif
 
             if (value.ociCFolder != null)
-            {
-                value.ociCFolder.treeNodeObject.enableDelete = true;
-                value.ociSFolder.treeNodeObject.enableDelete = true;
+            {       
+                if (value.ociCFolder.treeNodeObject != null)
+                    value.ociCFolder.treeNodeObject.enableDelete = true;
+                if (value.ociCFolderChild != null) {
+                    foreach (var obj in value.ociCFolderChild.Keys)
+                    {
+                        if (obj == null) continue;
 
-                foreach (var obj in value.ociCFolderChild.Keys)
-                {
-                    if (obj == null) continue;
-
-                    obj.enableDelete = true;
-                    Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(obj);
+                        obj.enableDelete = true;
+                        Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(obj);
+                    }
+                    value.ociCFolderChild.Clear();   
                 }
 
-                foreach (var obj in value.ociSFolderChild.Keys)
-                {
-                    if (obj == null) continue;
+                if (value.ociCFolder != null)
+                    Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(value.ociCFolder.treeNodeObject);        
 
-                    obj.enableDelete = true;
-                    Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(obj);
-                }
-
-                Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(value.ociSFolder.treeNodeObject);
-                Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(value.ociCFolder.treeNodeObject);
+                value.ociCFolder = null;                              
             }
 
-            value.ociCFolderChild.Clear();
-            value.ociSFolderChild.Clear();
-            value.debugCollideRenderers.Clear();
+            if (value.ociSFolder != null)
+            {
+                // UnityEngine.Debug.Log($">> here2 {value.ociCFolder.treeNodeObject}, {value.ociSFolder.treeNodeObject}"); 
 
-            value.ociCFolder = null;
-            value.ociSFolder = null;
+                if (value.ociSFolder.treeNodeObject != null)
+                    value.ociSFolder.treeNodeObject.enableDelete = true;
 
-            // UnityEngine.Debug.Log($">> ClearPhysicCollier end");
+                if (value.ociSFolderChild != null) {
+                    foreach (var obj in value.ociSFolderChild.Keys)
+                    {
+                        if (obj == null) continue;
+
+                        obj.enableDelete = true;
+                        Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(obj);
+                    }
+                    value.ociSFolderChild.Clear();
+                }
+
+                if (value.ociSFolder != null)
+                    Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(value.ociSFolder.treeNodeObject);
+
+                value.ociSFolder = null;                    
+            }
+
+            if (value.debugCollideRenderers != null)
+                value.debugCollideRenderers.Clear();
+
+            Logger.LogMessage($"Reselect character to refresh colliders");
         }
 
 #if FEATURE_GROUND_COLLIDER
@@ -871,7 +895,7 @@ namespace ClothCollideVisualizer
             }
         }
 #endif
-        private static void AddVisualColliders(OCIChar ociChar, Update_Mode type)
+        private static void AddVisualColliders(OCIChar ociChar)
         {
             if (ociChar != null && ClothColliderVisual.Value == true)
             {
@@ -881,9 +905,6 @@ namespace ClothCollideVisualizer
 
                 if (_self._ociCharMgmt.TryGetValue(ociChar, out physicCollider))
                 {
-                    if (type == Update_Mode.SELECTION)
-                        return;
-
                     ClearPhysicCollier(physicCollider);
                     _self._ociCharMgmt.Remove(ociChar);
                 }
@@ -1046,13 +1067,13 @@ namespace ClothCollideVisualizer
             }
         }
 
-        private static IEnumerator ExecuteAfterFrame(OCIChar ociChar, Update_Mode type)
+        private static IEnumerator ExecuteAfterFrame(OCIChar ociChar)
         {
-            int frameCount = 30;
+            int frameCount = 10;
             for (int i = 0; i < frameCount; i++)
                 yield return null;
 
-            AddVisualColliders(ociChar, type);
+            AddVisualColliders(ociChar);
         }
 
         private static void DeselectNode(OCIChar ociChar)
@@ -1089,12 +1110,18 @@ namespace ClothCollideVisualizer
             {
                 //  UnityEngine.Debug.Log($">> OnSelectSingle");               
                 ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);         
-                _self._selectedOCI = objectCtrlInfo;
                 OCIChar ociChar = objectCtrlInfo as OCIChar;
+                _self._selectedOCI = ociChar;
 
                 if (ociChar != null)
                 {
-                    ociChar.GetChaControl().StartCoroutine(ExecuteAfterFrame(ociChar, Update_Mode.SELECTION));
+                    if (_self._ociCharMgmt.TryGetValue(ociChar, out var physicCollider))
+                    {
+                        // 기존 생성된 대상에 대해서는 무시
+                    } else
+                    {
+                        ociChar.GetChaControl().StartCoroutine(ExecuteAfterFrame(ociChar));                        
+                    }                    
                 }
 
                 OCICollider ociCollider = Studio.Studio.GetCtrlInfo(_node) as OCICollider;
@@ -1128,110 +1155,81 @@ namespace ClothCollideVisualizer
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
-                DeselectNode(_self._selectedOCI as OCIChar);
-
+                ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);         
+                OCIChar ociChar = objectCtrlInfo as OCIChar;
+                _self._selectedOCI = null;
+                
+                if (ociChar != null)
+                {
+                    DeselectNode(_self._selectedOCI as OCIChar);        
+                }
+                            
                 return true;
             }
         }
 
+//         // 옷 부분 변경
         [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
         internal static class OCIChar_ChangeChara_Patches
         {
             public static void Postfix(OCIChar __instance, string _path)
             {
-
-                ChaControl chaControl = __instance.GetChaControl();
-
-                if (chaControl != null)
-                {                    
-                    chaControl.StartCoroutine(ExecuteAfterFrame(__instance as OCIChar, Update_Mode.CHANGE));
-                }
+                PhysicCollider value = null;
+                if (_self._ociCharMgmt.TryGetValue(__instance, out value))
+                {
+                    ClearPhysicCollier(value);
+                    _self._ociCharMgmt.Remove(__instance);
+                }  
             }
         }
 
-        // 악세러리 부분 변경
+        
         [HarmonyPatch(typeof(ChaControl), "ChangeAccessory", typeof(int), typeof(int), typeof(int), typeof(string), typeof(bool))]
         private static class ChaControl_ChangeAccessory_Patches
         {
             private static void Postfix(ChaControl __instance, int slotNo, int type, int id, string parentKey, bool forceChange)
             {                 
-                bool shouldReallocation = true;
-                PhysicCollider physicCollider = null;
-                if (_self._ociCharMgmt.TryGetValue(__instance.GetOCIChar(), out physicCollider))
+                PhysicCollider value = null;
+                if (_self._ociCharMgmt.TryGetValue(__instance.GetOCIChar(), out value))
                 {
-                    if (physicCollider.accessoryInfos[slotNo] != null)
-                    {                    
-                        GameObject newClothObj = __instance.objAccessory[slotNo];
-
-                        if (newClothObj != null)
-                        {
-                            if (physicCollider.accessoryInfos[slotNo].hasCloth == false && newClothObj.GetComponentsInChildren<Cloth>().Length == 0 && newClothObj.GetComponentsInChildren<DynamicBone>().Length == 0)
-                            {
-                                shouldReallocation = false;
-                            }
-                        }                                        
-                    }
-
-                    if (shouldReallocation)
-                        __instance.StartCoroutine(ExecuteAfterFrame(__instance.GetOCIChar(), Update_Mode.CHANGE));
-                    else
-                    {
-                        // 옷 부분 변경 시 물리 옷이 없는 옷의 경우에도 ground collider 대상으로 상태 update 는 해줘야 함
-#if FEATURE_GROUND_COLLIDER
-                        CreateGroundClothCollider(__instance.GetOCIChar().charInfo);
-#endif                        
-                    }
-                }                 
+                    ClearPhysicCollier(value);
+                    _self._ociCharMgmt.Remove(__instance.GetOCIChar());
+                }                     
             } 
         }
         
-        // 옷 부분 변경
+
         [HarmonyPatch(typeof(ChaControl), "ChangeClothes", typeof(int), typeof(int), typeof(bool))]
         private static class ChaControl_ChangeClothes_Patches
         {
             private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange)
             {
-                // UnityEngine.Debug.Log($">> ChangeClothes");
-                bool shouldReallocation = true;
-                PhysicCollider physicCollider = null;
-                if (_self._ociCharMgmt.TryGetValue(__instance.GetOCIChar(), out physicCollider))
+                UnityEngine.Debug.Log($">> ChangeClothes");
+                if (kind < 2)
                 {
-                    if (physicCollider.clothInfos[kind] != null)
-                    {                    
-                        GameObject newClothObj = __instance.objClothes[kind];
-
-                        if (newClothObj != null)
-                        {
-                            if (physicCollider.clothInfos[kind].hasCloth == false && newClothObj.GetComponentsInChildren<Cloth>().Length == 0)
-                            {
-                                shouldReallocation = false;
-                            }
-                        }                                        
-                    }
-
-                    if (shouldReallocation)
-                        __instance.StartCoroutine(ExecuteAfterFrame(__instance.GetOCIChar(), Update_Mode.CHANGE));
-                    else
+                    PhysicCollider value = null;
+                    if (_self._ociCharMgmt.TryGetValue(__instance.GetOCIChar(), out value))
                     {
-                        // 옷 부분 변경 시 물리 옷이 없는 옷의 경우에도 ground collider 대상으로 상태 update 는 해줘야 함
-#if FEATURE_GROUND_COLLIDER
-                        CreateGroundClothCollider(__instance.GetOCIChar().charInfo);
-#endif                        
-                    }
-                }                    
+                        ClearPhysicCollier(value);
+                        _self._ociCharMgmt.Remove(__instance.GetOCIChar());
+                    }                    
+                }
             }
         }
 
-        // 옷 전체 변경
+//         // 옷 전체 변경
         [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
         internal static class ChaControl_SetAccessoryStateAll_Patches
         {
             public static void Postfix(ChaControl __instance, bool show)
             {
-                if (__instance != null)
+                UnityEngine.Debug.Log($">> SetAccessoryStateAll");
+
+                PhysicCollider value = null;
+                if (_self._ociCharMgmt.TryGetValue(__instance.GetOCIChar(), out value))
                 {
-                    // UnityEngine.Debug.Log($">> SetAccessoryStateAll");
-                    __instance.StartCoroutine(ExecuteAfterFrame(__instance.GetOCIChar(), Update_Mode.CHANGE));  
+                    ClearPhysicCollier(value);
+                    _self._ociCharMgmt.Remove(__instance.GetOCIChar());
                 }
             }
         }
@@ -1285,18 +1283,20 @@ namespace ClothCollideVisualizer
                 {
                     if (_self._ociCharMgmt.TryGetValue(ociChar, out var physicCollider))
                     {
-                        if (__instance.folderInfo.name == GROUP_CAPSULE_COLLIDER)
+                        if (__instance.folderInfo.name.Equals(GROUP_CAPSULE_COLLIDER))
                         {
                             foreach (var visibleObject in physicCollider.debugCapsuleCollideVisibleObjects)
                             {
-                                visibleObject.SetActive(_visible);
+                                if (visibleObject != null)
+                                    visibleObject.SetActive(_visible);
                             }
                         }
-                        else if (__instance.folderInfo.name == GROUP_SPHERE_COLLIDER)
+                        else if (__instance.folderInfo.name.Equals(GROUP_SPHERE_COLLIDER))
                         {
                             foreach (var visibleObject in physicCollider.debugSphereCollideVisibleObjects)
                             {
-                                visibleObject.SetActive(_visible);
+                                if (visibleObject != null)
+                                    visibleObject.SetActive(_visible);
                             }
                         }
                     }

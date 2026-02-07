@@ -1,4 +1,0 @@
-D:\work\hs2\working\bin\HS2\ClothColliderVisualizer.dll
-D:\work\hs2\working\ClothColliderVisualizer.HS2\obj\Release\ClothColliderVisualizer.HS2.csproj.AssemblyReference.cache
-D:\work\hs2\working\ClothColliderVisualizer.HS2\obj\Release\ClothColliderVisualizer.HS2.csproj.CoreCompileInputs.cache
-D:\work\hs2\working\ClothColliderVisualizer.HS2\obj\Release\ClothColliderVisualizer.dll
