@@ -77,16 +77,12 @@ namespace UndressSupport
 
         private bool _loaded = false;
         private Status _status = Status.IDLE;
-        private ObjectCtrlInfo _selectedOCI;
-
-        private Coroutine _UndressCoroutine;
-
+        internal List<UndressData> _undressDataList = new List<UndressData>();
 
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressShortcut { get; private set; }
         internal static ConfigEntry<int> ClothUndressSpeed { get; private set; }
         internal static ConfigEntry<float> ClothDamping { get; private set; }
         internal static ConfigEntry<float> ClothStiffness { get; private set; }
-
         internal static ConfigEntry<float> ClothUndressDuration { get; private set; }        
 
         internal enum Status
@@ -108,17 +104,11 @@ namespace UndressSupport
         {
             base.Awake();
 
-            ClothDamping = Config.Bind("Cloth", "Damping", 0.3f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            ClothDamping = Config.Bind("Cloth", "Damping", 0.55f, new ConfigDescription("", new AcceptableValueRange<float>(0.4f, 0.7f)));
 
-            ClothStiffness = Config.Bind("Cloth", "Stiffness", 2.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            ClothStiffness = Config.Bind("Cloth", "Stiffness", 5.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.1f, 9.0f)));
 
             ClothUndressSpeed = Config.Bind("Option", "Speed", 3, new ConfigDescription("multiple", new AcceptableValueRange<int>(1, 5)));
-
-            // ClothMaxDistanceTop = Config.Bind("Option", "Top", 3.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.0f, 10.0f)));
-
-            // ClothMaxDistanceMiddle = Config.Bind("Option", "Middle", 8.0f, new ConfigDescription("", new AcceptableValueRange<float>(5.0f, 15.0f)));
-
-            // ClothMaxDistanceBottom = Config.Bind("Option", "Bottom", 10.0f, new ConfigDescription("", new AcceptableValueRange<float>(10.0f, 20.0f)));
 
             ClothUndressDuration = Config.Bind("Option", "Duration", 10.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 90.0f)));
 
@@ -151,24 +141,31 @@ namespace UndressSupport
                 return;
 
             if (ConfigKeyDoUndressShortcut.Value.IsDown())
-            {
-                 UndressData undressData = Logic.GetCloth(_self._selectedOCI);
-                if (undressData != null)
+            {   
+                OCIChar ociChar = null;
+                foreach (UndressData undressData in _undressDataList)
                 {
-                    if (_UndressCoroutine != null) {
-                        _self.StopCoroutine(_self._UndressCoroutine);
-                        Logic.RestoreMaxDistances(undressData);
-                    }
+                    ociChar = undressData.ociChar;
+                }
 
-                    _UndressCoroutine = StartCoroutine(DoUnressCoroutine());
+                if (ociChar != null)
+                {
+                    Logic.ReallocateUndressDataList(_self, ociChar);
+                    foreach (UndressData undressData in _undressDataList)
+                    {
+                        if (undressData != null)
+                        {
+                            if (undressData.coroutine == null) {
+                                undressData.coroutine = StartCoroutine(DoUnressCoroutine(undressData, undressData.cloth));
+                            }
+                        }
+                    }
                 }
             }
         }
 
         private void OnSceneLoad(string path)
         {
-            _status = Status.DESTORY;
-            _selectedOCI = null;
         }
 
         #endregion
@@ -198,7 +195,7 @@ namespace UndressSupport
 
                 // 🔹 아래로 당기는 힘 설정
                 float startPull = 0.0f;    // 시작은 거의 없음
-                float endPull   = 3.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
+                float endPull   = 5.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
 
                 // y좌표 기반 정규화
                 float minY = float.MaxValue;
@@ -219,24 +216,32 @@ namespace UndressSupport
                 }
 
                 float timer = 0f;
-                int topMaxDistance = 5 * ClothUndressSpeed.Value;
-                int midMaxDistance = 15 * ClothUndressSpeed.Value;
-                int bottomMaxDistance = 25 * ClothUndressSpeed.Value;
+                int topMaxDistance = 3 * ClothUndressSpeed.Value;
+                int midMaxDistance = 5 * ClothUndressSpeed.Value;
+                int bottomMaxDistance = 3 * ClothUndressSpeed.Value;
+
+                float startRadius = 0.9f;
+                if (undressData.IsTop)
+                    startRadius = 0.5f;
 
                 while (timer < duration)
                 {
+                    if (cloth == null)
+                        break;
+
                     float t = timer / duration;
                     float tSmooth = Mathf.SmoothStep(0f, 1f, t);
 
-                    undressData.spineCollider.radius = Mathf.Lerp(0.8f, 5f, Mathf.Clamp01(t));
+                    undressData.collider.radius = Mathf.Lerp(startRadius, 1.5f, Mathf.Clamp01(t));
 
                     // ⭐ 시간이 갈수록 아래로 당기는 힘 증가
                     float pullForce = Mathf.Lerp(startPull, endPull, tSmooth);
-                    cloth.externalAcceleration = Vector3.down * pullForce;
+                    if (cloth != null)
+                        cloth.externalAcceleration = Vector3.down * pullForce;
 
-                    float topScale = Mathf.Lerp(1f, 1.5f, tSmooth);
-                    float midScale = Mathf.Lerp(1f, 2.0f, tSmooth);
-                    float bottomScale = Mathf.Lerp(1f, 2.5f, tSmooth);
+                    float topScale = Mathf.Lerp(1f, 1.4f, tSmooth);
+                    float midScale = Mathf.Lerp(1f, 1.8f, tSmooth);
+                    float bottomScale = Mathf.Lerp(1f, 2.2f, tSmooth);
 
                     for (int i = 0; i < coeffs.Length; i++)
                     {
@@ -251,23 +256,18 @@ namespace UndressSupport
                         coeffs[i].maxDistance = targetMaxDistance;
                     }
 
-                    if (cloth == null)
-                        break;
-
                     timer += Time.deltaTime;
-                    cloth.coefficients = coeffs;
+                    if (cloth != null)
+                        cloth.coefficients = coeffs;
 
                     yield return null;
                 }
             }
         }
 
-        private IEnumerator UndressAll(UndressData undressData, float duration)
+        private IEnumerator UndressAll(UndressData undressData, Cloth cloth, float duration)
         {
-            foreach (var cloth in undressData.clothes)
-            {
-                if (cloth == null) continue;
-
+            if (cloth != null)  {
                 // 물리 안정화
                 cloth.useGravity = true;
                 cloth.damping = ClothDamping.Value;
@@ -281,32 +281,34 @@ namespace UndressSupport
                     startDistances[i] = coeffs[i].maxDistance;
 
                 yield return StartCoroutine(UndressPart(undressData, cloth, startDistances, duration));
+            } else
+            {
+                yield break;
             }
         }
 
-        private IEnumerator DoUnressCoroutine()
+        private IEnumerator DoUnressCoroutine(UndressData undressData, Cloth cloth)
         {
-            UndressData undressData = Logic.GetCloth(_selectedOCI);
-            if (undressData != null) {
-                _status = Status.RUN;
-
-                while (_status == Status.RUN)
+            _status = Status.RUN;
+            while (_status == Status.RUN)
+            {
+                if (_loaded == true)
                 {
-                    if (_loaded == true)
-                    {
-                        yield return StartCoroutine(UndressAll(undressData, ClothUndressDuration.Value));
-                        // 기본 spine collider
-                        undressData.spineCollider.radius = 0.8f;
+                    yield return StartCoroutine(UndressAll(undressData, cloth, ClothUndressDuration.Value));
+                    // 기본 spine collider
+                    if (undressData.IsTop)
+                        undressData.collider.radius = 0.3f;
+                    else
+                        undressData.collider.radius = 0.6f;
 
-                        _status = Status.DESTORY;
-                    }
-
-                    yield return null;
+                    _status = Status.DESTORY;
                 }
-                
-                Logic.RestoreMaxDistances(undressData); 
-                _UndressCoroutine = null;
+
+                yield return null;
             }
+            
+            Logic.RestoreMaxDistances(undressData);
+            undressData.coroutine = null;
         }
 
         #endregion
@@ -316,12 +318,14 @@ namespace UndressSupport
         [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
         internal static class WorkspaceCtrl_OnSelectSingle_Patches
         {
-
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
                 ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+                OCIChar ociChar = objectCtrlInfo as OCIChar;
 
-                _self._selectedOCI = objectCtrlInfo;                
+                // 새로 할당
+                Logic.ReallocateUndressDataList(_self, ociChar);
+                
                 return true;
             }
         }
@@ -331,83 +335,54 @@ namespace UndressSupport
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
-                _self._selectedOCI = null;
+                Logic.RemoveUndressDataList(_self);
                 return true;
             }
         }
 
-        [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
-        internal static class OCIChar_ChangeChara_Patches
-        {
-            public static void Postfix(OCIChar __instance, string _path)
-            {
-                UndressData undressData = Logic.GetCloth(_self._selectedOCI);
-                if (undressData != null)
-                {
-                    if (_self._UndressCoroutine != null) {
-                        _self.StopCoroutine(_self._UndressCoroutine);
-                        Logic.RestoreMaxDistances(undressData);
-                        _self._UndressCoroutine = null;
-                    }
-                }
-            }
-        }
+        // [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
+        // internal static class OCIChar_ChangeChara_Patches
+        // {
+        //     public static void Postfix(OCIChar __instance, string _path)
+        //     {
+        //         // 새로 할당
+        //         Logic.ReallocateUndressDataList(_self, __instance);
+        //     }
+        // }
 
-        // 개별 옷 변경
-        [HarmonyPatch(typeof(ChaControl), "ChangeClothes", typeof(int), typeof(int), typeof(bool))]
-        private static class ChaControl_ChangeClothes_Patches
-        {
-            private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange)
-            {
-                UndressData undressData = Logic.GetCloth(_self._selectedOCI);
-                if (undressData != null)
-                {
-                    if (_self._UndressCoroutine != null)
-                    {
-                        _self.StopCoroutine(_self._UndressCoroutine);
-                        Logic.RestoreMaxDistances(undressData);
-                        _self._UndressCoroutine = null;
-                    }
-                }
-            }
-        }
+        // // 개별 옷 변경 (cltoh 할당때문에 반드시 delay 처리해야함)
+        // [HarmonyPatch(typeof(ChaControl), "ChangeClothes", typeof(int), typeof(int), typeof(bool))]
+        // private static class ChaControl_ChangeClothes_Patches
+        // {
+        //     private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange)
+        //     {
+        //         // 새로 할당
+        //         if (kind < 3)
+        //             Logic.TryAllocateObject(_self, __instance.GetOCIChar());
 
-        // 코디네이션 변경
-        [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
-        internal static class ChaControl_SetAccessoryStateAll_Patches
-        {
-            public static void Postfix(ChaControl __instance, bool show)
-            {
-                UndressData undressData = Logic.GetCloth(_self._selectedOCI);
-                if (undressData != null)
-                {
-                    if (_self._UndressCoroutine != null)
-                    {
-                        _self.StopCoroutine(_self._UndressCoroutine);
-                        Logic.RestoreMaxDistances(undressData);
-                        _self._UndressCoroutine = null;
-                    }
-                }
-            }
-        }
+        //         UnityEngine.Debug.Log($">> ChangeClothes kind {kind}, id {id}, force {forceChange}");
+        //     }
+        // }
+
+        // // 코디네이션 변경 (cltoh 할당때문에 반드시 delay 처리해야함)
+        // [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
+        // internal static class ChaControl_SetAccessoryStateAll_Patches
+        // {
+        //     public static void Postfix(ChaControl __instance, bool show)
+        //     {
+        //         // 새로 할당
+        //         // Logic.TryAllocateObject(_self, __instance.GetOCIChar());
+        //         UnityEngine.Debug.Log($">> SetAccessoryStateAll show {show}");
+        //     }
+        // }
 
         [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
         private static class Studio_InitScene_Patches
         {
             private static bool Prefix(object __instance, bool _close)
             {
-                UndressData undressData = Logic.GetCloth(_self._selectedOCI);
-                if (undressData != null)
-                {
-                    if (_self._UndressCoroutine != null)
-                    {
-                        _self.StopCoroutine(_self._UndressCoroutine);
-                        Logic.RestoreMaxDistances(undressData);
-                        _self._UndressCoroutine = null;
-                    }
-                }
-                _self._selectedOCI = null;
-
+                Logic.RemoveUndressDataList(_self);
+                
                 return true;
             }
         }
