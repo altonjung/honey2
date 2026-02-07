@@ -42,164 +42,139 @@ namespace UndressSupport
             capsule.center = position;
             capsule.radius = radius;
             capsule.height = height;
-            capsule.direction = direction; // Y축 기준
-
+            capsule.direction = direction;
+// 0 = X 축
+// 1 = Y 축
+// 2 = Z 축
             return capsule;
         }
 
-        static void AddCapsuleColliderToCloth_NoReset(Cloth cloth, CapsuleCollider col)
+        static void UpdateCapsuleCollider(Cloth cloth, CapsuleCollider col)
         {
-            // 1. 기존 collider 복사
             CapsuleCollider[] old = cloth.capsuleColliders;
 
-            // 2. 중복 방지
-            if (old != null)
+            if (old == null)
             {
-                for (int i = 0; i < old.Length; i++)
-                {
-                    if (old[i] == col)
-                        return;
-                }
+                cloth.capsuleColliders = new CapsuleCollider[] { col };
+                return;
             }
 
-            // 3. 새 배열 생성 (append)
-            int oldCount = old != null ? old.Length : 0;
-            CapsuleCollider[] next = new CapsuleCollider[oldCount + 1];
+            List<CapsuleCollider> list = new List<CapsuleCollider>(old);
 
-            if (oldCount > 0)
-                System.Array.Copy(old, next, oldCount);
+            // 기존 동일 collider 제거
+            list.RemoveAll(c => c == col);
 
-            next[oldCount] = col;
+            // 다시 추가
+            list.Add(col);
 
-            // 4. ❗ enabled 토글 없이 재할당
-            cloth.capsuleColliders = next;
+            cloth.capsuleColliders = list.ToArray();
         }
 
-        private static CapsuleCollider CreateSpineClothCollider(ChaControl charControl, List<Cloth> clothes, string name, float radius, float height)
+        private static CapsuleCollider CreateClothCollider(ChaControl charControl, Cloth cloth, string name, float radius, float height, Vector3? position = null)
         {
+            Vector3 pos = position ?? Vector3.zero;
+
             CapsuleCollider spineCollider = null;
 
             Transform root_bone = charControl.objBodyBone.transform.FindLoop(name);
 
             if (root_bone != null) {
-                Transform colliderTr = root_bone.Find(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Spine");
+                Transform colliderTr = root_bone.Find(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Undress_" + name);
 
-                if (colliderTr == null) {
-                    // spine collider
-                    GameObject spineObj = new GameObject(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Spine");
-                    spineCollider = AddCapsuleSpineCollider(spineObj, root_bone, Vector3.zero, radius, height);
-            
-                    foreach (Cloth cloth in clothes)
-                        AddCapsuleColliderToCloth_NoReset(cloth, spineCollider);
-                } else {
-                    spineCollider = colliderTr.GetComponentInChildren<CapsuleCollider>();
+                if (colliderTr != null) {
+                      UnityEngine.Object.Destroy(colliderTr.gameObject);
                 }
+
+                // spine collider
+                GameObject boneObj = new GameObject(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Undress_" + name);
+                spineCollider = AddCapsuleSpineCollider(boneObj, root_bone, pos, radius, height);
+                UpdateCapsuleCollider(cloth, spineCollider);
             }
 
             return spineCollider;
         }
-
-        private static void CreateGroundCollider(ChaControl charControl, List<Cloth> clothes)
-        {
-            CapsuleCollider groundCollider = null;
-            
-            Transform root_bone = charControl.objBodyBone.transform.FindLoop("cf_N_height");
-
-            if (root_bone != null) {
-
-                if (!root_bone.name.Contains(UndressSupport.CLOTH_COLLIDER_PREFIX)) {
-                    // ground collider
-                    GameObject groundObj = new GameObject(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Ground");
-                    groundCollider = AddCapsuleSpineCollider(groundObj, root_bone, new Vector3(0.0f, -60.0f, 0.0f), 60.0f, 1.0f);
-                
-                    foreach (Cloth cloth in clothes)
-                        AddCapsuleColliderToCloth_NoReset(cloth, groundCollider);
-                }
-            }
-        }
-
 #endif
 
-        internal static UndressData GetCloth(ObjectCtrlInfo objCtrlInfo)
+        internal static UndressData GetUndressData(Cloth cloth, OCIChar ociChar)
         {
-            UndressData undressData = null;
+            // UnityEngine.Debug.Log($">> GetUndressData");
 
-            if (objCtrlInfo == null)
-                return null;
-
-            OCIChar ociChar = objCtrlInfo as OCIChar;
-            if (ociChar == null)
-                return null;
-
-            undressData = new UndressData();
+            UndressData undressData = new UndressData();
+            undressData.ociChar = ociChar;
+            undressData.coroutine = null;
+            undressData.cloth = cloth;
 
             // Body renderer (참고용)
             undressData.meshRenderer =
                 GetBodyRenderer(ociChar.guideObject.transformTarget);
 
-            // 모든 Cloth 수집
-            undressData.clothes =
-                ociChar.GetChaControl()
-                    .transform
-                    .GetComponentsInChildren<Cloth>(true)
-                    .ToList();
+            Collider[] allColliders = ociChar.guideObject.transformTarget.GetComponentsInChildren<Collider>();
+            
+            undressData.IsTop = false;
 
-#if FEATURE_SPINE_COLLIDER
-            if (undressData.clothes.Count > 0)
+            foreach (var col in allColliders)
             {
-                undressData.spineCollider = CreateSpineClothCollider(ociChar.GetChaControl(), undressData.clothes, "cf_J_Spine01", 0.1f, 3.0f);
-                CreateGroundCollider(ociChar.GetChaControl(), undressData.clothes);
+                if (col.name.Contains("Cloth colliders"))
+                {
+                    if (col.name.Contains("_Mune"))
+                    {
+                        undressData.IsTop = true;
+                        break;
+                    }
+                }
+            }
+
+            // UnityEngine.Debug.Log($">> isTop {undressData.IsTop}");
+            
+            // top, down 확인 필요
+#if FEATURE_SPINE_COLLIDER
+            // ground
+            if (undressData.IsTop) {
+                undressData.collider = CreateClothCollider(ociChar.GetChaControl(), undressData.cloth, "cf_J_Neck", 0.3f, 2.0f);
+            } else {
+                undressData.collider = CreateClothCollider(ociChar.GetChaControl(), undressData.cloth, "cf_J_Spine01", 0.6f, 2.0f);
+                CreateClothCollider(ociChar.GetChaControl(), undressData.cloth, "cf_J_Kosi02", 0.8f, 3.0f);
             }
 #endif
+            // 🔹 Cloth 기준 coefficients 저장
+            ClothSkinningCoefficient[] coeffs = cloth.coefficients;
+            float[] maxDistances = new float[coeffs.Length];
 
-            foreach (var cloth in undressData.clothes)
+            for (int i = 0; i < coeffs.Length; i++)
             {
-                if (cloth == null)
-                    continue;
-
-                // 🔹 Cloth 기준 coefficients 저장
-                ClothSkinningCoefficient[] coeffs = cloth.coefficients;
-                float[] maxDistances = new float[coeffs.Length];
-
-                for (int i = 0; i < coeffs.Length; i++)
-                {
-                    maxDistances[i] = coeffs[i].maxDistance;
-                }
-
-                undressData.originalMaxDistances[cloth] = maxDistances;
-                // 🔹 물리 설정 복원
+                maxDistances[i] = coeffs[i].maxDistance;
             }
+
+            undressData.originalMaxDistances[cloth] = maxDistances;
+            // 🔹 물리 설정 복원
 
             return undressData;
         }  
 
         internal static void RestoreMaxDistances(UndressData undressData)
         {
-            foreach (var cloth in undressData.clothes)
-            {
-                if (cloth == null) continue;
-
-                // 2️⃣ solver 리셋 (이때 떨어지지 않음)
-                cloth.enabled = false;
-                cloth.enabled = true;
+            // 2️⃣ solver 리셋 (이때 떨어지지 않음)
+            if (undressData.cloth != null) {
+                undressData.cloth.enabled = false;
+                undressData.cloth.enabled = true;
                 
-                float[] originalMax = undressData.originalMaxDistances[cloth];
+                float[] originalMax = undressData.originalMaxDistances[undressData.cloth];
 
                 if (originalMax != null && originalMax.Length > 0)
                 {
-                    ClothSkinningCoefficient[] coeffs = cloth.coefficients;
+                    ClothSkinningCoefficient[] coeffs = undressData.cloth.coefficients;
                     int count = Mathf.Min(coeffs.Length, originalMax.Length);
 
                     for (int i = 0; i < count; i++)
                         coeffs[i].maxDistance = originalMax[i];
 
-                    cloth.coefficients = coeffs;
+                    undressData.cloth.coefficients = coeffs;
                 }
 
                 // 3️⃣ 정상 물리 복원
-                cloth.worldVelocityScale = 0f;
-                cloth.worldAccelerationScale = 1f;
-                cloth.useGravity = true;
+                undressData.cloth.worldVelocityScale = 0f;
+                undressData.cloth.worldAccelerationScale = 1f;
+                undressData.cloth.useGravity = true;
             }
         }
 
@@ -269,14 +244,74 @@ namespace UndressSupport
 #endif
             return bodyRenderer;
         }
+
+        //internal static void TryAllocateObject(UndressSupport instance, OCIChar ociChar) {
+        //    ociChar.GetChaControl().StartCoroutine(ExecuteAfterFrame(instance, ociChar));
+        //}
+
+    //    internal static IEnumerator ExecuteAfterFrame(UndressSupport instance, OCIChar ociChar)
+    //     {
+    //         int frameCount = 20;
+    //         for (int i = 0; i < frameCount; i++)
+    //             yield return null;
+
+    //         ReallocateUndressDataList(instance, ociChar);
+    //     }
+
+        internal static void ReallocateUndressDataList(UndressSupport instance, OCIChar ociChar)
+        {   
+            foreach(UndressData undressData in instance._undressDataList)
+            {
+                if (undressData.coroutine != null) {
+                    instance.StopCoroutine(undressData.coroutine);
+                    RestoreMaxDistances(undressData);
+                }
+            }
+
+            instance._undressDataList.Clear();
+
+            if (ociChar != null)
+            {
+                var clothTop = ociChar.GetChaControl().objClothes[0];
+                var clothBottom = ociChar.GetChaControl().objClothes[1];
+                List<Cloth> clothes = new List<Cloth>();
+
+                if (clothTop != null)
+                    clothes.AddRange(clothTop.GetComponentsInChildren<Cloth>(true));
+
+                if (clothBottom != null)
+                    clothes.AddRange(clothBottom.GetComponentsInChildren<Cloth>(true));
+
+                foreach(Cloth cloth in clothes)
+                {
+                    UndressData undressData = Logic.GetUndressData(cloth, ociChar);
+                    instance._undressDataList.Add(undressData);
+                }
+            }
+        }
+
+        internal static void RemoveUndressDataList(UndressSupport instance)
+        {   
+            foreach(UndressData undressData in instance._undressDataList)
+            {
+                if (undressData.coroutine != null) {
+                    instance.StopCoroutine(undressData.coroutine);
+                    RestoreMaxDistances(undressData);
+                }
+            }
+
+            instance._undressDataList.Clear();
+        }
     }
 
 
     class UndressData {
-        public List<Cloth> clothes = new List<Cloth>();
+        public OCIChar ociChar;
+        public Cloth cloth;
         public Dictionary<Cloth, float[]> originalMaxDistances = new Dictionary<Cloth, float[]>();
         public SkinnedMeshRenderer meshRenderer;
-        public CapsuleCollider spineCollider;
-
+        public CapsuleCollider collider;
+        public Coroutine coroutine;
+        public bool IsTop; // top, bottom
     }
 }
