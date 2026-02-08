@@ -54,7 +54,7 @@ namespace ClothCollideVisualizer
     {
         #region Constants
         public const string Name = "ClothCollideVisualizer";
-        public const string Version = "0.9.0.3";
+        public const string Version = "0.9.0.4";
         public const string GUID = "com.alton.illusionplugins.ClothCollideVisualizer";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
