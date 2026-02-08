@@ -81,11 +81,11 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.ClothModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>C:\games\HoneySelect 2 DX BetterRepack R15\StudioNEOV2_Data\Managed\UnityEngine.ClothModule.dll</HintPath>
+      <HintPath>..\packages\Clothphysics\lib\net46\UnityEngine.ClothModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.PhysicsModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>C:\games\HoneySelect 2 DX BetterRepack R15\StudioNEOV2_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <HintPath>..\packages\Clothphysics\lib\net46\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
