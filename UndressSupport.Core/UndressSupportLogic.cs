@@ -292,7 +292,6 @@ namespace UndressSupport
             {
                 if (undressData.coroutine != null) {
                     instance.StopCoroutine(undressData.coroutine);
-                    RestoreMaxDistances(undressData);
                 }
             }
 
