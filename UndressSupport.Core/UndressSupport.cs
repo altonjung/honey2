@@ -347,49 +347,12 @@ namespace UndressSupport
             }
         }
 
-        // [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
-        // internal static class OCIChar_ChangeChara_Patches
-        // {
-        //     public static void Postfix(OCIChar __instance, string _path)
-        //     {
-        //         // 새로 할당
-        //         Logic.ReallocateUndressDataList(_self, __instance);
-        //     }
-        // }
-
-        // // 개별 옷 변경 (cltoh 할당때문에 반드시 delay 처리해야함)
-        // [HarmonyPatch(typeof(ChaControl), "ChangeClothes", typeof(int), typeof(int), typeof(bool))]
-        // private static class ChaControl_ChangeClothes_Patches
-        // {
-        //     private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange)
-        //     {
-        //         // 새로 할당
-        //         if (kind < 3)
-        //             Logic.TryAllocateObject(_self, __instance.GetOCIChar());
-
-        //         UnityEngine.Debug.Log($">> ChangeClothes kind {kind}, id {id}, force {forceChange}");
-        //     }
-        // }
-
-        // // 코디네이션 변경 (cltoh 할당때문에 반드시 delay 처리해야함)
-        // [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
-        // internal static class ChaControl_SetAccessoryStateAll_Patches
-        // {
-        //     public static void Postfix(ChaControl __instance, bool show)
-        //     {
-        //         // 새로 할당
-        //         // Logic.TryAllocateObject(_self, __instance.GetOCIChar());
-        //         UnityEngine.Debug.Log($">> SetAccessoryStateAll show {show}");
-        //     }
-        // }
-
         [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
         private static class Studio_InitScene_Patches
         {
             private static bool Prefix(object __instance, bool _close)
             {
                 Logic.RemoveUndressDataList(_self);
-                
                 return true;
             }
         }
