@@ -77,6 +77,10 @@ namespace UndressSupport
         private Status _status = Status.IDLE;
         internal List<UndressData> _undressDataList = new List<UndressData>();
 
+        private AnimationCurve PullCurve;
+
+        private AnimationCurve UndressCurve;
+
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressShortcut { get; private set; }
         internal static ConfigEntry<int> ClothUndressSpeed { get; private set; }
         internal static ConfigEntry<float> ClothDamping { get; private set; }
@@ -101,7 +105,7 @@ namespace UndressSupport
         {
             base.Awake();
 
-            ClothDamping = Config.Bind("Cloth", "Damping", 0.55f, new ConfigDescription("", new AcceptableValueRange<float>(0.4f, 0.7f)));
+            ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("", new AcceptableValueRange<float>(0.4f, 0.7f)));
 
             ClothStiffness = Config.Bind("Cloth", "Stiffness", 5.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.1f, 9.0f)));
 
@@ -110,6 +114,14 @@ namespace UndressSupport
             ClothUndressDuration = Config.Bind("Option", "Duration", 10.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 90.0f)));
 
             ConfigKeyDoUndressShortcut = Config.Bind("ShortKey", "Undress key", new KeyboardShortcut(KeyCode.LeftControl, KeyCode.U));
+
+            PullCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+            UndressCurve = new AnimationCurve(
+                new Keyframe(0f, 0f),
+                new Keyframe(0.4f, 0.1f),
+                new Keyframe(1f, 1f)
+            );
 
             _self = this;
             Logger = base.Logger;
@@ -178,116 +190,134 @@ namespace UndressSupport
             _loaded = true;
         }        
 
-        private IEnumerator UndressPart(
+         private IEnumerator Undress(
             UndressData undressData,
             Cloth cloth,
-            float[] startDistances,
             float duration)
         {
-            if (cloth != null)
-            {
-                var coeffs = cloth.coefficients;
-                SkinnedMeshRenderer smr = cloth.GetComponent<SkinnedMeshRenderer>();
-
-                if (smr != null)
-                {
-                    Vector3[] vertices = smr.sharedMesh.vertices;
-
-                    // 🔹 아래로 당기는 힘 설정
-                    float startPull = 0.0f;    // 시작은 거의 없음
-                    float endPull   = 5.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
-
-                    // y좌표 기반 정규화
-                    float minY = float.MaxValue;
-                    float maxY = float.MinValue;
-                    foreach (var v in vertices)
-                    {
-                        float y = smr.transform.TransformPoint(v).y;
-                        minY = Mathf.Min(minY, y);
-                        maxY = Mathf.Max(maxY, y);
-                    }
-                    float rangeY = maxY - minY;
-
-                    float[] normalizedYs = new float[vertices.Length];
-                    for (int i = 0; i < vertices.Length; i++)
-                    {
-                        float y = smr.transform.TransformPoint(vertices[i]).y;
-                        normalizedYs[i] = (y - minY) / rangeY;
-                    }
-
-                    float timer = 0f;
-                    int topMaxDistance = 3 * ClothUndressSpeed.Value;
-                    int midMaxDistance = 5 * ClothUndressSpeed.Value;
-                    int bottomMaxDistance = 3 * ClothUndressSpeed.Value;
-
-                    float startRadius = 0.9f;
-                    if (undressData.IsTop)
-                        startRadius = 0.5f;
-
-                    while (timer < duration)
-                    {
-                        if (cloth == null)
-                            break;
-
-                        float t = timer / duration;
-                        float tSmooth = Mathf.SmoothStep(0f, 1f, t);
-
-                        if (undressData.collider != null)
-                            undressData.collider.radius = Mathf.Lerp(startRadius, 1.5f, Mathf.Clamp01(t));
-
-                        // ⭐ 시간이 갈수록 아래로 당기는 힘 증가
-                        float pullForce = Mathf.Lerp(startPull, endPull, tSmooth);
-                        if (cloth != null)
-                            cloth.externalAcceleration = Vector3.down * pullForce;
-
-                        float topScale = Mathf.Lerp(1f, 1.4f, tSmooth);
-                        float midScale = Mathf.Lerp(1f, 1.8f, tSmooth);
-                        float bottomScale = Mathf.Lerp(1f, 2.2f, tSmooth);
-
-                        for (int i = 0; i < coeffs.Length; i++)
-                        {
-                            float targetMaxDistance;
-                            if (normalizedYs[i] > 0.80f)
-                                targetMaxDistance = Mathf.Lerp(startDistances[i], topMaxDistance * topScale, tSmooth);
-                            else if (normalizedYs[i] > 0.40f)
-                                targetMaxDistance = Mathf.Lerp(startDistances[i], midMaxDistance * midScale, tSmooth);
-                            else
-                                targetMaxDistance = Mathf.Lerp(startDistances[i], bottomMaxDistance * bottomScale, tSmooth);
-
-                            coeffs[i].maxDistance = targetMaxDistance;
-                        }
-
-                        timer += Time.deltaTime;
-                        if (cloth != null)
-                            cloth.coefficients = coeffs;
-
-                        yield return null;
-                    }                    
-                }               
-            }
-        }
-
-        private IEnumerator UndressAll(UndressData undressData, Cloth cloth, float duration)
-        {
-            if (cloth != null)  {
-                // 물리 안정화
-                cloth.useGravity = true;
-                cloth.damping = ClothDamping.Value;
-                cloth.stiffnessFrequency = ClothStiffness.Value;
-                cloth.worldAccelerationScale = 1.0f;
-                cloth.worldVelocityScale = 0.0f;
-
-                var coeffs = cloth.coefficients;
-                float[] startDistances = new float[coeffs.Length];
-                for (int i = 0; i < coeffs.Length; i++)
-                    startDistances[i] = coeffs[i].maxDistance;
-
-                yield return StartCoroutine(UndressPart(undressData, cloth, startDistances, duration));
-            } else
-            {
+            if (cloth == null)
                 yield break;
+
+            cloth.useGravity = true;
+            cloth.damping = ClothDamping.Value;
+            cloth.stiffnessFrequency = ClothStiffness.Value;
+            cloth.worldAccelerationScale = 1.0f;
+            cloth.worldVelocityScale = 0.0f;
+
+            var coeffs = cloth.coefficients;
+            int vertCount = coeffs.Length;
+
+            float[] startDistances = new float[vertCount];
+            for (int i = 0; i < vertCount; i++)
+                startDistances[i] = coeffs[i].maxDistance;
+
+            SkinnedMeshRenderer smr = cloth.GetComponent<SkinnedMeshRenderer>();
+            if (smr == null)
+                yield break;
+
+            Vector3[] vertices = smr.sharedMesh.vertices;
+
+            float[] worldYs = new float[vertCount];
+
+            float minY = float.MaxValue;
+            float maxY = float.MinValue;
+
+            Matrix4x4 localToWorld = smr.transform.localToWorldMatrix;
+
+            for (int i = 0; i < vertCount; i++)
+            {
+                float y = localToWorld.MultiplyPoint3x4(vertices[i]).y;
+                worldYs[i] = y;
+
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+
+            float invRange = (maxY - minY) > 0f ? 1f / (maxY - minY) : 0f;
+
+            float[] normalizedY = new float[vertCount];
+            for (int i = 0; i < vertCount; i++)
+                normalizedY[i] = (worldYs[i] - minY) * invRange;
+
+            float endPull = 5.0f;
+
+            int topMaxDistance = 3 * ClothUndressSpeed.Value;
+            int midMaxDistance = 5 * ClothUndressSpeed.Value;
+            int bottomMaxDistance = 3 * ClothUndressSpeed.Value;
+
+            float startRadius = undressData.IsTop ? 0.5f : 0.9f;
+            var collider = undressData.collider;
+
+            float timer = 0f;
+
+            while (timer < duration)
+            {
+                if (cloth == null)
+                    yield break;
+
+                float t = timer / duration;
+
+                if (collider != null)
+                    collider.radius = Mathf.Lerp(startRadius, 1.5f, t);
+
+                // 🔥 Pull도 곡선 적용
+                float pull = PullCurve.Evaluate(t) * endPull;
+                cloth.externalAcceleration = Vector3.down * pull;
+
+                bool changed = false;
+
+                for (int i = 0; i < vertCount; i++)
+                {
+                    // 🔥 height 기반 지연
+                    float delay = normalizedY[i] * 0.35f; // 위쪽일수록 늦게
+                    float localT = Mathf.Clamp01((t - delay) / (1f - delay));
+
+                    // 🔥 AnimationCurve 적용
+                    float curveT = UndressCurve.Evaluate(localT);
+
+                    float targetMaxDistance;
+
+                    if (normalizedY[i] > 0.80f)
+                    {
+                        // 🔥 위쪽은 초반 유지
+                        if (t < 0.4f)
+                            continue;
+
+                        targetMaxDistance = Mathf.Lerp(
+                            startDistances[i],
+                            topMaxDistance,
+                            curveT);
+                    }
+                    else if (normalizedY[i] > 0.40f)
+                    {
+                        targetMaxDistance = Mathf.Lerp(
+                            startDistances[i],
+                            midMaxDistance,
+                            curveT);
+                    }
+                    else
+                    {
+                        targetMaxDistance = Mathf.Lerp(
+                            startDistances[i],
+                            bottomMaxDistance,
+                            curveT);
+                    }
+
+                    if (Mathf.Abs(coeffs[i].maxDistance - targetMaxDistance) > 0.0001f)
+                    {
+                        coeffs[i].maxDistance = targetMaxDistance;
+                        changed = true;
+                    }
+                }
+
+                if (changed)
+                    cloth.coefficients = coeffs;
+
+                timer += Time.deltaTime;
+                yield return null;
             }
         }
+
 
         private IEnumerator DoUnressCoroutine(UndressData undressData, Cloth cloth)
         {
@@ -295,17 +325,10 @@ namespace UndressSupport
 
             if (cloth != null)
             {
-                _status = Status.RUN;
-                while (_status == Status.RUN)
-                {
-                    if (_loaded == true)
-                    {
-                        yield return StartCoroutine(UndressAll(undressData, cloth, ClothUndressDuration.Value));
-                        _status = Status.DESTORY;
-                    }
-
+                while (!_loaded)
                     yield return null;
-                }                
+
+                yield return StartCoroutine(Undress(undressData, cloth, ClothUndressDuration.Value));         
             }
 
             // 기본 spine collider
