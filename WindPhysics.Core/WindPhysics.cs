@@ -102,22 +102,19 @@ namespace WindPhysics
         internal static ConfigEntry<float> WindInterval { get; private set; }
         internal static ConfigEntry<float> WindUpForce { get; private set; }
         internal static ConfigEntry<float> WindForce { get; private set; }
+        internal static ConfigEntry<float> WindAmplitude { get; private set; }
 
         internal static ConfigEntry<float> AccesoriesForce { get; private set; }
-        internal static ConfigEntry<float> AccesoriesAmplitude { get; private set; }
         internal static ConfigEntry<float> AccesoriesDamping { get; private set; }
         internal static ConfigEntry<float> AccesoriesStiffness { get; private set; }
 
         internal static ConfigEntry<float> HairForce { get; private set; }
-        internal static ConfigEntry<float> HairAmplitude { get; private set; }
         internal static ConfigEntry<float> HairDamping { get; private set; }
         internal static ConfigEntry<float> HairStiffness { get; private set; }
 
         internal static ConfigEntry<float> ClotheForce { get; private set; }
-        internal static ConfigEntry<float> ClotheAmplitude { get; private set; }
         internal static ConfigEntry<float> ClothDamping { get; private set; }
         internal static ConfigEntry<float> ClothStiffness { get; private set; }    
-        // internal static ConfigEntry<KeyboardShortcut> ConfigMainWindowShortcut { get; private set; }
         #endregion
 
 
@@ -138,10 +135,10 @@ namespace WindPhysics
 #else
             WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 30.0f)));
 #endif
+            WindAmplitude = Config.Bind("All", "Amplitude", 0.5f, new ConfigDescription("wind amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
+
             // clothes
             ClotheForce = Config.Bind("Cloth", "Force", 1.0f, new ConfigDescription("cloth force", new AcceptableValueRange<float>(0.1f, 1.0f)));
-
-            ClotheAmplitude = Config.Bind("Cloth", "Amplitude", 0.5f, new ConfigDescription("cloth amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
             ClothDamping = Config.Bind("Cloth", "Damping", 0.3f, new ConfigDescription("cloth damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
@@ -150,16 +147,12 @@ namespace WindPhysics
             // hair
             HairForce = Config.Bind("Hair", "Force", 1.0f, new ConfigDescription("hair force", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            HairAmplitude = Config.Bind("Hair", "Amplitude", 0.5f, new ConfigDescription("hair amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
-
             HairDamping = Config.Bind("Hair", "Damping", 0.15f, new ConfigDescription("hair damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             HairStiffness = Config.Bind("Hair", "Stiffness", 0.3f, new ConfigDescription("hair stiffness", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
             // accesories
             AccesoriesForce = Config.Bind("Misc", "Force", 1.0f, new ConfigDescription("accesories force", new AcceptableValueRange<float>(0.1f, 1.0f)));
-
-            AccesoriesAmplitude = Config.Bind("Misc", "Amplitude", 0.3f, new ConfigDescription("accesories amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
             AccesoriesDamping = Config.Bind("Misc", "Damping", 0.7f, new ConfigDescription("accesories damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
@@ -307,152 +300,114 @@ namespace WindPhysics
         {
             float time = Time.time;
 
-            // factor 자체가 바람 에너지
+            // Scale by current wind energy once to avoid repeated multiplies in loops.
             windEffect *= factor;
 
-            // =========================
+            // PERF: cache frequently used settings once per call.
+            bool gravityUp = Gravity.Value >= 0f;
+            float gravity = Gravity.Value;
+            float windForce = WindForce.Value;
+            float windUpForce = WindUpForce.Value;
+
+            float hairDamping = HairDamping.Value;
+            float hairStiffness = HairStiffness.Value;
+            float hairForce = HairForce.Value;
+
+            float accessoriesDamping = AccesoriesDamping.Value;
+            float accessoriesStiffness = AccesoriesStiffness.Value;
+            float accessoriesForce = AccesoriesForce.Value;
+
+            float clothDamping = ClothDamping.Value;
+            float clothStiffness = ClothStiffness.Value;
+            float clothForce = ClotheForce.Value;
+
+            // PERF: evaluate waves once per update instead of per element.
+            float windWave = Mathf.Max(Mathf.Sin(time * WindAmplitude.Value), 0f);
+            float upWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(windWave, 0f));
+            float downWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(-windWave, 0f));
+
+            Vector3 hairFinalWind = windEffect * windForce * hairForce;
+            hairFinalWind.y += windWave * windUpForce * factor;
+
+            Vector3 accessoriesFinalWind = windEffect * windForce * accessoriesForce;
+            accessoriesFinalWind.y += windWave * windUpForce * factor;
+
+            Vector3 baseWind = windEffect.sqrMagnitude > 0f ? windEffect.normalized : Vector3.zero;
+            Vector3 externalWind = baseWind * windForce * clothForce;
+            float noise = (Mathf.PerlinNoise(time * 0.8f, 0f) - 0.5f) * 2f;
+
+            // Tuned multipliers for stronger lift and reduced downward pull.
+            const float upBoost = 5.0f;
+            const float downReduce = 0.15f;
+
+            Vector3 randomWind =
+                baseWind * noise * windForce * clothForce +
+                Vector3.up * (upWave * windUpForce * upBoost - downWave * windUpForce * downReduce);
+
+            Vector3 clothExternalUp = Vector3.up * gravity;
+            Vector3 clothExternalDown = externalWind * 600f * factor;
+            Vector3 clothRandomUp = randomWind * 400f * factor;
+            Vector3 clothRandomDown = randomWind * 1600f * factor;
+
             // Hair
-            // =========================
-            foreach (var bone in windData.hairDynamicBones)
+            var hairBones = windData.hairDynamicBones;
+            for (int i = 0; i < hairBones.Count; i++)
             {
+                var bone = hairBones[i];
                 if (bone == null)
                     continue;
 
-                float wave = Mathf.Sin(time * HairAmplitude.Value);
-                if (wave < 0f) wave = 0f; // 위로만
-
-                Vector3 finalWind = windEffect * WindForce.Value * HairForce.Value;
-                finalWind.y += wave * WindUpForce.Value * factor;
-
-                bone.m_Damping = HairDamping.Value;
-                bone.m_Stiffness = HairStiffness.Value;
-                bone.m_Force = finalWind;
-
-                if (Gravity.Value >= 0)
-                {
-                    bone.m_Gravity = new Vector3(
-                    0,
-                    UnityEngine.Random.Range(Gravity.Value, Gravity.Value + 0.02f),
-                    0
-                    );   
-                } else
-                {
-                    bone.m_Gravity = new Vector3(
-                    0,
-                    UnityEngine.Random.Range(Gravity.Value, -0.005f),
-                    0
-                    );  
-                }
+                bone.m_Damping = hairDamping + UnityEngine.Random.Range(-0.2f, 0.2f);
+                bone.m_Stiffness = hairStiffness;
+                bone.m_Force = hairFinalWind;
+                bone.m_Gravity = new Vector3(0, gravityUp
+                ? UnityEngine.Random.Range(gravity, gravity + 0.02f)
+                : UnityEngine.Random.Range(gravity, gravity - 0.01f), 0f);
             }
 
-            // =========================
             // Accessories
-            // =========================
-            foreach (var bone in windData.accesoriesDynamicBones)
+            var accessoryBones = windData.accesoriesDynamicBones;
+            for (int i = 0; i < accessoryBones.Count; i++)
             {
+                var bone = accessoryBones[i];
                 if (bone == null)
                     continue;
 
-                float wave = Mathf.Sin(time * AccesoriesAmplitude.Value);
-                if (wave < 0f) wave = 0f;
-
-                Vector3 finalWind = windEffect * WindForce.Value * AccesoriesForce.Value;;
-                finalWind.y += wave * WindUpForce.Value * factor;
-
-                bone.m_Damping = AccesoriesDamping.Value;
-                bone.m_Stiffness = AccesoriesStiffness.Value;
-                bone.m_Force = finalWind;
-
-                if (Gravity.Value >= 0)
-                {
-                    bone.m_Gravity = new Vector3(
-                    0,
-                    UnityEngine.Random.Range(Gravity.Value, Gravity.Value + 0.03f),
-                    0
-                    );   
-                } else
-                {
-                    bone.m_Gravity = new Vector3(
-                    0,
-                    UnityEngine.Random.Range(Gravity.Value - 0.02f, -0.01f),
-                    0
-                    );  
-                }
+                bone.m_Damping = accessoriesDamping + UnityEngine.Random.Range(-0.2f, 0.2f);
+                bone.m_Stiffness = accessoriesStiffness;
+                bone.m_Force = accessoriesFinalWind;
+                bone.m_Gravity = new Vector3(0f, gravityUp
+                ? UnityEngine.Random.Range(gravity, gravity + 0.03f)
+                : UnityEngine.Random.Range(gravity, gravity - 0.03f), 0f);
             }
 
-            // =========================
             // Clothes
-            // =========================
-            foreach (var cloth in windData.clothes)
+            var clothes = windData.clothes;
+            for (int i = 0; i < clothes.Count; i++)
             {
+                var cloth = clothes[i];
                 if (cloth == null)
                     continue;
 
-                float rawWave = Mathf.Sin(time * ClotheAmplitude.Value);
-
-                float upWave   = Mathf.Max(rawWave, 0f);   // 올라갈 때
-                float downWave = Mathf.Max(-rawWave, 0f);  // 내려올 때
-                
-                upWave = Mathf.SmoothStep(0f, 1f, upWave);
-                downWave = Mathf.SmoothStep(0f, 1f, downWave);
-
-                Vector3 baseWind = windEffect.normalized;
-
-                // =========================
-                // Directional (XZ)
-                // =========================
-                Vector3 externalWind =
-                    baseWind * WindForce.Value * ClotheForce.Value;
-
-                // =========================
-                // Random + Upward
-                // =========================
-                float noise =
-                    (Mathf.PerlinNoise(time * 0.8f, 0f) - 0.5f) * 2f;
-
-                // 🔥 upward는 강하게
-                float upBoost = 5.0f;
-
-                // 🔻 downward는 거의 힘 주지 않음
-                float downReduce = 0.15f;   // 0.1 ~ 0.3 권장
-
-                Vector3 randomWind =
-                    baseWind * noise * WindForce.Value * ClotheForce.Value +
-                    Vector3.up *
-                    (
-                        upWave   * WindUpForce.Value * upBoost -
-                        downWave * WindUpForce.Value * downReduce
-                    );
-
-                // =========================
-                // Cloth physics
-                // =========================
                 cloth.worldAccelerationScale = 1.0f;
                 cloth.worldVelocityScale = 0.0f;
 
-                if (Gravity.Value >= 0) {
+                if (gravityUp)
+                {
                     cloth.useGravity = false;
-                    // 위로 작용하는 가짜 중력
-                    cloth.externalAcceleration = Vector3.up * Gravity.Value;
-
-                    cloth.randomAcceleration =
-                        randomWind * 20f * factor * 20;
-                } else
+                    cloth.externalAcceleration = clothExternalUp;
+                    cloth.randomAcceleration = clothRandomUp;
+                }
+                else
                 {
                     cloth.useGravity = true;
-
-                    cloth.externalAcceleration =
-                        externalWind * 30f * factor * 20;    
-                
-                    cloth.randomAcceleration =
-                        randomWind * 80f * factor * 20;
+                    cloth.externalAcceleration = clothExternalDown;
+                    cloth.randomAcceleration = clothRandomDown;
                 }
-                
-                // 🔧 하강 시 damping 증가 → elastic 제거 핵심
-                float downDampingBoost = 2.0f;
-                cloth.damping = ClothDamping.Value;
 
-                cloth.stiffnessFrequency = ClothStiffness.Value;
+                // PERF: use cached values and avoid repeated property access.
+                cloth.damping = clothDamping;
+                cloth.stiffnessFrequency = clothStiffness;
             }
         }
 
@@ -464,20 +419,20 @@ namespace WindPhysics
             if (clothes == null || clothes.Count == 0)
                 yield break;
 
-            // 1. Wind 즉시 제거 + grounding force 적용
+            // 1. Remove wind immediately and apply a small grounding force.
             foreach (var cloth in clothes)
             {
                 if (cloth == null) continue;
 
-                cloth.randomAcceleration   = Vector3.zero;
+                cloth.randomAcceleration = Vector3.zero;
                 cloth.externalAcceleration = Vector3.down * settleForce;
             }
 
-            // 2. 프레임 단위로 안정화 대기
+            // 2. Wait several frames so the cloth can settle.
             for (int i = 0; i < settleFrames; i++)
-                yield return null; // LateUpdate 여러 번 보장
+                yield return null; // Ensure at least one LateUpdate pass.
 
-            // 3. 정상 상태 복귀
+            // 3. Restore normal external acceleration.
             foreach (var cloth in clothes)
             {
                 if (cloth == null) continue;
@@ -494,28 +449,24 @@ namespace WindPhysics
             if (dynamicBones == null || dynamicBones.Count == 0)
                 yield break;
 
-            // 1. Wind 즉시 제거 + grounding gravity 적용
+            // 1. Remove wind force and apply temporary downward gravity.
             foreach (var bone in dynamicBones)
             {
                 if (bone == null) continue;
 
-                // 바람 계열 제거
                 bone.m_Force = Vector3.zero;
-
-                // 착지 유도 중력
                 bone.m_Gravity = Vector3.down * settleGravity;
             }
 
-            // 2. 프레임 기반 안정화 대기
+            // 2. Wait several frames so bones stabilize.
             for (int i = 0; i < settleFrames; i++)
-                yield return null; // LateUpdate 여러 번 보장
+                yield return null; // Ensure at least one LateUpdate pass.
 
-            // 3. 기본 상태 복귀
+            // 3. Restore default gravity state.
             foreach (var bone in dynamicBones)
             {
                 if (bone == null) continue;
 
-                // 프로젝트 기본값에 맞게 조정 가능
                 bone.m_Gravity = Vector3.zero;
             }
         }
@@ -532,69 +483,71 @@ namespace WindPhysics
         {
             while (true)
             {
-                if (_loaded == true)
+                if (!_loaded)
                 {
-                    if (windData.wind_status == Status.RUN)
-                    {
-                        // y 위치 기반 바람세기 처리를 위한 위치 정보 획득
-                        foreach (var bone in windData.hairDynamicBones)
-                        {
-                            if (bone == null)
-                                continue;
-
-                            float y = bone.m_Root.position.y;
-                            _minY = Mathf.Min(_minY, y);
-                            _maxY = Mathf.Max(_maxY, y);
-                        }
-
-                        Quaternion globalRotation = Quaternion.Euler(0f, WindDirection.Value, 0f);
-
-                        // 방향에 랜덤성 부여 (약한 변화만 허용)
-                        float angleY = UnityEngine.Random.Range(-15, 15); // 위/아래 유지 (음수면 아래 방향, 양수면 위 방향)
-                        float angleX = UnityEngine.Random.Range(-7, 7);    // 좌우 유지
-                        Quaternion localRotation = Quaternion.Euler(angleX, angleY, 0f);
-
-                        Quaternion rotation = globalRotation * localRotation;
-
-                        Vector3 direction = rotation * Vector3.back;
-
-                        // 기본 바람 강도는 낮게 유지
-                        Vector3 windEffect = direction.normalized * UnityEngine.Random.Range(0.1f, 0.15f);
-
-                        // 적용
-                        ApplyWind(windEffect, 1.0f, windData);
-                        yield return new WaitForSeconds(0.2f);
-
-                        // 자연스럽게 사라짐
-                        float keepwindTime = WindInterval.Value/2;
-
-                        float fadeTime = Mathf.Lerp(keepwindTime, keepwindTime, WindForce.Value);
-                        float t = 0f;
-                        while (t < fadeTime)
-                        {
-                            t += Time.deltaTime;
-                            float factor = Mathf.SmoothStep(1f, 0f, t / fadeTime); // 부드러운 감소                                
-                            ApplyWind(windEffect, factor, windData);
-                            yield return null;
-                        }
-                        
-                        if (keepwindTime <= 0.3)
-                            yield return null;
-                        else    
-                            yield return new WaitForSeconds(WindInterval.Value - keepwindTime);
-
-                    }
-                    else if (windData.wind_status == Status.STOP)
-                    {
-                        yield return StartCoroutine(FadeoutWindEffect_Cloth(windData.clothes));
-                        yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.hairDynamicBones));
-                        yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.accesoriesDynamicBones));
-                        
-                        yield break;
-                    }
+                    yield return null;
+                    continue;
                 }
 
-                yield return null;
+                if (windData.wind_status == Status.STOP)
+                {
+                    yield return StartCoroutine(FadeoutWindEffect_Cloth(windData.clothes));
+                    yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.hairDynamicBones));
+                    yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.accesoriesDynamicBones));
+                    yield break;
+                }
+
+                if (windData.wind_status != Status.RUN)
+                {
+                    yield return null;
+                    continue;
+                }
+
+                // Gather Y-range data once per cycle.
+                foreach (var bone in windData.hairDynamicBones)
+                {
+                    if (bone == null)
+                        continue;
+
+                    float y = bone.m_Root.position.y;
+                    _minY = Mathf.Min(_minY, y);
+                    _maxY = Mathf.Max(_maxY, y);
+                }
+
+                Quaternion globalRotation = Quaternion.Euler(0f, WindDirection.Value, 0f);
+
+                // Add small directional variation for less repetitive motion.
+                float angleY = UnityEngine.Random.Range(-15, 15); // Front/back offset.
+                float angleX = UnityEngine.Random.Range(-7, 7);   // Left/right offset.
+                Quaternion localRotation = Quaternion.Euler(angleX, angleY, 0f);
+
+                Quaternion rotation = globalRotation * localRotation;
+                Vector3 direction = rotation * Vector3.back;
+
+                // Slightly randomize base wind strength.
+                Vector3 windEffect = direction.normalized * UnityEngine.Random.Range(0.1f, 0.15f);
+
+                ApplyWind(windEffect, 1.0f, windData);
+                yield return new WaitForSeconds(0.2f);
+
+                // Fade out naturally over half of the configured interval.
+                float windInterval = WindInterval.Value;
+                float keepWindTime = windInterval * 0.5f;
+                float fadeTime = keepWindTime;
+
+                float t = 0f;
+                while (t < fadeTime)
+                {
+                    t += Time.deltaTime;
+                    float fadeFactor = Mathf.SmoothStep(1f, 0f, t / fadeTime); // Smoothly decrease.
+                    ApplyWind(windEffect, fadeFactor, windData);
+                    yield return null;
+                }
+
+                if (keepWindTime <= 0.3f)
+                    yield return null;
+                else
+                    yield return new WaitForSeconds(windInterval - keepWindTime);
             }
 
             windData.clothes.Clear();
@@ -602,6 +555,7 @@ namespace WindPhysics
             windData.accesoriesDynamicBones.Clear();
             windData.coroutine = null;
         }
+
 
         #endregion
 
@@ -733,6 +687,7 @@ namespace WindPhysics
             }
         }
 
+        // (cltoh 할당때문에 반드시 delay 처리해야함)
         [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
         internal static class OCIChar_ChangeChara_Patches
         {
@@ -745,7 +700,7 @@ namespace WindPhysics
             }
         }
 
-        // 개별 옷 변경
+        // 개별 옷 변경 (cltoh 할당때문에 반드시 delay 처리해야함)
         [HarmonyPatch(typeof(ChaControl), "ChangeClothes", typeof(int), typeof(int), typeof(bool))]
         private static class ChaControl_ChangeClothes_Patches
         {
@@ -763,7 +718,7 @@ namespace WindPhysics
             }
         }
 
-        // 코디네이션 변경
+        // 코디네이션 변경 (cltoh 할당때문에 반드시 delay 처리해야함)
         [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
         internal static class ChaControl_SetAccessoryStateAll_Patches
         {
