@@ -79,7 +79,7 @@ namespace UndressPhysics
 		
         private const int _uniqueId = ('U' << 24) | ('D' << 16) | ('S' << 8) | 'S';
 
-        private Rect _windowRect = new Rect(70, 10, 300, 10);
+        private Rect _windowRect = new Rect(70, 10, 400, 10);
 
         internal const string CLOTH_COLLIDER_PREFIX = "Cloth colliders";
 
@@ -115,22 +115,26 @@ namespace UndressPhysics
         {
             base.Awake();
 
-            ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("", new AcceptableValueRange<float>(0.4f, 0.7f)));
+            ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("", new AcceptableValueRange<float>(0.3f, 0.8f)));
 
-            ClothStiffness = Config.Bind("Cloth", "Stiffness", 5.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.1f, 9.0f)));
+            ClothStiffness = Config.Bind("Cloth", "Stiffness", 5.0f, new ConfigDescription("", new AcceptableValueRange<float>(3.0f, 8.0f)));
 
-            ClothUndressForce = Config.Bind("Option", "Force", 3.0f, new ConfigDescription("multiple", new AcceptableValueRange<float>(1f, 5f)));
+            ClothUndressForce = Config.Bind("Option", "Force", 5.0f, new ConfigDescription("multiple", new AcceptableValueRange<float>(1f, 10f)));
 
-            ClothUndressDuration = Config.Bind("Option", "Duration", 10.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 90.0f)));
+            ClothUndressDuration = Config.Bind("Option", "Duration", 15.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 60.0f)));
 
             ConfigKeyDoUndressShortcut = Config.Bind("ShortKey", "Undress key", new KeyboardShortcut(KeyCode.LeftControl, KeyCode.U));
 
-            PullCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+            PullCurve = new AnimationCurve(
+                new Keyframe(0f, 0.3f),   // 초반 조금 강하게 시작
+                new Keyframe(0.4f, 0.7f), // 중반 천천히 증가
+                new Keyframe(1f, 1f)      // 끝에서 빠르게 최대
+            );
 
             UndressCurve = new AnimationCurve(
-                new Keyframe(0f, 0f),
-                new Keyframe(0.4f, 0.1f),
-                new Keyframe(1f, 1f)
+                new Keyframe(0f, 0.2f),   // 초반 살짝 강하게
+                new Keyframe(0.4f, 0.6f), // 중반 천천히 증가
+                new Keyframe(1f, 1f)      // 끝에서 급격히 최대
             );
 
             _self = this;
@@ -146,7 +150,7 @@ namespace UndressPhysics
 
             _toolbarButton = new SimpleToolbarToggle(
                 "Open window",
-                "Open Undress window",
+                "Open UndressPhysics window",
                 () => ResourceUtils.GetEmbeddedResource("toolbar_icon.png", typeof(UndressPhysics).Assembly).LoadTexture(),
                 false, this, val => _ShowUI = val);
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
@@ -203,14 +207,14 @@ namespace UndressPhysics
 // Global
             GUILayout.Label("Option");
             GUILayout.BeginHorizontal();
-            // Speed
-            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-            ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 1f, 5f);
+            // PullDown
+            GUILayout.Label(new GUIContent("F", "PullDown Force"), GUILayout.Width(20));
+            ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 1f, 10f);
             GUILayout.Label(ClothUndressForce.Value.ToString("0.00"), GUILayout.Width(40));
 
             // Duration
-            GUILayout.Label(new GUIContent("D", "Duration"), GUILayout.Width(20));
-            ClothUndressDuration.Value = GUILayout.HorizontalSlider(ClothUndressDuration.Value, 0.0f, 359.0f);
+            GUILayout.Label(new GUIContent("D", "Undress Duration"), GUILayout.Width(20));
+            ClothUndressDuration.Value = GUILayout.HorizontalSlider(ClothUndressDuration.Value, 0.0f, 60.0f);
             GUILayout.Label(ClothUndressDuration.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.EndHorizontal();
@@ -220,21 +224,23 @@ namespace UndressPhysics
             GUILayout.BeginHorizontal();
             
             GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
-            ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.4f, 0.7f);
+            ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.3f, 0.8f);
             GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
-            ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 0.0f, 10.0f);
+            ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 3.0f, 8.0f);
             GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
             if (GUILayout.Button("Do Undress"))
                 DoUndress();
 
             if (GUILayout.Button("Close"))
                 _ShowUI = false;
-
+            GUILayout.EndHorizontal();
+            
             // ⭐ 툴팁 직접 그리기
             if (!string.IsNullOrEmpty(GUI.tooltip))
             {
@@ -307,13 +313,13 @@ namespace UndressPhysics
             for (int i = 0; i < vertCount; i++)
                 normalizedY[i] = (worldYs[i] - minY) * invRange;
 
-            float endPull = 5.0f;
+            float endPull = 20.0f;
 
-            int topMaxDistance = Int(3f * ClothUndressForce.Value);
-            int midMaxDistance = Int(5f * ClothUndressForce.Value);
-            int bottomMaxDistance = Int(3f * ClothUndressForce.Value);
+            float topMaxDistance = 2f * ClothUndressForce.Value;
+            float midMaxDistance = 3f * ClothUndressForce.Value;
+            float bottomMaxDistance = 4f * ClothUndressForce.Value;
 
-            float startRadius = undressData.IsTop ? 0.5f : 0.9f;
+            float startRadius = undressData.IsTop ? 0.5f : 1.0f; // push down 용 collider 기본 크기 설정
             var collider = undressData.collider;
 
             float timer = 0f;
@@ -337,7 +343,7 @@ namespace UndressPhysics
                 for (int i = 0; i < vertCount; i++)
                 {
                     // 🔥 height 기반 지연
-                    float delay = normalizedY[i] * 0.35f; // 위쪽일수록 늦게
+                    float delay = normalizedY[i] * 0.2f; // 위쪽일수록 늦게
                     float localT = Mathf.Clamp01((t - delay) / (1f - delay));
 
                     // 🔥 AnimationCurve 적용
@@ -345,18 +351,14 @@ namespace UndressPhysics
 
                     float targetMaxDistance;
 
-                    if (normalizedY[i] > 0.80f)
+                    if (normalizedY[i] > 0.90f)
                     {
-                        // 🔥 위쪽은 초반 유지
-                        if (t < 0.2f)
-                            continue;
-
                         targetMaxDistance = Mathf.Lerp(
                             startDistances[i],
                             topMaxDistance,
                             curveT);
                     }
-                    else if (normalizedY[i] > 0.40f)
+                    else if (normalizedY[i] > 0.50f)
                     {
                         targetMaxDistance = Mathf.Lerp(
                             startDistances[i],
@@ -384,11 +386,6 @@ namespace UndressPhysics
                 timer += Time.deltaTime;
                 yield return null;
             }
-        }
-
-        private int Int(float v)
-        {
-            throw new NotImplementedException();
         }
 
         private IEnumerator DoUnressCoroutine(UndressData undressData, Cloth cloth)

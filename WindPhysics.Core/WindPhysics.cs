@@ -47,7 +47,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.5.4";
+        public const string Version = "0.9.6.0";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -80,7 +80,7 @@ namespace WindPhysics
 		
         private const int _uniqueId = ('W' << 24) | ('P' << 16) | ('P' << 8) | 'X';
 
-        private Rect _windowRect = new Rect(70, 10, 650, 10);
+        private Rect _windowRect = new Rect(70, 10, 600, 10);
 
 
         internal List<ObjectCtrlInfo> _selectedOCIs = new List<ObjectCtrlInfo>();
@@ -139,9 +139,9 @@ namespace WindPhysics
 #if FEATURE_PUBLIC
             WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(1.0f, 10.0f)));
 #else
-            WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 30.0f)));
+            WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 60.0f)));
 #endif
-            WindAmplitude = Config.Bind("All", "Amplitude", 0.5f, new ConfigDescription("wind amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            WindAmplitude = Config.Bind("All", "Amplitude", 1.0f, new ConfigDescription("wind amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
             // clothes
             ClotheForce = Config.Bind("Cloth", "Force", 1.0f, new ConfigDescription("cloth force", new AcceptableValueRange<float>(0.1f, 1.0f)));
@@ -241,45 +241,52 @@ namespace WindPhysics
             GUILayout.Label("Global");
             GUILayout.BeginHorizontal();
             // Gravity
-            GUILayout.Label(new GUIContent("G", "Gravity"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("G", "Gravity"), GUILayout.Width(20));
             Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
-            GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
 
             // direction
-            GUILayout.Label(new GUIContent("D", "Wind Direction"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("D", "Wind Direction"), GUILayout.Width(20));
             WindDirection.Value = GUILayout.HorizontalSlider(WindDirection.Value, 0.0f, 359.0f);
-            GUILayout.Label(WindDirection.Value.ToString("0.00"), GUILayout.Width(30));
-
+            GUILayout.Label(WindDirection.Value.ToString("0.00"), GUILayout.Width(40));
             // force
-            GUILayout.Label(new GUIContent("F", "Wind Force"), GUILayout.Width(30));
-            WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.1f, 1.0f);
-            GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("F", "Wind Force"), GUILayout.Width(20));
+            WindForce.Value = GUILayout.HorizontalSlider(WindForce.Value, 0.1f, 1.0f);
+            GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
             // force up
-            GUILayout.Label(new GUIContent("FU", "Force Up"),  GUILayout.Width(30));
-            WindForce.Value = GUILayout.HorizontalSlider(WindForce.Value, 0.0f, 0.5f);
-            GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("FU", "Wind ForceUp"),  GUILayout.Width(20));
+            WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.0f, 0.5f);
+            GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(40));
 
-            GUILayout.Label(new GUIContent("I", "Interval"), GUILayout.Width(30));
-            WindInterval.Value = GUILayout.HorizontalSlider(WindInterval.Value, 0.0f, 30.0f);
-            GUILayout.Label(WindInterval.Value.ToString("0.00"), GUILayout.Width(30));
+            // amplitude
+            GUILayout.Label(new GUIContent("A", "Wind Amplitude"),  GUILayout.Width(20));
+            WindAmplitude.Value = GUILayout.HorizontalSlider(WindAmplitude.Value, 1.0f, 10.0f);
+            GUILayout.Label(WindAmplitude.Value.ToString("0.00"), GUILayout.Width(40));
+
+            // interval
+            GUILayout.Label(new GUIContent("I", "Interval"), GUILayout.Width(20));
+            WindInterval.Value = GUILayout.HorizontalSlider(WindInterval.Value, 0.0f, 60.0f);
+            GUILayout.Label(WindInterval.Value.ToString("0.00"), GUILayout.Width(40));
             GUILayout.EndHorizontal();
 
 // Hair
             GUILayout.Label("Hair");
             GUILayout.BeginHorizontal();
             
-            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(30));
-            HairDamping.Value = GUILayout.HorizontalSlider(HairDamping.Value, 0.0f, 10.0f);
-            GUILayout.Label(HairDamping.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
+            HairDamping.Value = GUILayout.HorizontalSlider(HairDamping.Value, 0.0f, 1.0f);
+            GUILayout.Label(HairDamping.Value.ToString("0.00"), GUILayout.Width(40));
 
-            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(30));
-            HairStiffness.Value = GUILayout.HorizontalSlider(HairStiffness.Value, 0.0f, 1.0f);
-            GUILayout.Label(HairStiffness.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
+            HairStiffness.Value = GUILayout.HorizontalSlider(HairStiffness.Value, 0.0f, 10.0f);
+            GUILayout.Label(HairStiffness.Value.ToString("0.00"), GUILayout.Width(40));
 
-            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
             HairForce.Value = GUILayout.HorizontalSlider(HairForce.Value, 0.1f, 1.0f);
-            GUILayout.Label(HairForce.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(HairForce.Value.ToString("0.00"), GUILayout.Width(40));
 
 
             GUILayout.EndHorizontal();
@@ -288,39 +295,56 @@ namespace WindPhysics
             GUILayout.Label("Cloth");
             GUILayout.BeginHorizontal();
             
-            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(30));
-            ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.0f, 10.0f);
-            GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
+            ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.0f, 1.0f);
+            GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(40));
 
-            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(30));
-            ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 0.0f, 1.0f);
-            GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
+            ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 0.0f, 10.0f);
+            GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(40));
 
-            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
             ClotheForce.Value = GUILayout.HorizontalSlider(ClotheForce.Value, 0.1f, 1.0f);
-            GUILayout.Label(ClotheForce.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(ClotheForce.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.EndHorizontal();
 // Acc
             GUILayout.Label("Acc");
             GUILayout.BeginHorizontal();
             
-            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(30));
-            AccesoriesDamping.Value = GUILayout.HorizontalSlider(AccesoriesDamping.Value, 0.0f, 10.0f);
-            GUILayout.Label(AccesoriesDamping.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
+            AccesoriesDamping.Value = GUILayout.HorizontalSlider(AccesoriesDamping.Value, 0.0f, 1.0f);
+            GUILayout.Label(AccesoriesDamping.Value.ToString("0.00"), GUILayout.Width(40));
 
-            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(30));
-            AccesoriesStiffness.Value = GUILayout.HorizontalSlider(AccesoriesStiffness.Value, 0.0f, 1.0f);
-            GUILayout.Label(AccesoriesStiffness.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
+            AccesoriesStiffness.Value = GUILayout.HorizontalSlider(AccesoriesStiffness.Value, 0.0f, 10.0f);
+            GUILayout.Label(AccesoriesStiffness.Value.ToString("0.00"), GUILayout.Width(40));
 
-            GUILayout.Label(new GUIContent("F", "DamForceping"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("F", "DamForceping"), GUILayout.Width(20));
             AccesoriesForce.Value = GUILayout.HorizontalSlider(AccesoriesForce.Value, 0.1f, 1.0f);
-            GUILayout.Label(AccesoriesForce.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(AccesoriesForce.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
+            if (ConfigKeyEnableWind.Value == true)
+            {
+                if (GUILayout.Button("Deactive")) {
+                    _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value;   
+                    ConfigKeyEnableWind.Value = false;
+                }    
+            } else
+            {
+                if (GUILayout.Button("Active")) {
+                    _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value; 
+                    ConfigKeyEnableWind.Value = true;
+                }   
+            }
+
             if (GUILayout.Button("Close"))
                 _ShowUI = false;
+            
+            GUILayout.EndHorizontal();
 
             // ⭐ 툴팁 직접 그리기
             if (!string.IsNullOrEmpty(GUI.tooltip))
@@ -342,9 +366,7 @@ namespace WindPhysics
         #region Private Methods
         private void Init()
         {
-            // UIUtility.Init();
             _loaded = true;
-
 
             _CheckWindMgmtRoutine = StartCoroutine(CheckWindMgmtRoutine());
         }
@@ -383,7 +405,6 @@ namespace WindPhysics
             {
                 if(_previousConfigKeyEnableWind != ConfigKeyEnableWind.Value)
                 {
-
                     foreach (ObjectCtrlInfo ctrlInfo in _selectedOCIs)
                     {
                         OCIChar ociChar = ctrlInfo as OCIChar;
@@ -430,7 +451,7 @@ namespace WindPhysics
                     _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value;          
                 }
 
-                yield return new WaitForSeconds(1.0f); // 1.0초 대기
+                yield return new WaitForSeconds(0.5f); // 1.0초 대기
             }
         }
 
@@ -641,71 +662,63 @@ namespace WindPhysics
                     continue;
                 }
 
-                if (windData.wind_status == Status.STOP)
+                if (windData.wind_status == Status.RUN)
+                {
+                    // Gather Y-range data once per cycle.
+                    foreach (var bone in windData.hairDynamicBones)
+                    {
+                        if (bone == null)
+                            continue;
+
+                        float y = bone.m_Root.position.y;
+                        _minY = Mathf.Min(_minY, y);
+                        _maxY = Mathf.Max(_maxY, y);
+                    }
+
+                    Quaternion globalRotation = Quaternion.Euler(0f, WindDirection.Value, 0f);
+
+                    // Add small directional variation for less repetitive motion.
+                    float angleY = UnityEngine.Random.Range(-15, 15); // Front/back offset.
+                    float angleX = UnityEngine.Random.Range(-7, 7);   // Left/right offset.
+                    Quaternion localRotation = Quaternion.Euler(angleX, angleY, 0f);
+
+                    Quaternion rotation = globalRotation * localRotation;
+                    Vector3 direction = rotation * Vector3.back;
+
+                    // Slightly randomize base wind strength.
+                    Vector3 windEffect = direction.normalized * UnityEngine.Random.Range(0.1f, 0.15f);
+
+                    ApplyWind(windEffect, 1.0f, windData);
+                    yield return new WaitForSeconds(0.2f);
+
+                    // Fade out naturally over half of the configured interval.
+                    float windInterval = WindInterval.Value;
+                    float keepWindTime = windInterval * 0.5f;
+                    float fadeTime = keepWindTime;
+
+                    float t = 0f;
+                    while (t < fadeTime)
+                    {
+                        t += Time.deltaTime;
+                        float fadeFactor = Mathf.SmoothStep(1f, 0f, t / fadeTime); // Smoothly decrease.
+                        ApplyWind(windEffect, fadeFactor, windData);
+                        yield return null;
+                    }
+
+                    if (keepWindTime <= 0.3f)
+                        yield return null;
+                    else
+                        yield return new WaitForSeconds(windInterval - keepWindTime);
+                } 
+                else
                 {
                     yield return StartCoroutine(FadeoutWindEffect_Cloth(windData.clothes));
                     yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.hairDynamicBones));
                     yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.accesoriesDynamicBones));
+                    windData.coroutine = null;
                     yield break;
                 }
-
-                if (windData.wind_status != Status.RUN)
-                {
-                    yield return null;
-                    continue;
-                }
-
-                // Gather Y-range data once per cycle.
-                foreach (var bone in windData.hairDynamicBones)
-                {
-                    if (bone == null)
-                        continue;
-
-                    float y = bone.m_Root.position.y;
-                    _minY = Mathf.Min(_minY, y);
-                    _maxY = Mathf.Max(_maxY, y);
-                }
-
-                Quaternion globalRotation = Quaternion.Euler(0f, WindDirection.Value, 0f);
-
-                // Add small directional variation for less repetitive motion.
-                float angleY = UnityEngine.Random.Range(-15, 15); // Front/back offset.
-                float angleX = UnityEngine.Random.Range(-7, 7);   // Left/right offset.
-                Quaternion localRotation = Quaternion.Euler(angleX, angleY, 0f);
-
-                Quaternion rotation = globalRotation * localRotation;
-                Vector3 direction = rotation * Vector3.back;
-
-                // Slightly randomize base wind strength.
-                Vector3 windEffect = direction.normalized * UnityEngine.Random.Range(0.1f, 0.15f);
-
-                ApplyWind(windEffect, 1.0f, windData);
-                yield return new WaitForSeconds(0.2f);
-
-                // Fade out naturally over half of the configured interval.
-                float windInterval = WindInterval.Value;
-                float keepWindTime = windInterval * 0.5f;
-                float fadeTime = keepWindTime;
-
-                float t = 0f;
-                while (t < fadeTime)
-                {
-                    t += Time.deltaTime;
-                    float fadeFactor = Mathf.SmoothStep(1f, 0f, t / fadeTime); // Smoothly decrease.
-                    ApplyWind(windEffect, fadeFactor, windData);
-                    yield return null;
-                }
-
-                if (keepWindTime <= 0.3f)
-                    yield return null;
-                else
-                    yield return new WaitForSeconds(windInterval - keepWindTime);
             }
-
-            windData.clothes.Clear();
-            windData.hairDynamicBones.Clear();
-            windData.accesoriesDynamicBones.Clear();
-            windData.coroutine = null;
         }
 
 
