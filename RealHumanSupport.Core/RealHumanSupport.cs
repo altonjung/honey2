@@ -44,6 +44,9 @@ using AIChara;
 using static Illusion.Utils;
 using System.Runtime.Remoting.Messaging;
 #endif
+using KKAPI.Studio;
+using KKAPI.Studio.UI.Toolbars;
+using KKAPI.Utilities;
 
 
 namespace RealHumanSupport
@@ -98,6 +101,13 @@ namespace RealHumanSupport
 
         private AssetBundle _bundle;
 
+        private static bool _ShowUI = false;
+        private static SimpleToolbarToggle _toolbarButton;
+		
+        private const int _uniqueId = ('R' << 24) | ('E' << 16) | ('A' << 8) | 'G';
+
+        private Rect _windowRect = new Rect(70, 10, 400, 10);
+        
 
         private WinkState _winkState = WinkState.Idle;
         
@@ -205,7 +215,13 @@ namespace RealHumanSupport
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
 
             // UnityEngine.Debug.Log($">> start CheckRotationRoutine");
-
+            _toolbarButton = new SimpleToolbarToggle(
+                "Open window",
+                "Open RealGirl window",
+                () => ResourceUtils.GetEmbeddedResource("ud_toolbar_icon.png", typeof(RealHumanSupport).Assembly).LoadTexture(),
+                false, this, val => _ShowUI = val);
+            ToolbarManager.AddLeftToolbarControl(_toolbarButton);
+            
             _CheckRotationRoutine = StartCoroutine(CheckRotationRoutine());
         }
 
@@ -242,6 +258,8 @@ namespace RealHumanSupport
             // }
 #endif
         }
+
+        
 #if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
 
         void CheckNeckClick()
@@ -287,6 +305,52 @@ namespace RealHumanSupport
             }
         }
 #endif      
+
+       protected override void OnGUI()
+        {
+            if (_ShowUI == false)
+                return;
+
+            if (StudioAPI.InsideStudio)
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "RealHuman" + Version);
+        }
+
+       private void WindowFunc(int id)
+        {
+
+            var studio = Studio.Studio.Instance;
+
+            // ⭐ UI 조작 중이면 Studio 입력 막기
+            if (Event.current.type == EventType.MouseDown ||
+                Event.current.type == EventType.MouseDrag)
+            {
+                studio.cameraCtrl.noCtrlCondition = () => true;
+            }
+
+            // ⭐ 마우스 떼면 해제
+            if (Event.current.type == EventType.MouseUp)
+            {
+                studio.cameraCtrl.noCtrlCondition = null;
+            }
+
+            // ================= UI =================
+            GUILayout.Label("Acc");
+            GUILayout.BeginHorizontal();
+            
+            GUILayout.EndHorizontal();
+
+            if (GUILayout.Button("Close"))
+                _ShowUI = false;
+
+            // ⭐ 툴팁 직접 그리기
+            if (!string.IsNullOrEmpty(GUI.tooltip))
+            {
+                Vector2 mousePos = Event.current.mousePosition;
+                GUI.Label(new Rect(mousePos.x + 10, mousePos.y + 10, 150, 20), GUI.tooltip, GUI.skin.box);
+            }
+
+            GUI.DragWindow();
+        }
         #endregion
 
         #region Private Methods
