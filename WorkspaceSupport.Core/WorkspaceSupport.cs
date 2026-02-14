@@ -320,7 +320,6 @@ namespace WorkspaceSupport
 
                             target_bone.position = base_position;
                         }
-
                     }
                     else
                     {
@@ -336,29 +335,6 @@ namespace WorkspaceSupport
              }
         }
 
-#if KOIKATSU
-        [HarmonyPatch(typeof(ShortcutKeyCtrl), "Update")]
-        private static class ShortcutKeyCtrl_Update_Patches
-        {
-            private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-            {
-                List<CodeInstruction> instructionList = instructions.ToList();
-                for (int i = 0; i < instructionList.Count; i++)
-                {
-                    CodeInstruction instruction = instructionList[i];
-                    if (i != 0 && instruction.opcode == OpCodes.Call && instructionList[i - 1].opcode == OpCodes.Ldc_I4_S && (sbyte)instructionList[i - 1].operand == 99)
-                        yield return new CodeInstruction(OpCodes.Call, typeof(ShortcutKeyCtrl_Update_Patches).GetMethod(nameof(PreventKeyIfCtrl), BindingFlags.NonPublic | BindingFlags.Static));
-                    else
-                        yield return instruction;
-                }
-            }
-
-            private static bool PreventKeyIfCtrl(KeyCode key)
-            {
-                return Input.GetKey(KeyCode.LeftControl) == false && Input.GetKeyDown(key);
-            }
-        }
-#endif
         #endregion
     }
 }

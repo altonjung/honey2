@@ -134,7 +134,9 @@ namespace RealHumanSupport
         internal const float _ExpressionInterval = 0.1f;
         internal float _winkValue = 0f;
 
-
+    #if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
+        internal bool isNeckPressed;
+    #endif
         internal Dictionary<int, RealHumanData> _ociCharMgmt = new Dictionary<int, RealHumanData>();
        
         internal Coroutine _CheckRotationRoutine;
@@ -221,11 +223,70 @@ namespace RealHumanSupport
         {
             if (_loaded == false)
                 return;
+#if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT   
+            if (Input.GetMouseButtonDown(0)) {
+                CheckNeckClick();
+            }
+            //         return;
+
+            // if (!Physics.Raycast(
+            //     Camera.main.ScreenPointToRay(Input.mousePosition),
+            //     out RaycastHit hit,
+            //     5f))
+            //     return;
+
+            // if (hit.collider.transform.IsChildOf(headIK.neck))
+            // {
+            //     Debug.Log("Neck clicked");
+            //     // → Head IK 활성화
+            // }
+#endif
         }
-        // protected override void LateUpdate()
-        // {
-        //     ApplyBlendshape();
-        // }
+#if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
+
+        void CheckNeckClick()
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+            if (!Physics.Raycast(ray, out RaycastHit hit, 10f))
+                return;
+
+            if (IsNeckClicked(hit))
+            {
+                UnityEngine.Debug.Log("Neck clicked");
+                isNeckPressed = true;
+                // 여기서 neck 선택 처리                
+            } else {
+                isNeckPressed = false;
+            }
+        }
+
+        bool IsNeckClicked(RaycastHit hit)
+        {
+            // Raycast에 맞은 Collider가
+            // neck 본의 자식인가?
+            return hit.collider.transform.IsChildOf(neckTransform);
+        }
+
+        protected override void LateUpdate() {
+            if (_loaded == false)
+                return;
+
+            // 마우스가 놓였을때.. 처리
+            if (isNeckPressed) {
+                if (_ociCharMgmt.Count > 0) {                
+                    foreach (var kvp in _self._ociCharMgmt) {
+                        CharControl charCtrl = kvp.Key;
+                        RealHumanData realHumanData = kvp.Value;
+
+                        if (charCtrl != null && realHumanData != null) {
+                            Logic.ReflectIKToAnimation(realHumanData);
+                        }
+                    }
+                }
+            }
+        }
+#endif      
         #endregion
 
         #region Private Methods
@@ -445,7 +506,9 @@ namespace RealHumanSupport
             int frameCount = 30;
             for (int i = 0; i < frameCount; i++)
                 yield return null;
-            
+#if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
+            Logic.SupportIKOnScene(chaControl, realHumanData);
+#endif              
             Logic.SupportExtraDynamicBones(chaControl, realHumanData);
             Logic.SupportEyeFastBlinkEffect(chaControl, realHumanData);
             Logic.SupportBodyBumpEffect(chaControl, realHumanData);

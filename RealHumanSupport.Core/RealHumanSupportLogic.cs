@@ -368,39 +368,7 @@ namespace RealHumanSupport
                     bone.m_Stiffness  = 0.13f;
                 }
             }
-            // if (realHumanData.root_bone != null)
-            // foreach (DynamicBone bone in realHumanData.hairDynamicBones)
-            // {
-            //     if (bone == null)
-            //         continue;
-
-            //     Transform hairTip;
-            //     if (!realHumanData.hairTipCache.TryGetValue(bone, out hairTip))
-            //         continue;
-
-            //     // --- 1. 월드 기준: hair tip → 캐릭터 중심
-            //     Vector3 dirWorld =
-            //         (realHumanData.root_bone.position - hairTip.position).normalized;
-
-            //     // --- 2. DynamicBone은 로컬 force만 먹음
-            //     Vector3 dirLocal =
-            //         bone.transform.InverseTransformDirection(dirWorld);
-
-            //     // --- 3. Gravity는 "늘어짐 유지" 전용 (고정)
-            //     bone.m_Gravity = Vector3.down * 0.003f;
-
-            //     // --- 4. Force는 보간으로 누적 (이게 핵심)
-            //     bone.m_Force = Vector3.Lerp(
-            //         bone.m_Force,
-            //         dirLocal * 0.02f,
-            //         0.15f
-            //     );
-
-            //     // --- 5. 안정 파라미터
-            //     bone.m_Damping    = 0.25f;
-            //     bone.m_Elasticity = 0.04f;
-            //     bone.m_Stiffness  = 0.12f;
-            // }
+        
         }
 
 #if FEATURE_STRAPON_SUPPORT
@@ -750,59 +718,56 @@ namespace RealHumanSupport
             result.Apply();
             return result;
         }
+        internal static PositionData GetBoneRotationFromTF(Transform t)
+        {
+            Vector3 fwd = t.forward;
+
+            // Use world up (gravity) as reference so standing/lying still resolves consistently.
+            Vector3 up = Physics.gravity.sqrMagnitude > 0f ? (-Physics.gravity).normalized : Vector3.up;
+
+            // Yaw: forward projected on the ground plane.
+            Vector3 fwdPlanar = Vector3.ProjectOnPlane(fwd, up);
+            float yaw = 0f;
+            if (fwdPlanar.sqrMagnitude > 1e-6f)
+            {
+                Vector3 refFwd = Vector3.ProjectOnPlane(Vector3.forward, up).normalized;
+                yaw = Vector3.SignedAngle(refFwd, fwdPlanar.normalized, up);
+            }
+
+            // Pitch: angle between planar forward and actual forward around the right axis.
+            Vector3 right = Vector3.Cross(up, fwdPlanar).sqrMagnitude > 1e-6f
+                ? Vector3.Cross(up, fwdPlanar).normalized
+                : t.right;
+            float pitch = Vector3.SignedAngle(fwdPlanar.sqrMagnitude > 1e-6f ? fwdPlanar.normalized : Vector3.forward, fwd, right);
+
+            PositionData data = new PositionData(t.rotation, pitch, yaw);
+            return data;
+        }
+
         internal static PositionData GetBoneRotationFromIK(OCIChar.IKInfo info)
         {
             Transform t = info.guideObject.transform;
             Vector3 fwd = t.forward;
 
-            // 앞 / 뒤 (Pitch)
-            Vector3 fwdYZ = Vector3.ProjectOnPlane(fwd, Vector3.right).normalized;
-            float pitch = Vector3.SignedAngle(
-                Vector3.forward,
-                fwdYZ,
-                Vector3.right
-            );
+            // Use world up (gravity) as reference so standing/lying still resolves consistently.
+            Vector3 up = Physics.gravity.sqrMagnitude > 0f ? (-Physics.gravity).normalized : Vector3.up;
 
-            // 좌 / 우 (sideZ)
-            Vector3 right = t.right;
+            // Yaw: forward projected on the ground plane.
+            Vector3 fwdPlanar = Vector3.ProjectOnPlane(fwd, up);
+            float yaw = 0f;
+            if (fwdPlanar.sqrMagnitude > 1e-6f)
+            {
+                Vector3 refFwd = Vector3.ProjectOnPlane(Vector3.forward, up).normalized;
+                yaw = Vector3.SignedAngle(refFwd, fwdPlanar.normalized, up);
+            }
 
-            Vector3 rightXY = Vector3.ProjectOnPlane(right, Vector3.forward).normalized;
+            // Pitch: angle between planar forward and actual forward around the right axis.
+            Vector3 right = Vector3.Cross(up, fwdPlanar).sqrMagnitude > 1e-6f
+                ? Vector3.Cross(up, fwdPlanar).normalized
+                : t.right;
+            float pitch = Vector3.SignedAngle(fwdPlanar.sqrMagnitude > 1e-6f ? fwdPlanar.normalized : Vector3.forward, fwd, right);
 
-            float sideZ = Vector3.SignedAngle(
-                Vector3.right,
-                rightXY,
-                Vector3.forward
-            );
-
-            PositionData data = new PositionData(info.guideObject.transform.rotation, pitch, sideZ);
-            return data;
-        }
-
-
-        internal static PositionData GetBoneRotationFromTF(Transform t)
-        {
-            Vector3 fwd = t.forward;
-
-            // 앞 / 뒤 (Pitch)
-            Vector3 fwdYZ = Vector3.ProjectOnPlane(fwd, Vector3.right).normalized;
-            float pitch = Vector3.SignedAngle(
-                Vector3.forward,
-                fwdYZ,
-                Vector3.right
-            );
-
-            // 좌 / 우 (sideZ)
-            Vector3 right = t.right;
-
-            Vector3 rightXY = Vector3.ProjectOnPlane(right, Vector3.forward).normalized;
-
-            float sideZ = Vector3.SignedAngle(
-                Vector3.right,
-                rightXY,
-                Vector3.forward
-            );
-
-            PositionData data = new PositionData(t.rotation, pitch, sideZ);
+            PositionData data = new PositionData(info.guideObject.transform.rotation, pitch, yaw);
             return data;
         }
 
@@ -811,26 +776,25 @@ namespace RealHumanSupport
             Transform t = info.guideObject.transform;
             Vector3 fwd = t.forward;
 
-            // 앞 / 뒤 (Pitch)
-            Vector3 fwdYZ = Vector3.ProjectOnPlane(fwd, Vector3.right).normalized;
-            float pitch = Vector3.SignedAngle(
-                Vector3.forward,
-                fwdYZ,
-                Vector3.right
-            );
+            // Use world up (gravity) as reference so standing/lying still resolves consistently.
+            Vector3 up = Physics.gravity.sqrMagnitude > 0f ? (-Physics.gravity).normalized : Vector3.up;
 
-            // 좌 / 우 (sideZ)
-            Vector3 right = t.right;
+            // Yaw: forward projected on the ground plane.
+            Vector3 fwdPlanar = Vector3.ProjectOnPlane(fwd, up);
+            float yaw = 0f;
+            if (fwdPlanar.sqrMagnitude > 1e-6f)
+            {
+                Vector3 refFwd = Vector3.ProjectOnPlane(Vector3.forward, up).normalized;
+                yaw = Vector3.SignedAngle(refFwd, fwdPlanar.normalized, up);
+            }
 
-            Vector3 rightXY = Vector3.ProjectOnPlane(right, Vector3.forward).normalized;
+            // Pitch: angle between planar forward and actual forward around the right axis.
+            Vector3 right = Vector3.Cross(up, fwdPlanar).sqrMagnitude > 1e-6f
+                ? Vector3.Cross(up, fwdPlanar).normalized
+                : t.right;
+            float pitch = Vector3.SignedAngle(fwdPlanar.sqrMagnitude > 1e-6f ? fwdPlanar.normalized : Vector3.forward, fwd, right);
 
-            float sideZ = Vector3.SignedAngle(
-                Vector3.right,
-                rightXY,
-                Vector3.forward
-            );
-
-            PositionData data = new PositionData(info.guideObject.transform.rotation, pitch, sideZ);
+            PositionData data = new PositionData(info.guideObject.transform.rotation, pitch, yaw);
             return data;
         }
 
@@ -1667,7 +1631,202 @@ namespace RealHumanSupport
             }
         }
 
+#if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
+        internal static void SupportIKOnScene(ChaControl chaCtrl, RealHumanData realHumanData) {
+            if (!StudioAPI.InsideStudio && !MakerAPI.insideMaker) {
 
+                realHumanData.head_ik_data = new HeadIKData();
+                realHumanData.l_leg_ik_data = new LegIKData();
+                realHumanData.r_leg_ik_data = new LegIKData();
+
+                Transform[] headbones = chaControl.objBody.GetComponentsInChildren<Transform>();
+
+                foreach (Transform bone in headbones) {
+                    if (bone.gameObject.name.Contains("_J_Head"))
+                    {
+                        head_ik_data.head = bone;
+                        head_ik_data.baseHeadRotation = bone.localRotation;
+                    }
+                    else if (bone.gameObject.name.Contains("_J_Neck")) {
+                        head_ik_data.neck = bone;
+                        head_ik_data.baseNeckRotation = bone.localRotation;
+                    }
+                }
+
+
+                Transform[] bodybones = chaControl.objHead.GetComponentsInChildren<Transform>();
+
+                foreach (Transform bone in bodybones) {
+                    if (bone.gameObject.name.Contains("_J_Foot01_L"))
+                    {
+                        l_leg_ik_data.foot = bone;
+                    }   
+                    else if (bone.gameObject.name.Contains("_J_Foot01_R"))
+                    {
+                        r_leg_ik_data.foot = bone;
+                    } 
+                    else if (bone.gameObject.name.Contains("_J_LegLow01_L"))
+                    {
+                        l_leg_ik_data.knee = bone;
+                    }
+                    else if (bone.gameObject.name.Contains("_J_LegLow01_R"))
+                    {
+                        r_leg_ik_data.knee = bone;
+                    } 
+                    else if (bone.gameObject.name.Contains("_J_LegUp00_L"))
+                    {
+                        l_leg_ik_data.thigh = bone;
+                    }
+                    else if (bone.gameObject.name.Contains("_J_LegUp00_R"))
+                    {
+                        r_leg_ik_data.thigh = bone;
+                    }                    
+                }
+            }
+        }
+
+        internal static void SolveLegIK(
+            Transform thigh,
+            Transform knee,
+            Transform foot,
+            Transform target,
+            float weight) {
+    
+            Vector3 rootPos = thigh.position;
+            Vector3 midPos = knee.position;
+            Vector3 endPos = foot.position;
+            Vector3 targetPos = target.position;
+
+            float lenUpper = Vector3.Distance(rootPos, midPos);
+            float lenLower = Vector3.Distance(midPos, endPos);
+            float lenTarget = Vector3.Distance(rootPos, targetPos);
+
+            // 거리 제한
+            lenTarget = Mathf.Min(lenTarget, lenUpper + lenLower - 0.0001f);
+
+            // ======================
+            // Knee angle (Cosine law)
+            // ======================
+            float cosKnee =
+                (lenUpper * lenUpper + lenLower * lenLower - lenTarget * lenTarget) /
+                (2f * lenUpper * lenLower);
+
+            cosKnee = Mathf.Clamp(cosKnee, -1f, 1f);
+            float kneeAngle = Mathf.Acos(cosKnee) * Mathf.Rad2Deg;
+
+            // ======================
+            // Thigh rotation
+            // ======================
+            Vector3 dirToTarget = (targetPos - rootPos).normalized;
+            Quaternion thighRot = Quaternion.LookRotation(dirToTarget, thigh.up);
+
+            thigh.rotation = Quaternion.Slerp(
+                thigh.rotation,
+                thighRot,
+                weight
+            );
+
+            // ======================
+            // Knee rotation (local)
+            // ======================
+            Quaternion kneeRot = Quaternion.Euler(-kneeAngle, 0, 0);
+
+            knee.localRotation = Quaternion.Slerp(
+                knee.localRotation,
+                kneeRot,
+                weight
+            );
+
+            // ======================
+            // Foot rotation
+            // ======================
+            foot.rotation = Quaternion.Slerp(
+                foot.rotation,
+                target.rotation,
+                weight
+            );
+        }
+
+        // ==========================
+        // Head / Neck rotation only
+        // ==========================
+        internal static void RotateHead(Vector2 mouseDelta)
+        {
+            float yaw   = mouseDelta.x * 0.15f;
+            float pitch = -mouseDelta.y * 0.15f;
+
+            Vector3 euler = head.localEulerAngles;
+            euler.x = ClampAngle(euler.x + pitch, -40f, 40f);
+            euler.y = ClampAngle(euler.y + yaw, -60f, 60f);
+
+            head.localEulerAngles = euler;
+        }
+
+        internal static float ClampAngle(float angle, float min, float max)
+        {
+            angle = Mathf.Repeat(angle + 180f, 360f) - 180f;
+            return Mathf.Clamp(angle, min, max);
+        }
+
+        internal static GameObject CreateHitProxy(Transform neck, string name, float radius = 0.06f)
+        {
+            GameObject go = new GameObject($"{name}_HitProxy");
+
+            go.transform.SetParent(neck, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+
+            SphereCollider col = go.AddComponent<SphereCollider>();
+            col.radius = radius; // 목 크기에 맞게 조절
+            col.isTrigger = true;
+
+            return go;
+        }
+
+        internal static void UpdateIKHead(HeadIKData headIKData, float mouseX, float mouseY) {
+            // float yaw   = Input.GetAxis("Mouse X") * 2.0f;
+            // float pitch = -Input.GetAxis("Mouse Y") * 2.0f;
+
+            headIKData.inputEuler.x += mouseX * 2f; // yaw
+            headIKData.inputEuler.y += mouseY * 2f; // pitch
+
+            // Clamp (중요)
+            headIKData.inputEuler.x = Mathf.Clamp(headIKData.inputEuler.x, -60f, 60f);
+            headIKData.inputEuler.y = Mathf.Clamp(headIKData.inputEuler.y, -40f, 40f);            
+        }
+
+        internal static void ReflectIKToAnimation(RealHumanData realHumanData) {
+            if (realHumanData.headIKData.weight <= 0f)
+                return;
+
+            // 목표 회전
+            Quaternion neckOffset = Quaternion.Euler(
+                realHumanData.headIKData.inputEuler.y * 0.4f,
+                realHumanData.headIKData.inputEuler.x * 0.4f,
+                0f
+            );
+
+            Quaternion headOffset = Quaternion.Euler(
+                realHumanData.headIKData.inputEuler.y * 0.6f,
+                realHumanData.headIKData.inputEuler.x * 0.6f,
+                0f
+            );
+
+            realHumanData.headIKData.neck.localRotation =
+                Quaternion.Slerp(
+                    realHumanData.headIKData.baseNeckRotation,
+                    realHumanData.headIKData.baseNeckRotation * neckOffset,
+                    realHumanData.headIKData.weight
+                );
+
+            realHumanData.headIKData.head.localRotation =
+                Quaternion.Slerp(
+                    realHumanData.headIKData.baseHeadRotation,
+                    realHumanData.headIKData.baseHeadRotation * headOffset,
+                    realHumanData.headIKData.weight
+                );
+        }
+#endif                
 
         internal static Texture2D RenderTextureToTexture2D(RenderTexture rt)
         {
@@ -1997,6 +2156,11 @@ namespace RealHumanSupport
         // public Transform ik_target_l_knee;
         // public Transform ik_target_r_knee;
         // public float ik_weight;
+#if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
+        public LegIKData l_leg_ik_data;
+        public LegIKData r_leg_ik_data;
+        public HeadIKData head_ik_data;
+#endif   
 
 #if FEATURE_EXPRESSION
         // expressiond
@@ -2020,6 +2184,36 @@ namespace RealHumanSupport
         public RealHumanData()
         {
         }        
+#if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
+    public class  LegIKData {
+        public Transform thigh;
+        public Transform knee;
+        public Transform foot;
+
+        public Transform target;
+        public Transform pole;
+        public float weight;
+    }
+
+    public class  HeadIKData {
+        public Transform neck;
+        public Transform head;
+                
+        public Quaternion baseNeckRotation;
+        public Quaternion baseHeadRotation;
+
+        public Vector2 inputEuler;
+
+        public float weight;
+
+        public HeadIKData()
+        {
+            this.inputEuler = new Vector2.zero;
+            this.weight = 1f;
+        }       
+    }
+
+#endif        
     }
 
 #if FEATURE_STRAPON_SUPPORT

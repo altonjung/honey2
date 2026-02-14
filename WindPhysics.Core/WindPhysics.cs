@@ -8,7 +8,6 @@ using System.Reflection;
 using BepInEx.Logging;
 using ToolBox;
 using ToolBox.Extensions;
-using UILib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -25,13 +24,12 @@ using CharaUtils;
 using ExtensibleSaveFormat;
 using AIChara;
 using System.Security.Cryptography;
-using KKAPI.Studio;
 using IllusionUtility.GetUtility;
 using System.Dynamic;
+using KKAPI.Studio;
+using KKAPI.Studio.UI.Toolbars;
+using KKAPI.Utilities;
 #endif
-
-// 추가 작업 예정
-// - direction 자동 360도 회전
 
 namespace WindPhysics
 {
@@ -49,7 +47,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.5.3";
+        public const string Version = "0.9.5.4";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -76,6 +74,14 @@ namespace WindPhysics
 
         private static string _assemblyLocation;
         private bool _loaded = false;
+
+        private static bool _ShowUI = false;
+        private static SimpleToolbarToggle _toolbarButton;
+		
+        private const int _uniqueId = ('W' << 24) | ('P' << 16) | ('P' << 8) | 'X';
+
+        private Rect _windowRect = new Rect(70, 10, 650, 10);
+
 
         internal List<ObjectCtrlInfo> _selectedOCIs = new List<ObjectCtrlInfo>();
 
@@ -167,12 +173,19 @@ namespace WindPhysics
 
 
             _self = this;
-            Logger = base.Logger;
+            Logger = base.Logger; 
 
             _assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
             var harmony = HarmonyExtensions.CreateInstance(GUID);
-            harmony.PatchAll(Assembly.GetExecutingAssembly());                     
+            harmony.PatchAll(Assembly.GetExecutingAssembly());
+
+            _toolbarButton = new SimpleToolbarToggle(
+                "Open window",
+                "Open WindPhysics window",
+                () => ResourceUtils.GetEmbeddedResource("wp_toolbar_icon.png", typeof(WindPhysics).Assembly).LoadTexture(),
+                false, this, val => _ShowUI = val);
+            ToolbarManager.AddLeftToolbarControl(_toolbarButton);
         }
 
 #if SUNSHINE || HONEYSELECT2 || AISHOUJO
@@ -195,6 +208,131 @@ namespace WindPhysics
             }
         }
 
+        protected override void OnGUI()
+        {
+            if (_ShowUI == false)
+                return;
+            
+            if (StudioAPI.InsideStudio)
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Wind Physics" + Version);
+        }
+       
+
+        private void WindowFunc(int id)
+        {
+
+            var studio = Studio.Studio.Instance;
+
+            // ⭐ UI 조작 중이면 Studio 입력 막기
+            if (Event.current.type == EventType.MouseDown ||
+                Event.current.type == EventType.MouseDrag)
+            {
+                studio.cameraCtrl.noCtrlCondition = () => true;
+            }
+
+            // ⭐ 마우스 떼면 해제
+            if (Event.current.type == EventType.MouseUp)
+            {
+                studio.cameraCtrl.noCtrlCondition = null;
+            }
+
+            // ================= UI =================
+// Global
+            GUILayout.Label("Global");
+            GUILayout.BeginHorizontal();
+            // Gravity
+            GUILayout.Label(new GUIContent("G", "Gravity"), GUILayout.Width(30));
+            Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
+            GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(30));
+
+            // direction
+            GUILayout.Label(new GUIContent("D", "Wind Direction"), GUILayout.Width(30));
+            WindDirection.Value = GUILayout.HorizontalSlider(WindDirection.Value, 0.0f, 359.0f);
+            GUILayout.Label(WindDirection.Value.ToString("0.00"), GUILayout.Width(30));
+
+            // force
+            GUILayout.Label(new GUIContent("F", "Wind Force"), GUILayout.Width(30));
+            WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.1f, 1.0f);
+            GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(30));
+
+            // force up
+            GUILayout.Label(new GUIContent("FU", "Force Up"),  GUILayout.Width(30));
+            WindForce.Value = GUILayout.HorizontalSlider(WindForce.Value, 0.0f, 0.5f);
+            GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.Label(new GUIContent("I", "Interval"), GUILayout.Width(30));
+            WindInterval.Value = GUILayout.HorizontalSlider(WindInterval.Value, 0.0f, 30.0f);
+            GUILayout.Label(WindInterval.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.EndHorizontal();
+
+// Hair
+            GUILayout.Label("Hair");
+            GUILayout.BeginHorizontal();
+            
+            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(30));
+            HairDamping.Value = GUILayout.HorizontalSlider(HairDamping.Value, 0.0f, 10.0f);
+            GUILayout.Label(HairDamping.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(30));
+            HairStiffness.Value = GUILayout.HorizontalSlider(HairStiffness.Value, 0.0f, 1.0f);
+            GUILayout.Label(HairStiffness.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(30));
+            HairForce.Value = GUILayout.HorizontalSlider(HairForce.Value, 0.1f, 1.0f);
+            GUILayout.Label(HairForce.Value.ToString("0.00"), GUILayout.Width(30));
+
+
+            GUILayout.EndHorizontal();
+
+// Cloth
+            GUILayout.Label("Cloth");
+            GUILayout.BeginHorizontal();
+            
+            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(30));
+            ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.0f, 10.0f);
+            GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(30));
+            ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 0.0f, 1.0f);
+            GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(30));
+            ClotheForce.Value = GUILayout.HorizontalSlider(ClotheForce.Value, 0.1f, 1.0f);
+            GUILayout.Label(ClotheForce.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.EndHorizontal();
+// Acc
+            GUILayout.Label("Acc");
+            GUILayout.BeginHorizontal();
+            
+            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(30));
+            AccesoriesDamping.Value = GUILayout.HorizontalSlider(AccesoriesDamping.Value, 0.0f, 10.0f);
+            GUILayout.Label(AccesoriesDamping.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(30));
+            AccesoriesStiffness.Value = GUILayout.HorizontalSlider(AccesoriesStiffness.Value, 0.0f, 1.0f);
+            GUILayout.Label(AccesoriesStiffness.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.Label(new GUIContent("F", "DamForceping"), GUILayout.Width(30));
+            AccesoriesForce.Value = GUILayout.HorizontalSlider(AccesoriesForce.Value, 0.1f, 1.0f);
+            GUILayout.Label(AccesoriesForce.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.EndHorizontal();
+
+            if (GUILayout.Button("Close"))
+                _ShowUI = false;
+
+            // ⭐ 툴팁 직접 그리기
+            if (!string.IsNullOrEmpty(GUI.tooltip))
+            {
+                Vector2 mousePos = Event.current.mousePosition;
+                GUI.Label(new Rect(mousePos.x + 10, mousePos.y + 10, 150, 20), GUI.tooltip, GUI.skin.box);
+            }
+
+            GUI.DragWindow();
+        }
+
+        
         #endregion
 
         #region Public Methods
@@ -353,14 +491,28 @@ namespace WindPhysics
             var hairBones = windData.hairDynamicBones;
             for (int i = 0; i < hairBones.Count; i++)
             {
-                var bone = hairBones[i];
-                if (bone == null)
+                var hairBone = hairBones[i];
+                if (hairBone == null)
                     continue;
 
-                bone.m_Damping = hairDamping + UnityEngine.Random.Range(-0.2f, 0.2f);
-                bone.m_Stiffness = hairStiffness;
-                bone.m_Force = hairFinalWind;
-                bone.m_Gravity = new Vector3(0, gravityUp
+                // Add subtle left/right spread based on head position.
+                Transform hairBoneRoot = hairBone.m_Root != null ? hairBone.m_Root : hairBone.transform;
+                Transform headTr = windData.head_bone;                
+                float sideSign = 0f;
+                if (headTr != null)
+                {
+                    Vector3 toHairBoneRoot = hairBoneRoot.position - headTr.position;
+                    float side = Vector3.Dot(toHairBoneRoot, headTr.right); // head 기준 hairRoot 가 왼쪽인지/오른쪽인지 내적으로 판단
+                    sideSign = Mathf.Sign(side);
+                }
+
+                float sideAmount = hairFinalWind.magnitude * UnityEngine.Random.Range(0.001f, 0.5f);
+                Vector3 sideWind = headTr != null ? headTr.right * sideSign * sideAmount : Vector3.zero;
+
+                hairBone.m_Damping = hairDamping + UnityEngine.Random.Range(-0.2f, 0.2f);
+                hairBone.m_Stiffness = hairStiffness;
+                hairBone.m_Force = hairFinalWind + sideWind;
+                hairBone.m_Gravity = new Vector3(0, gravityUp
                 ? UnityEngine.Random.Range(gravity, gravity + 0.02f)
                 : UnityEngine.Random.Range(gravity, gravity - 0.01f), 0f);
             }

@@ -26,10 +26,21 @@ namespace WindPhysics
 {
     public class Logic
     {  
-        internal static WindData CreateWindData(ObjectCtrlInfo ociChar)
+        internal static WindData CreateWindData(ObjectCtrlInfo objCtrlInfo)
         {
+            OCIChar ociChar = objCtrlInfo as OCIChar;
+
             WindData windData = new WindData();
             windData.objectCtrlInfo = ociChar;
+
+            if (ociChar != null)
+            {
+                string bone_prefix_str = "cf_";
+                if (ociChar.GetChaControl().sex == 0)
+                    bone_prefix_str = "cm_";
+
+                windData.head_bone = ociChar.GetChaControl().objAnim.transform.FindLoop(bone_prefix_str + "J_Head");
+            }
 
             return windData;
         }
@@ -90,10 +101,7 @@ namespace WindPhysics
 
                 if (windData.clothes.Count != 0 || windData.hairDynamicBones.Count != 0 || windData.accesoriesDynamicBones.Count != 0)
                 {
-                    // UnityEngine.Debug.Log($">> windData.clothes.Count {windData.clothes.Count}");
-                    // UnityEngine.Debug.Log($">> windData.hairDynamicBones.Count {windData.hairDynamicBones.Count}");
-                    // UnityEngine.Debug.Log($">> windData.accesoriesDynamicBones.Count {windData.accesoriesDynamicBones.Count}");
-                    // Coroutine
+                      // Coroutine
                     if (ociChar != null) {
                             windData.coroutine = WindPhysics.ConfigKeyEnableWind.Value ? ociChar.charInfo.StartCoroutine(WindPhysics._self.WindRoutine(windData)) : null;  
                     }
@@ -169,6 +177,8 @@ namespace WindPhysics
         public List<DynamicBone> hairDynamicBones = new List<DynamicBone>();
 
         public List<DynamicBone> accesoriesDynamicBones = new List<DynamicBone>();
+
+        public Transform head_bone;
 
         public SkinnedMeshRenderer clothTopRender;
 

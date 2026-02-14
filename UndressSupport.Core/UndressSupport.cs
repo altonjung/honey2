@@ -29,6 +29,9 @@ using System.Security.Cryptography;
 using ADV.Commands.Camera;
 using KKAPI.Studio;
 using System;
+using KKAPI.Studio;
+using KKAPI.Studio.UI.Toolbars;
+using KKAPI.Utilities;
 #endif
 
 namespace UndressSupport
@@ -71,6 +74,13 @@ namespace UndressSupport
         internal static UndressSupport _self;
         private static string _assemblyLocation;
 
+        private static bool _ShowUI = false;
+        private static SimpleToolbarToggle _toolbarButton;
+		
+        private const int _uniqueId = ('U' << 24) | ('D' << 16) | ('S' << 8) | 'S';
+
+        private Rect _windowRect = new Rect(70, 10, 400, 10);
+
         internal const string CLOTH_COLLIDER_PREFIX = "Cloth colliders";
 
         private bool _loaded = false;
@@ -82,7 +92,7 @@ namespace UndressSupport
         private AnimationCurve UndressCurve;
 
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressShortcut { get; private set; }
-        internal static ConfigEntry<int> ClothUndressSpeed { get; private set; }
+        internal static ConfigEntry<float> ClothUndressForce { get; private set; }
         internal static ConfigEntry<float> ClothDamping { get; private set; }
         internal static ConfigEntry<float> ClothStiffness { get; private set; }
         internal static ConfigEntry<float> ClothUndressDuration { get; private set; }        
@@ -109,7 +119,7 @@ namespace UndressSupport
 
             ClothStiffness = Config.Bind("Cloth", "Stiffness", 5.0f, new ConfigDescription("", new AcceptableValueRange<float>(0.1f, 9.0f)));
 
-            ClothUndressSpeed = Config.Bind("Option", "Speed", 3, new ConfigDescription("multiple", new AcceptableValueRange<int>(1, 5)));
+            ClothUndressForce = Config.Bind("Option", "Force", 3.0f, new ConfigDescription("multiple", new AcceptableValueRange<float>(1f, 5f)));
 
             ClothUndressDuration = Config.Bind("Option", "Duration", 10.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 90.0f)));
 
@@ -128,11 +138,18 @@ namespace UndressSupport
 
             _assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-            ExtensibleSaveFormat.ExtendedSave.SceneBeingLoaded += OnSceneLoad;
+            // ExtensibleSaveFormat.ExtendedSave.SceneBeingLoaded += OnSceneLoad;
 
             var harmony = HarmonyExtensions.CreateInstance(GUID);
 
             harmony.PatchAll(Assembly.GetExecutingAssembly());
+
+            _toolbarButton = new SimpleToolbarToggle(
+                "Open window",
+                "Open Undress window",
+                () => ResourceUtils.GetEmbeddedResource("ud_toolbar_icon.png", typeof(UndressSupport).Assembly).LoadTexture(),
+                false, this, val => _ShowUI = val);
+            ToolbarManager.AddLeftToolbarControl(_toolbarButton);
         }
 
 #if SUNSHINE || HONEYSELECT2 || AISHOUJO
@@ -151,30 +168,81 @@ namespace UndressSupport
 
             if (ConfigKeyDoUndressShortcut.Value.IsDown())
             {   
-                OCIChar ociChar = null;
-                foreach (UndressData undressData in _undressDataList)
-                {
-                    ociChar = undressData.ociChar;
-                }
-
-                if (ociChar != null)
-                {
-                    Logic.ReallocateUndressDataList(_self, ociChar);
-                    foreach (UndressData undressData in _undressDataList)
-                    {
-                        if (undressData != null)
-                        {
-                            if (undressData.coroutine == null) {
-                                undressData.coroutine = StartCoroutine(DoUnressCoroutine(undressData, undressData.cloth));
-                            }
-                        }
-                    }
-                }
+                DoUndress();
             }
         }
 
-        private void OnSceneLoad(string path)
+        protected override void OnGUI()
         {
+            if (_ShowUI == false)
+                return;
+            
+            if (StudioAPI.InsideStudio) 
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Undress Physics" + Version);
+        }
+
+        private void WindowFunc(int id)
+        {
+
+            var studio = Studio.Studio.Instance;
+
+            // ⭐ UI 조작 중이면 Studio 입력 막기
+            if (Event.current.type == EventType.MouseDown ||
+                Event.current.type == EventType.MouseDrag)
+            {
+                studio.cameraCtrl.noCtrlCondition = () => true;
+            }
+
+            // ⭐ 마우스 떼면 해제
+            if (Event.current.type == EventType.MouseUp)
+            {
+                studio.cameraCtrl.noCtrlCondition = null;
+            }
+
+            // ================= UI =================
+// Global
+            GUILayout.Label("Option");
+            GUILayout.BeginHorizontal();
+            // Speed
+            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(30));
+            ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 1f, 5f);
+            GUILayout.Label(ClothUndressForce.Value.ToString("0.00"), GUILayout.Width(30));
+
+            // Duration
+            GUILayout.Label(new GUIContent("D", "Duration"), GUILayout.Width(30));
+            ClothUndressDuration.Value = GUILayout.HorizontalSlider(ClothUndressDuration.Value, 0.0f, 359.0f);
+            GUILayout.Label(ClothUndressDuration.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.EndHorizontal();
+
+// Cloth
+            GUILayout.Label("Cloth");
+            GUILayout.BeginHorizontal();
+            
+            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(30));
+            ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.4f, 0.7f);
+            GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(30));
+            ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 0.0f, 10.0f);
+            GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(30));
+
+            GUILayout.EndHorizontal();
+
+            if (GUILayout.Button("Do Undress"))
+                DoUndress();
+
+            if (GUILayout.Button("Close"))
+                _ShowUI = false;
+
+            // ⭐ 툴팁 직접 그리기
+            if (!string.IsNullOrEmpty(GUI.tooltip))
+            {
+                Vector2 mousePos = Event.current.mousePosition;
+                GUI.Label(new Rect(mousePos.x + 10, mousePos.y + 10, 150, 20), GUI.tooltip, GUI.skin.box);
+            }
+
+            GUI.DragWindow();
         }
 
         #endregion
@@ -241,9 +309,9 @@ namespace UndressSupport
 
             float endPull = 5.0f;
 
-            int topMaxDistance = 3 * ClothUndressSpeed.Value;
-            int midMaxDistance = 5 * ClothUndressSpeed.Value;
-            int bottomMaxDistance = 3 * ClothUndressSpeed.Value;
+            int topMaxDistance = Int(3f * ClothUndressForce.Value);
+            int midMaxDistance = Int(5f * ClothUndressForce.Value);
+            int bottomMaxDistance = Int(3f * ClothUndressForce.Value);
 
             float startRadius = undressData.IsTop ? 0.5f : 0.9f;
             var collider = undressData.collider;
@@ -280,7 +348,7 @@ namespace UndressSupport
                     if (normalizedY[i] > 0.80f)
                     {
                         // 🔥 위쪽은 초반 유지
-                        if (t < 0.4f)
+                        if (t < 0.2f)
                             continue;
 
                         targetMaxDistance = Mathf.Lerp(
@@ -318,6 +386,10 @@ namespace UndressSupport
             }
         }
 
+        private int Int(float v)
+        {
+            throw new NotImplementedException();
+        }
 
         private IEnumerator DoUnressCoroutine(UndressData undressData, Cloth cloth)
         {
@@ -339,6 +411,28 @@ namespace UndressSupport
                     undressData.collider.radius = 0.5f;
             Logic.RestoreMaxDistances(undressData);
             undressData.coroutine = null;
+        }
+
+        private void DoUndress(){
+            OCIChar ociChar = null;
+            foreach (UndressData undressData in _undressDataList)
+            {
+                ociChar = undressData.ociChar;
+            }
+
+            if (ociChar != null)
+            {
+                Logic.ReallocateUndressDataList(_self, ociChar);
+                foreach (UndressData undressData in _undressDataList)
+                {
+                    if (undressData != null)
+                    {
+                        if (undressData.coroutine == null) {
+                            undressData.coroutine = StartCoroutine(DoUnressCoroutine(undressData, undressData.cloth));
+                        }
+                    }
+                }
+            }            
         }
 
         #endregion
