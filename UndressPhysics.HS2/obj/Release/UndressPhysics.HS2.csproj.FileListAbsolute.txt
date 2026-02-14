@@ -1,0 +1,4 @@
+C:\share\work\hs2\HSPlugins-main\bin\HS2\UndressPhysics.dll
+C:\share\work\hs2\HSPlugins-main\UndressPhysics.HS2\obj\Release\UndressPhysics.HS2.csproj.AssemblyReference.cache
+C:\share\work\hs2\HSPlugins-main\UndressPhysics.HS2\obj\Release\UndressPhysics.HS2.csproj.CoreCompileInputs.cache
+C:\share\work\hs2\HSPlugins-main\UndressPhysics.HS2\obj\Release\UndressPhysics.dll

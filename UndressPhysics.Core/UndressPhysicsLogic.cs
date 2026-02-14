@@ -28,7 +28,7 @@ using static Illusion.Utils;
 using static ADV.TextScenario;
 #endif
 
-namespace UndressSupport
+namespace UndressPhysics
 {
     public class Logic
     {     
@@ -77,14 +77,14 @@ namespace UndressSupport
             Transform root_bone = charControl.objBodyBone.transform.FindLoop(name);
 
             if (root_bone != null) {
-                Transform colliderTr = root_bone.Find(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Undress_" + name);
+                Transform colliderTr = root_bone.Find(UndressPhysics.CLOTH_COLLIDER_PREFIX + "_Undress_" + name);
 
                 if (colliderTr != null) {
                       UnityEngine.Object.Destroy(colliderTr.gameObject);
                 }
 
                 // spine collider
-                GameObject boneObj = new GameObject(UndressSupport.CLOTH_COLLIDER_PREFIX + "_Undress_" + name);
+                GameObject boneObj = new GameObject(UndressPhysics.CLOTH_COLLIDER_PREFIX + "_Undress_" + name);
                 spineCollider = AddCapsuleSpineCollider(boneObj, root_bone, pos, radius, height);
                 UpdateCapsuleCollider(cloth, spineCollider);
             }
@@ -241,11 +241,11 @@ namespace UndressSupport
             return bodyRenderer;
         }
 
-        //internal static void TryAllocateObject(UndressSupport instance, OCIChar ociChar) {
+        //internal static void TryAllocateObject(UndressPhysics instance, OCIChar ociChar) {
         //    ociChar.GetChaControl().StartCoroutine(ExecuteAfterFrame(instance, ociChar));
         //}
 
-    //    internal static IEnumerator ExecuteAfterFrame(UndressSupport instance, OCIChar ociChar)
+    //    internal static IEnumerator ExecuteAfterFrame(UndressPhysics instance, OCIChar ociChar)
     //     {
     //         int frameCount = 20;
     //         for (int i = 0; i < frameCount; i++)
@@ -254,7 +254,7 @@ namespace UndressSupport
     //         ReallocateUndressDataList(instance, ociChar);
     //     }
 
-        internal static void ReallocateUndressDataList(UndressSupport instance, OCIChar ociChar)
+        internal static void ReallocateUndressDataList(UndressPhysics instance, OCIChar ociChar)
         {   
             foreach(UndressData undressData in instance._undressDataList)
             {
@@ -286,7 +286,7 @@ namespace UndressSupport
             }
         }
 
-        internal static void RemoveUndressDataList(UndressSupport instance)
+        internal static void RemoveUndressDataList(UndressPhysics instance)
         {   
             foreach(UndressData undressData in instance._undressDataList)
             {

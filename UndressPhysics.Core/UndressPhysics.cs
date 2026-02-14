@@ -34,7 +34,7 @@ using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 #endif
 
-namespace UndressSupport
+namespace UndressPhysics
 {
 #if BEPINEX
     [BepInPlugin(GUID, Name, Version)]
@@ -43,15 +43,15 @@ namespace UndressSupport
 #endif
     [BepInDependency("com.bepis.bepinex.extendedsave")]
 #endif
-    public class UndressSupport : GenericPlugin
+    public class UndressPhysics : GenericPlugin
 #if IPA
                             , IEnhancedPlugin
 #endif
     {
         #region Constants
-        public const string Name = "UndressSupport";
-        public const string Version = "0.9.0.0";
-        public const string GUID = "com.alton.illusionplugins.UndressSupport";
+        public const string Name = "UndressPhysics";
+        public const string Version = "0.9.0.1";
+        public const string GUID = "com.alton.illusionplugins.UndressPhysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
@@ -71,7 +71,7 @@ namespace UndressSupport
         #region Private Variables
 
         internal static new ManualLogSource Logger;
-        internal static UndressSupport _self;
+        internal static UndressPhysics _self;
         private static string _assemblyLocation;
 
         private static bool _ShowUI = false;
@@ -79,7 +79,7 @@ namespace UndressSupport
 		
         private const int _uniqueId = ('U' << 24) | ('D' << 16) | ('S' << 8) | 'S';
 
-        private Rect _windowRect = new Rect(70, 10, 400, 10);
+        private Rect _windowRect = new Rect(70, 10, 300, 10);
 
         internal const string CLOTH_COLLIDER_PREFIX = "Cloth colliders";
 
@@ -147,7 +147,7 @@ namespace UndressSupport
             _toolbarButton = new SimpleToolbarToggle(
                 "Open window",
                 "Open Undress window",
-                () => ResourceUtils.GetEmbeddedResource("ud_toolbar_icon.png", typeof(UndressSupport).Assembly).LoadTexture(),
+                () => ResourceUtils.GetEmbeddedResource("toolbar_icon.png", typeof(UndressPhysics).Assembly).LoadTexture(),
                 false, this, val => _ShowUI = val);
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
         }
@@ -204,14 +204,14 @@ namespace UndressSupport
             GUILayout.Label("Option");
             GUILayout.BeginHorizontal();
             // Speed
-            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
             ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 1f, 5f);
-            GUILayout.Label(ClothUndressForce.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(ClothUndressForce.Value.ToString("0.00"), GUILayout.Width(40));
 
             // Duration
-            GUILayout.Label(new GUIContent("D", "Duration"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("D", "Duration"), GUILayout.Width(20));
             ClothUndressDuration.Value = GUILayout.HorizontalSlider(ClothUndressDuration.Value, 0.0f, 359.0f);
-            GUILayout.Label(ClothUndressDuration.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(ClothUndressDuration.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.EndHorizontal();
 
@@ -219,13 +219,13 @@ namespace UndressSupport
             GUILayout.Label("Cloth");
             GUILayout.BeginHorizontal();
             
-            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
             ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.4f, 0.7f);
-            GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(40));
 
-            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
             ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 0.0f, 10.0f);
-            GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.EndHorizontal();
 

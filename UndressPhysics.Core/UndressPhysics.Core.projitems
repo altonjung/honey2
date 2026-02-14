@@ -6,14 +6,17 @@
     <SharedGUID>e9a8dfae-8470-1111-b5a6-6f9c9b42a5d2</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>UndressSupport.Core</Import_RootNamespace>
+    <Import_RootNamespace>UndressPhysics.Core</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />    
-    <Compile Include="$(MSBuildThisFileDirectory)UndressSupport.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)UndressSupportLogic.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)UndressPhysics.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)UndressPhysicsLogic.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />
-  </ItemGroup>  
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\toolbar_icon.png" />
+  </ItemGroup>
 </Project>
