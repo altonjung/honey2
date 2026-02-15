@@ -172,7 +172,11 @@ namespace ClothPhysicsGen
             }
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Generate")) {
+            if (GUILayout.Button("Top Generate")) {
+                
+            }  
+
+            if (GUILayout.Button("Bottom Generate")) {
             }  
 
             if (GUILayout.Button("Close"))
@@ -206,29 +210,54 @@ namespace ClothPhysicsGen
 
         #region Patches
 
+        public static void CheckTopDress()
+        {
+            if (_selectedOCI != null)
+            {
+                OCIChar ociChar = _selectedOCI as OCIChar;
+
+                if (ociChar != null)
+                {
+                     var clothTop = ociChar.charInfo.objClothes[2];
+
+                     if (clothTop)
+                    {
+                        
+                    }
+                }
+            }
+        }
+
+        public static void CheckBottomDress()
+        {
+            if (_selectedOCI != null)
+            {
+                OCIChar ociChar = _selectedOCI as OCIChar;
+
+                if (ociChar != null)
+                {
+                     var clothBottom = ociChar.GetChaControl.objClothes[3];
+
+                     if (clothBottom)
+                    {
+                        
+                    }
+                }
+            }
+        }
+
         public static Cloth SetupCloth(
             GameObject clothObj,
-            Animator animator,
-            bool isTop)
+            Transform referenceBone)
         {
             var smr = clothObj.GetComponent<SkinnedMeshRenderer>();
             if (smr == null) return null;
 
-            // 1. Cloth 추가
+            // Cloth 추가
             var cloth = clothObj.GetComponent<Cloth>() ?? clothObj.AddComponent<Cloth>();
 
-            // 2. collider 연결 (이미 있다 했으니 생략 가능)
-            var root = animator.GetBoneTransform(HumanBodyBones.Hips);
-            cloth.capsuleColliders = root.GetComponentsInChildren<CapsuleCollider>();
-
-            // 3. 기준 bone 선택
-            Transform reference =
-                isTop ?
-                animator.GetBoneTransform(HumanBodyBones.Spine) :
-                animator.GetBoneTransform(HumanBodyBones.Hips);
-
-            // 4. Auto paint
-            AutoPaintByDistance(cloth, reference, 0.02f, 0.4f, 0.08f);
+            // Auto paint
+            AutoPaintByDistance(cloth, referenceBone, 0.02f, 0.4f, 0.08f);
 
             return cloth;
         }
@@ -270,33 +299,12 @@ namespace ClothPhysicsGen
             AddVisualColliders(ociChar);
         }
 
-//         // 옷 부분 변경
-        [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
-        internal static class OCIChar_ChangeChara_Patches
-        {
-            public static void Postfix(OCIChar __instance, string _path)
-            {
-                PhysicCollider value = null;
-                if (_self._ociCharMgmt.TryGetValue(__instance, out value))
-                {
-                    ClearPhysicCollier(value);
-                    _self._ociCharMgmt.Remove(__instance);
-                }  
-            }
-        }
-
         
         [HarmonyPatch(typeof(ChaControl), "ChangeAccessory", typeof(int), typeof(int), typeof(int), typeof(string), typeof(bool))]
         private static class ChaControl_ChangeAccessory_Patches
         {
             private static void Postfix(ChaControl __instance, int slotNo, int type, int id, string parentKey, bool forceChange)
-            {                 
-                PhysicCollider value = null;
-                if (_self._ociCharMgmt.TryGetValue(__instance.GetOCIChar(), out value))
-                {
-                    ClearPhysicCollier(value);
-                    _self._ociCharMgmt.Remove(__instance.GetOCIChar());
-                }                     
+            {                                  
             } 
         }
         
@@ -308,13 +316,7 @@ namespace ClothPhysicsGen
             {
                 UnityEngine.Debug.Log($">> ChangeClothes");
                 if (kind < 2)
-                {
-                    PhysicCollider value = null;
-                    if (_self._ociCharMgmt.TryGetValue(__instance.GetOCIChar(), out value))
-                    {
-                        ClearPhysicCollier(value);
-                        _self._ociCharMgmt.Remove(__instance.GetOCIChar());
-                    }                    
+                {                
                 }
             }
         }
@@ -326,13 +328,6 @@ namespace ClothPhysicsGen
             public static void Postfix(ChaControl __instance, bool show)
             {
                 UnityEngine.Debug.Log($">> SetAccessoryStateAll");
-
-                PhysicCollider value = null;
-                if (_self._ociCharMgmt.TryGetValue(__instance.GetOCIChar(), out value))
-                {
-                    ClearPhysicCollier(value);
-                    _self._ociCharMgmt.Remove(__instance.GetOCIChar());
-                }
             }
         }
 

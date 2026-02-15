@@ -29,6 +29,7 @@ using System.Dynamic;
 using KKAPI.Studio;
 using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
+using static Illusion.Utils;
 #endif
 
 namespace WindPhysics
@@ -83,7 +84,7 @@ namespace WindPhysics
         private Rect _windowRect = new Rect(70, 10, 600, 10);
 
 
-        internal List<ObjectCtrlInfo> _selectedOCIs = new List<ObjectCtrlInfo>();
+        // internal List<ObjectCtrlInfo> _selectedOCIs = new List<ObjectCtrlInfo>();
 
         private float _minY = float.MaxValue;
         private float _maxY = float.MinValue;
@@ -395,7 +396,6 @@ namespace WindPhysics
 #endif
             }
             _ociObjectMgmt.Clear();
-            _selectedOCIs.Clear();
         }
 
         // n 개 대상 아이템에 대해 active/inactive 동시 적용 처리 
@@ -405,7 +405,8 @@ namespace WindPhysics
             {
                 if(_previousConfigKeyEnableWind != ConfigKeyEnableWind.Value)
                 {
-                    foreach (ObjectCtrlInfo ctrlInfo in _selectedOCIs)
+                    List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
+                    foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
                     {
                         OCIChar ociChar = ctrlInfo as OCIChar;
                         if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ociChar.GetHashCode(), out var windData))
@@ -437,7 +438,7 @@ namespace WindPhysics
                                 {
                                     if (windData1.coroutine == null)
                                     {                      
-                                        windData1.coroutine = ociChar.charInfo.StartCoroutine(WindRoutine(windData1));
+                                        windData1.coroutine = ociItem.guideObject.StartCoroutine(WindRoutine(windData1));
                                     }
                                 }
                             } else
@@ -716,6 +717,11 @@ namespace WindPhysics
                     yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.hairDynamicBones));
                     yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.accesoriesDynamicBones));
                     windData.coroutine = null;
+
+                    if (windData.wind_status == Status.REMOVE) {
+                        _ociObjectMgmt.Remove(windData.objectCtrlInfo.GetHashCode());
+                    }
+
                     yield break;
                 }
             }
@@ -731,38 +737,52 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
+                // UnityEngine.Debug.Log($">> OnSelectSingle");
+
                 ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-                // UnityEngine.Debug.Log($">> OnSelectSingle {selectedCtrlInfo}");
 
                 if (selectedCtrlInfo == null)
                     return true;
 
-                List<ObjectCtrlInfo> deleteObjInfos = new List<ObjectCtrlInfo>();
-
-                // 삭제 대상 선별 
-                foreach(ObjectCtrlInfo objCtrlInfo in _self._selectedOCIs)
+                // 기존 다중 대상 중 선택되지 못한 대상은 모두 stop
+                foreach (var kvp in _self._ociObjectMgmt)
                 {
-                    if (objCtrlInfo != null && objCtrlInfo != selectedCtrlInfo)
+                    var key = kvp.Key;
+                    WindData value = kvp.Value;
+
+                    if (value.objectCtrlInfo != selectedCtrlInfo)
                     {
-                        deleteObjInfos.Add(objCtrlInfo);
+                        value.wind_status = Status.STOP;
+                        // UnityEngine.Debug.Log($">> STOP {value.objectCtrlInfo}");
                     }
                 }
-
-                // 삭제 대상 stop 처리
-                foreach(ObjectCtrlInfo objCtrlInfo in deleteObjInfos)
+                
+                if (_self._ociObjectMgmt.TryGetValue(selectedCtrlInfo.GetHashCode(), out var windData))
                 {
-                    if (_self._ociObjectMgmt.TryGetValue(objCtrlInfo.GetHashCode(), out var windData))
+                    if (windData.coroutine == null)
                     {
-                        windData.wind_status = Status.STOP;
+                        OCIChar ociChar = selectedCtrlInfo as OCIChar;
+                        if (ociChar != null)
+                        {
+                            windData.wind_status = Status.RUN;
+                            windData.coroutine = ociChar.charInfo.StartCoroutine(_self.WindRoutine(windData));
+                        }
+
+#if FEATURE_ITEM_SUPPORT
+                        OCIItem ociItem = value.objectCtrlInfo as OCIItem;
+                        if (ociItem != null)
+                        {
+                            windData.wind_status = Status.RUN;
+                            windData.coroutine = ociItem.guideObject.StartCoroutine(_self.WindRoutine(windData));
+                        }
+#endif
                     }
+                } else
+                {
+                    // 선택 대상 신규 등록
+                    Logic.TryAllocateObject(selectedCtrlInfo); 
                 }
 
-                // 기존 클릭 대상이 아니면, 기존 대상은 STOP 처리
-                List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>(); 
-                objCtrlInfos.Add(selectedCtrlInfo);
-
-                Logic.TryAllocateObject(objCtrlInfos);
-             
                 return true;
             }
         }
@@ -772,37 +792,61 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance)
             {
-                List<ObjectCtrlInfo> selectedObjCtrlInfos = new List<ObjectCtrlInfo>(); 
-                foreach (TreeNodeObject node in Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes)
-                {
-                    ObjectCtrlInfo ctrlInfo = Studio.Studio.GetCtrlInfo(node);
-                    if (ctrlInfo == null)
-                        continue;
+                // UnityEngine.Debug.Log($">> OnSelectMultiple");
 
-                    selectedObjCtrlInfos.Add(ctrlInfo);                  
-                }
+                List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
 
-                List<ObjectCtrlInfo> deleteObjInfos = new List<ObjectCtrlInfo>();
-                // 삭제 대상 선별 
-                foreach(ObjectCtrlInfo objCtrlInf1 in _self._selectedOCIs)
+                // 기존 다중 대상 중 선택되지 못한 대상은 모두 stop
+                foreach (var kvp in _self._ociObjectMgmt)
                 {
-                    foreach(ObjectCtrlInfo objCtrlInfo2 in selectedObjCtrlInfos)
-                    if (objCtrlInf1 != null && objCtrlInf1 != objCtrlInfo2)
+                    var key = kvp.Key;
+                    WindData value = kvp.Value;
+                    bool isSelected = false;
+                    foreach (ObjectCtrlInfo objCtrlInfo in selectedObjCtrlInfos)
                     {
-                        deleteObjInfos.Add(objCtrlInf1);
+                        if (objCtrlInfo == value.objectCtrlInfo)
+                        {
+                            isSelected = true;
+                            break;
+                        }
+                    }
+
+                    if (!isSelected)
+                    {
+                        value.wind_status = Status.STOP;
+                        // UnityEngine.Debug.Log($">> STOP {value.objectCtrlInfo}");
                     }
                 }
 
-                // 삭제 대상 stop 처리
-                foreach(ObjectCtrlInfo objCtrlInfo in deleteObjInfos)
+                // 선택된 대상에 대해 재활성화 혹은 신규 등록
+                foreach (ObjectCtrlInfo objCtrlInfo in selectedObjCtrlInfos)
                 {
                     if (_self._ociObjectMgmt.TryGetValue(objCtrlInfo.GetHashCode(), out var windData))
                     {
-                        windData.wind_status = Status.STOP;
+                        if (windData.coroutine == null)
+                        {
+                            OCIChar ociChar = objCtrlInfo as OCIChar;
+                            if (ociChar != null)
+                            {
+                                windData.wind_status = Status.RUN;
+                                windData.coroutine = ociChar.charInfo.StartCoroutine(_self.WindRoutine(windData));
+                            }
+
+#if FEATURE_ITEM_SUPPORT
+                        OCIItem ociItem = value.objectCtrlInfo as OCIItem;
+                        if (ociItem != null)
+                        {
+                            windData.wind_status = Status.RUN;
+                            windData.coroutine = ociItem.guideObject.StartCoroutine(_self.WindRoutine(windData));
+                        }
+#endif
+                        }
+                    }
+                    else
+                    {
+                        Logic.TryAllocateObject(objCtrlInfo); 
                     }
                 }
-
-                Logic.TryAllocateObject(selectedObjCtrlInfos); 
 
                 return true;
             }
@@ -813,24 +857,12 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
-                ObjectCtrlInfo unselectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-
-                if (unselectedCtrlInfo == null)
-                    return true;
-
-                if (_self._ociObjectMgmt.TryGetValue(unselectedCtrlInfo.GetHashCode(), out var windData))
+                // 기존 다중 대상 모두 Stop 
+                foreach (var kvp in _self._ociObjectMgmt)
                 {
-                    windData.wind_status = Status.STOP;
-                    _self._ociObjectMgmt.Remove(unselectedCtrlInfo.GetHashCode());
-                }
-
-                foreach (ObjectCtrlInfo ctrlInfo in _self._selectedOCIs)
-                {
-                    if (ctrlInfo == unselectedCtrlInfo)
-                    {
-                        _self._selectedOCIs.Remove(unselectedCtrlInfo);
-                        break;
-                    }
+                    var key = kvp.Key;
+                    WindData value = kvp.Value;
+                    value.wind_status = Status.STOP;
                 }
 
                 return true;
@@ -847,7 +879,11 @@ namespace WindPhysics
                 if (unselectedCtrlInfo == null)
                     return true;
 
-                _self.MgmtInit();
+                if (_self._ociObjectMgmt.TryGetValue(unselectedCtrlInfo.GetHashCode(), out var windData))
+                {
+                    windData.wind_status = Status.REMOVE;
+                }
+
                 return true;
             }
         }
@@ -858,10 +894,7 @@ namespace WindPhysics
         {
             public static void Postfix(OCIChar __instance, string _path)
             {
-                List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>();
-                objCtrlInfos.Add(__instance);
-
-                Logic.TryAllocateObject(objCtrlInfos);
+                Logic.TryAllocateObject(__instance);
             }
         }
 
@@ -875,10 +908,7 @@ namespace WindPhysics
 
                 if (ociChar != null)
                 {
-                    List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>();
-                    objCtrlInfos.Add(ociChar);
-
-                    Logic.TryAllocateObject(objCtrlInfos);
+                    Logic.TryAllocateObject(ociChar);
                 }
             }
         }
@@ -893,10 +923,7 @@ namespace WindPhysics
 
                 if (ociChar != null)
                 {
-                    List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>();
-                    objCtrlInfos.Add(ociChar);
-
-                    Logic.TryAllocateObject(objCtrlInfos);
+                    Logic.TryAllocateObject(ociChar);
                 }
             }
         }
@@ -911,10 +938,7 @@ namespace WindPhysics
 
                 if (ociChar != null)
                 {
-                    List<ObjectCtrlInfo> objCtrlInfos = new List<ObjectCtrlInfo>();
-                    objCtrlInfos.Add(ociChar);
-
-                    Logic.TryAllocateObject(objCtrlInfos);
+                    Logic.TryAllocateObject(ociChar);
                 }
             }
         }

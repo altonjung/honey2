@@ -45,6 +45,21 @@ namespace WindPhysics
             return windData;
         }
 
+        internal static List<ObjectCtrlInfo> GetSelectedObjects()
+        {
+            List<ObjectCtrlInfo> selectedObjCtrlInfos = new List<ObjectCtrlInfo>();
+            foreach (TreeNodeObject node in Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes)
+            {
+                ObjectCtrlInfo ctrlInfo = Studio.Studio.GetCtrlInfo(node);
+                if (ctrlInfo == null)
+                    continue;
+
+                selectedObjCtrlInfos.Add(ctrlInfo);                  
+            }
+
+            return selectedObjCtrlInfos;
+        }
+
         internal static IEnumerator ExecuteDynamicBoneAfterFrame(WindData windData)
         {
             int frameCount = 20;
@@ -114,43 +129,30 @@ namespace WindPhysics
             }
         }
 
-        internal static void TryAllocateObject(List<ObjectCtrlInfo> curObjCtrlInfos) {
-
-            WindPhysics._self._selectedOCIs.Clear();
-
-            foreach (ObjectCtrlInfo curObjCtrlInfo in curObjCtrlInfos)
+        internal static void TryAllocateObject(ObjectCtrlInfo curObjCtrlInfo) {
+            WindData windData = null;
+            //신규 등록
+            if (WindPhysics._self._ociObjectMgmt.TryGetValue(curObjCtrlInfo.GetHashCode(), out var windData1))
             {
-                WindPhysics._self._selectedOCIs.Add(curObjCtrlInfo);
-
-                OCIChar ociChar = curObjCtrlInfo as OCIChar;
-                OCIItem ociItem = curObjCtrlInfo as OCIItem;
-
-                // 기존 선택된 대상인지 여부 확인
-                if (WindPhysics._self._ociObjectMgmt.TryGetValue(curObjCtrlInfo.GetHashCode(), out var windData))
-                {
-                    if (ociChar != null)
-                        ociChar.GetChaControl().StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
-    #if FEATURE_ITEM_SUPPORT
-                    if (ociItem != null)
-                        ociItem.guideObject.StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
-    #endif
-                } 
-                else
-                {
-                    //신규 등록
-                    WindData windData2 = CreateWindData(curObjCtrlInfo);
-                    WindPhysics._self._ociObjectMgmt.Add(curObjCtrlInfo.GetHashCode(), windData2);
-
-                    if (ociChar != null) {
-                        ociChar.GetChaControl().StartCoroutine(ExecuteDynamicBoneAfterFrame(windData2));
-                    }
-    #if FEATURE_ITEM_SUPPORT
-                    if (ociItem != null) {
-                        ociItem.guideObject.StartCoroutine(ExecuteDynamicBoneAfterFrame(windData2));
-                    }
-    #endif
-                }   
+                windData = windData1;
+            } else
+            {
+                windData = CreateWindData(curObjCtrlInfo);
+                WindPhysics._self._ociObjectMgmt.Add(curObjCtrlInfo.GetHashCode(), windData);
             }
+
+            windData.wind_status = Status.RUN;
+            OCIChar ociChar = curObjCtrlInfo as OCIChar;
+            OCIItem ociItem = curObjCtrlInfo as OCIItem;
+
+            if (ociChar != null) {
+                ociChar.GetChaControl().StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
+            }
+#if FEATURE_ITEM_SUPPORT
+            if (ociItem != null) {
+                ociItem.guideObject.StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
+            }
+#endif
         }
     }
 
@@ -164,7 +166,8 @@ namespace WindPhysics
     {
         IDLE,
         RUN,
-        STOP
+        STOP,
+        REMOVE
     }
 
     class WindData
@@ -179,16 +182,6 @@ namespace WindPhysics
         public List<DynamicBone> accesoriesDynamicBones = new List<DynamicBone>();
 
         public Transform head_bone;
-
-        // public SkinnedMeshRenderer clothTopRender;
-
-        // public SkinnedMeshRenderer clothBottomRender;
-
-        // public SkinnedMeshRenderer hairRender;
-
-        // public SkinnedMeshRenderer headRender;
-
-        // public SkinnedMeshRenderer bodyRender;
 
         public Status wind_status = Status.IDLE;
 
