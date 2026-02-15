@@ -10,8 +10,8 @@ import copy
 # -----------------------------
 TEMPLATE_XML_TOP = """
 <cloth>
-      <CapsuleCollider boneName="cf_J_Shoulder_L" radius="0.52" center="1.00, -0.01, 0.0" height="2.0" direction="0" />    
-      <CapsuleCollider boneName="cf_J_Shoulder_R" radius="0.52" center="-1.00, -0.01, 0.0" height="2.0" direction="0" />
+      <CapsuleCollider boneName="cf_J_Shoulder_L" radius="0.50" center="1.00, -0.01, 0.0" height="1.4" direction="0" />    
+      <CapsuleCollider boneName="cf_J_Shoulder_R" radius="0.50" center="-1.00, -0.01, 0.0" height="1.4" direction="0" />
       <CapsuleCollider boneName="cf_J_Spine02_s" radius="0.91" center="0.00, -0.10, 0.00" height="3.90" direction="1" />
       <CapsuleCollider boneName="cf_J_Kosi01_s" radius="1.05" center="0.00, -0.15, -0.10" height="3.00" direction="1" />
       <CapsuleCollider boneName="cf_J_Kosi02_s" radius="1.15" center="0.00, 0.00, -0.13" height="3.00" direction="1" />
