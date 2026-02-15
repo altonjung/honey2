@@ -180,15 +180,15 @@ namespace WindPhysics
 
         public Transform head_bone;
 
-        public SkinnedMeshRenderer clothTopRender;
+        // public SkinnedMeshRenderer clothTopRender;
 
-        public SkinnedMeshRenderer clothBottomRender;
+        // public SkinnedMeshRenderer clothBottomRender;
 
-        public SkinnedMeshRenderer hairRender;
+        // public SkinnedMeshRenderer hairRender;
 
-        public SkinnedMeshRenderer headRender;
+        // public SkinnedMeshRenderer headRender;
 
-        public SkinnedMeshRenderer bodyRender;
+        // public SkinnedMeshRenderer bodyRender;
 
         public Status wind_status = Status.IDLE;
 

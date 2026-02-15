@@ -126,15 +126,15 @@ namespace UndressPhysics
             ConfigKeyDoUndressShortcut = Config.Bind("ShortKey", "Undress key", new KeyboardShortcut(KeyCode.LeftControl, KeyCode.U));
 
             PullCurve = new AnimationCurve(
-                new Keyframe(0f, 0.3f),   // 초반 조금 강하게 시작
-                new Keyframe(0.4f, 0.7f), // 중반 천천히 증가
-                new Keyframe(1f, 1f)      // 끝에서 빠르게 최대
+                new Keyframe(0f, 0f, 0f, 0.2f),   // 시작, 거의 평평하게
+                new Keyframe(0.5f, 0.3f, 0.2f, 0.8f), // 중간, 점점 가속
+                new Keyframe(1f, 1f, 0.8f, 1f)    // 끝, 빠르게 1로
             );
 
             UndressCurve = new AnimationCurve(
-                new Keyframe(0f, 0.2f),   // 초반 살짝 강하게
-                new Keyframe(0.4f, 0.6f), // 중반 천천히 증가
-                new Keyframe(1f, 1f)      // 끝에서 급격히 최대
+                new Keyframe(0f, 0f, 0f, 0.1f),   // 초반 거의 정체
+                new Keyframe(0.6f, 0.4f, 0.1f, 1f), // 중반 점점 가속
+                new Keyframe(1f, 1f, 1f, 1f)      // 끝에서 빠르게 최대
             );
 
             _self = this;
@@ -313,7 +313,7 @@ namespace UndressPhysics
             for (int i = 0; i < vertCount; i++)
                 normalizedY[i] = (worldYs[i] - minY) * invRange;
 
-            float endPull = 20.0f;
+            float endPull = 5.0f;
 
             float topMaxDistance = 2f * ClothUndressForce.Value;
             float midMaxDistance = 3f * ClothUndressForce.Value;
@@ -351,7 +351,7 @@ namespace UndressPhysics
 
                     float targetMaxDistance;
 
-                    if (normalizedY[i] > 0.90f)
+                    if (normalizedY[i] > 0.80f)
                     {
                         targetMaxDistance = Mathf.Lerp(
                             startDistances[i],

@@ -3,14 +3,14 @@
   <PropertyGroup>
     <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
-    <SharedGUID>e9a8dfae-8470-4ab1-b5a6-6f9c9b42a3d6</SharedGUID>
+    <SharedGUID>e9a8dfae-8470-4ab1-a5a6-6f9c9b42a5d2</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>WorkspaceSupport.Core</Import_RootNamespace>
+    <Import_RootNamespace>ClothPhysicsGen.Core</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />    
-    <Compile Include="$(MSBuildThisFileDirectory)WorkspaceSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ClothPhysicsGen.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />
