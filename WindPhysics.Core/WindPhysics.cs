@@ -3,7 +3,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using BepInEx.Logging;
 using ToolBox;
@@ -23,9 +22,7 @@ using HarmonyLib;
 using CharaUtils;
 using ExtensibleSaveFormat;
 using AIChara;
-using System.Security.Cryptography;
 using IllusionUtility.GetUtility;
-using System.Dynamic;
 using KKAPI.Studio;
 using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
@@ -83,13 +80,11 @@ namespace WindPhysics
 
         private Rect _windowRect = new Rect(70, 10, 600, 10);
 
-
-        // internal List<ObjectCtrlInfo> _selectedOCIs = new List<ObjectCtrlInfo>();
-
         private float _minY = float.MaxValue;
         private float _maxY = float.MinValue;
 
         private bool _previousConfigKeyEnableWind;
+        private float _previousInterval;
 
         // 위치에 따른 바람 강도
         private AnimationCurve _heightToForceCurve = AnimationCurve.Linear(0f, 1f, 1f, 0.1f); // 위로 갈수록 약함
@@ -136,7 +131,7 @@ namespace WindPhysics
 
             WindUpForce = Config.Bind("All", "ForceUp", 0.0f, new ConfigDescription("wind up force", new AcceptableValueRange<float>(0.0f, 0.5f)));
 
-            WindForce = Config.Bind("All", "Force", 0.1f, new ConfigDescription("wind force", new AcceptableValueRange<float>(0.1f, 1.0f)));
+            WindForce = Config.Bind("All", "Force", 0.1f, new ConfigDescription("wind force", new AcceptableValueRange<float>(0.0f, 1.0f)));
 #if FEATURE_PUBLIC
             WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(1.0f, 10.0f)));
 #else
@@ -171,6 +166,7 @@ namespace WindPhysics
             ConfigKeyEnableWindShortcut = Config.Bind("ShortKey", "Toggle effect key", new KeyboardShortcut(KeyCode.W));
 
             _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value;
+            _previousInterval = WindInterval.Value;
 
 
             _self = this;
@@ -187,6 +183,8 @@ namespace WindPhysics
                 () => ResourceUtils.GetEmbeddedResource("wp_toolbar_icon.png", typeof(WindPhysics).Assembly).LoadTexture(),
                 false, this, val => _ShowUI = val);
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
+
+            _CheckWindMgmtRoutine = StartCoroutine(CheckWindMgmtRoutine());
         }
 
 #if SUNSHINE || HONEYSELECT2 || AISHOUJO
@@ -368,8 +366,6 @@ namespace WindPhysics
         private void Init()
         {
             _loaded = true;
-
-            _CheckWindMgmtRoutine = StartCoroutine(CheckWindMgmtRoutine());
         }
 
         private void MgmtInit()
@@ -403,7 +399,7 @@ namespace WindPhysics
         {
             while (true)
             {
-                if(_previousConfigKeyEnableWind != ConfigKeyEnableWind.Value)
+                if(_previousConfigKeyEnableWind != ConfigKeyEnableWind.Value || _previousInterval != WindInterval.Value)
                 {
                     List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
                     foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
@@ -449,6 +445,7 @@ namespace WindPhysics
 #endif
                     }                        
 
+                    _previousInterval = WindInterval.Value;
                     _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value;          
                 }
 
