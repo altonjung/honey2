@@ -39,7 +39,9 @@ namespace WindPhysics
                 if (ociChar.GetChaControl().sex == 0)
                     bone_prefix_str = "cm_";
 
-                windData.head_bone = ociChar.GetChaControl().objAnim.transform.FindLoop(bone_prefix_str + "J_Head");
+                windData.root_bone = ociChar.GetChaControl().objAnim.transform.FindLoop(bone_prefix_str+"J_Root");
+                windData.head_bone = ociChar.GetChaControl().objAnim.transform.FindLoop(bone_prefix_str+"J_Head");
+                windData.neck_bone = ociChar.GetChaControl().objAnim.transform.FindLoop(bone_prefix_str+"J_Neck"); 
             }
 
             return windData;
@@ -154,6 +156,70 @@ namespace WindPhysics
             }
 #endif
         }
+
+#if FEATURE_FIX_LONGHAIR
+        internal static PositionData GetBoneRotationFromTF(Transform t)
+        {
+            Vector3 fwd = t.forward;
+
+            // 앞 / 뒤 (Pitch)
+            Vector3 fwdYZ = Vector3.ProjectOnPlane(fwd, Vector3.right).normalized;
+            float pitch = Vector3.SignedAngle(
+                Vector3.forward,
+                fwdYZ,
+                Vector3.right
+            );
+
+            // 좌 / 우 (sideZ)
+            Vector3 right = t.right;
+
+            Vector3 rightXY = Vector3.ProjectOnPlane(right, Vector3.forward).normalized;
+
+            float sideZ = Vector3.SignedAngle(
+                Vector3.right,
+                rightXY,
+                Vector3.forward
+            );
+
+            PositionData data = new PositionData(t.rotation, pitch, sideZ);
+            return data;
+        }
+
+        internal static float Remap(float value, float inMin, float inMax, float outMin, float outMax)
+        {
+            return outMin + (value - inMin) * (outMax - outMin) / (inMax - inMin);
+        }
+
+        internal static float GetRelativePosition(float a, float b)
+        {
+            bool sameSign = (a >= 0 && b >= 0) || (a < 0 && b < 0);
+
+            if (sameSign)
+                return Math.Abs(Math.Abs(a) - Math.Abs(b)); // 동일 부호: 절댓값 빼기
+            else
+                return Math.Abs(Math.Abs(a) + Math.Abs(b)); // 부호 다름: 절댓값 더하기
+        }
+
+        internal static void SetHairDown(ChaControl chaCtrl, WindData windData) {
+
+            // 월드 기준 방향
+            Vector3 worldGravity = Vector3.down * 0.02f;
+            Vector3 worldForce = new Vector3(0, -0.03f, -0.01f);
+                        
+            foreach (DynamicBone bone in windData.hairDynamicBones)
+            {
+                if (bone == null)
+                    continue;
+
+                bone.m_Gravity = realHumanData.head_bone.transform.InverseTransformDirection(worldGravity);
+                bone.m_Force =  realHumanData.head_bone.transform.InverseTransformDirection(worldForce);
+                bone.m_Damping = 0.13f;
+                bone.m_Elasticity = 0.05f;
+                bone.m_Stiffness = 0.13f;
+            }
+        }
+#endif
+
     }
 
     enum Cloth_Status
@@ -183,6 +249,10 @@ namespace WindPhysics
 
         public Transform head_bone;
 
+        public Transform neck_bone;
+
+        public Transform root_bone;
+
         public Status wind_status = Status.IDLE;
 
         public Cloth_Status cloth_status = Cloth_Status.EMPTY;
@@ -190,5 +260,19 @@ namespace WindPhysics
         public WindData()
         {
         }
+    }
+
+    class PositionData
+    {
+        public Quaternion _q;
+        public  float   _front;
+        public  float   _side;
+
+        public PositionData(Quaternion q, float front, float side)
+        {   
+            _q = q;
+            _front = front;
+            _side = side;
+        }        
     }
 }
