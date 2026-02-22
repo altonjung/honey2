@@ -218,7 +218,7 @@ namespace RealHumanSupport
             _toolbarButton = new SimpleToolbarToggle(
                 "Open window",
                 "Open RealGirl window",
-                () => ResourceUtils.GetEmbeddedResource("ud_toolbar_icon.png", typeof(RealHumanSupport).Assembly).LoadTexture(),
+                () => ResourceUtils.GetEmbeddedResource("toolbar_icon.png", typeof(RealHumanSupport).Assembly).LoadTexture(),
                 false, this, val => _ShowUI = val);
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
             

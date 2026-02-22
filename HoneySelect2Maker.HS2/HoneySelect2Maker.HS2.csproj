@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{0E8A5A0B-D464-4950-BA76-F23F4F74FCAA}</ProjectGuid>
+    <ProjectGuid>{0E8A5A0B-D464-4950-BA7F-F23F4F74FCAA}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>HoneySelect2Maker</RootNamespace>

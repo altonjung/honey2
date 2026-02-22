@@ -454,72 +454,74 @@ namespace WindPhysics
                 else
                 {
 #if FEATURE_FIX_LONGHAIR
-                    List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
-                    foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
-                    {
-                        OCIChar ociChar = ctrlInfo as OCIChar;
-                        if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ociChar.GetHashCode(), out var windData))
-                        {    
-                            if (windData.head_bone != null && windData.hairDynamicBones.Count > 0)
-                            {
-                                PositionData neckData = Logic.GetBoneRotationFromTF(windData.neck_bone);
-                                PositionData headData = Logic.GetBoneRotationFromTF(windData.head_bone);
-
-                                Vector3 worldGravity = Vector3.down * 0.02f;
-                                Vector3 worldForce1 = Vector3.zero;          
-                                Vector3 worldForce2 = Vector3.zero;   
-                                Vector3 worldForce3 = Vector3.zero;   
-
-                                float zOffset = 0f;
-                                float yOffset = 0f;
-                                if (neckData._front >= 0f)
-                                {   
-                                    // neck이 앞으로 숙인 유형                                                                        
-                                    float angle = Math.Abs(neckData._front);                                
-                                    yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.01f, 0.02f);
-                                    zOffset = yOffset;
-                                    worldForce1 = new Vector3(0, -yOffset, zOffset);
-                                } else
+                    if (ConfigKeyEnableWind.Value) {
+                        List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
+                        foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
+                        {
+                            OCIChar ociChar = ctrlInfo as OCIChar;
+                            if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ociChar.GetHashCode(), out var windData))
+                            {    
+                                if (windData.head_bone != null && windData.hairDynamicBones.Count > 0)
                                 {
-                                    // neck이 뒤로 숙인 유형                                                                        
-                                    float angle = Math.Abs(neckData._front);                                
-                                    yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.005f, 0.07f);
-                                    zOffset = yOffset;
-                                    worldForce1 = new Vector3(0, -yOffset, -zOffset);                                    
-                                }
+                                    PositionData neckData = Logic.GetBoneRotationFromTF(windData.neck_bone);
+                                    PositionData headData = Logic.GetBoneRotationFromTF(windData.head_bone);
 
-                                if (neckData._front < headData._front)
-                                {
-                                    // head가 앞으로 숙인 유형                                                                        
-                                    float angle = Logic.GetRelativePosition(neckData._front, headData._front);                           
-                                    yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.01f, 0.03f);
-                                    zOffset = yOffset;
-                                    worldForce2 = new Vector3(0, -yOffset, zOffset);
-                                } else
-                                {
-                                    // head가 뒤로 숙인 유형   
-                                    float angle = Logic.GetRelativePosition(neckData._front, headData._front);
-                                    yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.005f, 0.035f);
-                                    zOffset = yOffset;
-                                    worldForce2 = new Vector3(0, -yOffset, -zOffset);                  
-                                }
+                                    Vector3 worldGravity = Vector3.down * 0.02f;
+                                    Vector3 worldForce1 = Vector3.zero;          
+                                    Vector3 worldForce2 = Vector3.zero;   
+                                    Vector3 worldForce3 = Vector3.zero;   
 
-                                worldForce3 = worldForce1 + worldForce2;
-                                
-                                // hair 에 대해 world position 적용
-                                foreach (DynamicBone hairDynamicBone in realHumanData1.hairDynamicBones)
-                                {
-                                    if (hairDynamicBone == null)
-                                        continue;
+                                    float zOffset = 0f;
+                                    float yOffset = 0f;
+                                    if (neckData._front >= 0f)
+                                    {   
+                                        // neck이 앞으로 숙인 유형                                                                        
+                                        float angle = Math.Abs(neckData._front);                                
+                                        yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.01f, 0.02f);
+                                        zOffset = yOffset;
+                                        worldForce1 = new Vector3(0, -yOffset, zOffset);
+                                    } else
+                                    {
+                                        // neck이 뒤로 숙인 유형                                                                        
+                                        float angle = Math.Abs(neckData._front);                                
+                                        yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.005f, 0.07f);
+                                        zOffset = yOffset;
+                                        worldForce1 = new Vector3(0, -yOffset, -zOffset);                                    
+                                    }
 
-                                    // DynamicBone 기준 로컬 변환
-                                    hairDynamicBone.m_Gravity =
-                                        realHumanData1.root_bone.InverseTransformDirection(worldGravity);
+                                    if (neckData._front < headData._front)
+                                    {
+                                        // head가 앞으로 숙인 유형                                                                        
+                                        float angle = Logic.GetRelativePosition(neckData._front, headData._front);                           
+                                        yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.01f, 0.03f);
+                                        zOffset = yOffset;
+                                        worldForce2 = new Vector3(0, -yOffset, zOffset);
+                                    } else
+                                    {
+                                        // head가 뒤로 숙인 유형   
+                                        float angle = Logic.GetRelativePosition(neckData._front, headData._front);
+                                        yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.005f, 0.035f);
+                                        zOffset = yOffset;
+                                        worldForce2 = new Vector3(0, -yOffset, -zOffset);                  
+                                    }
 
-                                    hairDynamicBone.m_Force =
-                                        realHumanData1.root_bone.InverseTransformDirection(worldForce3);
-                                }                         
-                            }                     
+                                    worldForce3 = worldForce1 + worldForce2;
+                                    
+                                    // hair 에 대해 world position 적용
+                                    foreach (DynamicBone hairDynamicBone in realHumanData1.hairDynamicBones)
+                                    {
+                                        if (hairDynamicBone == null)
+                                            continue;
+
+                                        // DynamicBone 기준 로컬 변환
+                                        hairDynamicBone.m_Gravity =
+                                            realHumanData1.root_bone.InverseTransformDirection(worldGravity);
+
+                                        hairDynamicBone.m_Force =
+                                            realHumanData1.root_bone.InverseTransformDirection(worldForce3);
+                                    }                         
+                                }                     
+                            }
                         }
                     }
 #endif
