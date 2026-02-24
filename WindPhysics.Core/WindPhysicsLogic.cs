@@ -31,7 +31,7 @@ namespace WindPhysics
             OCIChar ociChar = objCtrlInfo as OCIChar;
 
             WindData windData = new WindData();
-            windData.objectCtrlInfo = ociChar;
+            windData.objectCtrlInfo = objCtrlInfo;
 
             if (ociChar != null)
             {
@@ -64,7 +64,7 @@ namespace WindPhysics
 
         internal static IEnumerator ExecuteDynamicBoneAfterFrame(WindData windData)
         {
-            int frameCount = 20;
+            int frameCount = 15;
             for (int i = 0; i < frameCount; i++)
                 yield return null;
 
@@ -75,6 +75,8 @@ namespace WindPhysics
         internal static void ReallocateDynamicBones(WindData windData)
         {
             windData.wind_status = WindPhysics.ConfigKeyEnableWind.Value ? Status.RUN : Status.STOP;
+
+            // UnityEngine.Debug.Log($">> windData.objectCtrlInfo  {windData.objectCtrlInfo} in ReallocateDynamicBones");
 
             if (windData.objectCtrlInfo != null)
             {
@@ -128,6 +130,8 @@ namespace WindPhysics
                     }
 #endif
                 }
+
+                // UnityEngine.Debug.Log($">> windData.accesoriesDynamicBones {windData.accesoriesDynamicBones.Count},  windData.clothes {windData.clothes.Count}");
             }
         }
 
@@ -150,6 +154,9 @@ namespace WindPhysics
             if (ociChar != null) {
                 ociChar.GetChaControl().StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
             }
+
+            // UnityEngine.Debug.Log($">> ociItem {ociItem} in TryAllocateObject");
+
 #if FEATURE_ITEM_SUPPORT
             if (ociItem != null) {
                 ociItem.guideObject.StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
@@ -215,7 +222,7 @@ namespace WindPhysics
                 bone.m_Force =  realHumanData.head_bone.transform.InverseTransformDirection(worldForce);
                 bone.m_Damping = 0.13f;
                 bone.m_Elasticity = 0.05f;
-                bone.m_Stiffness = 0.13f;
+                bone.m_Stiffness = 0.26f;
             }
         }
 #endif

@@ -111,8 +111,10 @@ namespace WindPhysics
         internal static ConfigEntry<float> AccesoriesStiffness { get; private set; }
 
         internal static ConfigEntry<float> HairForce { get; private set; }
-        internal static ConfigEntry<float> HairDamping { get; private set; }
-        internal static ConfigEntry<float> HairStiffness { get; private set; }
+
+        internal static ConfigEntry<float> HairElastic { get; private set; }
+        // internal static ConfigEntry<float> HairDamping { get; private set; }
+        // internal static ConfigEntry<float> HairStiffness { get; private set; }
 
         internal static ConfigEntry<float> ClotheForce { get; private set; }
         internal static ConfigEntry<float> ClothDamping { get; private set; }
@@ -149,9 +151,7 @@ namespace WindPhysics
             // hair
             HairForce = Config.Bind("Hair", "Force", 1.0f, new ConfigDescription("hair force", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            HairDamping = Config.Bind("Hair", "Damping", 0.15f, new ConfigDescription("hair damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
-
-            HairStiffness = Config.Bind("Hair", "Stiffness", 0.3f, new ConfigDescription("hair stiffness", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            HairElastic = Config.Bind("Hair", "Elastic", 0.15f, new ConfigDescription("hair elastic", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             // accesories
             AccesoriesForce = Config.Bind("Misc", "Force", 1.0f, new ConfigDescription("accesories force", new AcceptableValueRange<float>(0.1f, 1.0f)));
@@ -275,13 +275,9 @@ namespace WindPhysics
             GUILayout.Label("Hair");
             GUILayout.BeginHorizontal();
             
-            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
-            HairDamping.Value = GUILayout.HorizontalSlider(HairDamping.Value, 0.0f, 1.0f);
-            GUILayout.Label(HairDamping.Value.ToString("0.00"), GUILayout.Width(40));
-
-            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
-            HairStiffness.Value = GUILayout.HorizontalSlider(HairStiffness.Value, 0.0f, 10.0f);
-            GUILayout.Label(HairStiffness.Value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.Label(new GUIContent("E", "Elastic"), GUILayout.Width(20));
+            HairElastic.Value = GUILayout.HorizontalSlider(HairElastic.Value, 0.0f, 1.0f);
+            GUILayout.Label(HairElastic.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
             HairForce.Value = GUILayout.HorizontalSlider(HairForce.Value, 0.1f, 1.0f);
@@ -405,7 +401,7 @@ namespace WindPhysics
                     foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
                     {
                         OCIChar ociChar = ctrlInfo as OCIChar;
-                        if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ociChar.GetHashCode(), out var windData))
+                        if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
                         {                          
                             if (ConfigKeyEnableWind.Value)
                             {
@@ -427,7 +423,7 @@ namespace WindPhysics
                         }
 #if FEATURE_ITEM_SUPPORT
                         OCIItem ociItem = ctrlInfo as OCIItem;
-                        if (ociItem != null && _self._ociObjectMgmt.TryGetValue(ociItem.GetHashCode(), out var windData1))
+                        if (ociItem != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData1))
                         {                          
                             if (ConfigKeyEnableWind.Value)
                             {
@@ -459,7 +455,7 @@ namespace WindPhysics
                         foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
                         {
                             OCIChar ociChar = ctrlInfo as OCIChar;
-                            if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ociChar.GetHashCode(), out var windData))
+                            if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
                             {    
                                 if (windData.head_bone != null && windData.hairDynamicBones.Count > 0)
                                 {
@@ -544,8 +540,7 @@ namespace WindPhysics
             float windForce = WindForce.Value;
             float windUpForce = WindUpForce.Value;
 
-            float hairDamping = HairDamping.Value;
-            float hairStiffness = HairStiffness.Value;
+            float hairElastic = HairElastic.Value;
             float hairForce = HairForce.Value;
 
             float accessoriesDamping = AccesoriesDamping.Value;
@@ -606,8 +601,7 @@ namespace WindPhysics
                 float sideAmount = hairFinalWind.magnitude * UnityEngine.Random.Range(0.001f, 0.5f);
                 Vector3 sideWind = headTr != null ? headTr.right * sideSign * sideAmount : Vector3.zero;
 
-                hairBone.m_Damping = hairDamping + UnityEngine.Random.Range(-0.2f, 0.2f);
-                hairBone.m_Stiffness = hairStiffness;
+                hairBone.m_Elasticity = hairElastic + UnityEngine.Random.Range(-0.2f, 0.2f);
                 hairBone.m_Force = hairFinalWind + sideWind;
                 hairBone.m_Gravity = new Vector3(0, gravityUp
                 ? UnityEngine.Random.Range(gravity, gravity + 0.02f)
@@ -844,7 +838,7 @@ namespace WindPhysics
                         }
 
 #if FEATURE_ITEM_SUPPORT
-                        OCIItem ociItem = value.objectCtrlInfo as OCIItem;
+                        OCIItem ociItem = selectedCtrlInfo as OCIItem;
                         if (ociItem != null)
                         {
                             windData.wind_status = Status.RUN;
@@ -908,12 +902,12 @@ namespace WindPhysics
                             }
 
 #if FEATURE_ITEM_SUPPORT
-                        OCIItem ociItem = value.objectCtrlInfo as OCIItem;
-                        if (ociItem != null)
-                        {
-                            windData.wind_status = Status.RUN;
-                            windData.coroutine = ociItem.guideObject.StartCoroutine(_self.WindRoutine(windData));
-                        }
+                            OCIItem ociItem = objCtrlInfo as OCIItem;
+                            if (ociItem != null)
+                            {
+                                windData.wind_status = Status.RUN;
+                                windData.coroutine = ociItem.guideObject.StartCoroutine(_self.WindRoutine(windData));
+                            }
 #endif
                         }
                     }
