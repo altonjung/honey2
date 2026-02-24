@@ -58,7 +58,7 @@ namespace HoneySelect2Maker
     {
         #region Constants
         public const string Name = "HoneySelect2Maker";
-        public const string Version = "0.9.0.1";
+        public const string Version = "0.9.1.1";
         public const string GUID = "com.alton.illusionplugins.HoneySelect2Maker";
         internal const string _ownerId = "Alton";
 #if FEATURE_PUBLIC_RELEASE
@@ -90,17 +90,11 @@ namespace HoneySelect2Maker
         internal string _video_myroom_scene_path = UserData.Path + "/hs2maker/myroom/";
         internal string _video_lobby_scene_path = UserData.Path + "/hs2maker/lobby/";
         internal string _video_concierge_scene_path = UserData.Path + "/hs2maker/concierge/";
-        internal string _video_furroom_scene_path = UserData.Path + "/hs2maker/furroom/";
         internal string _video_sleep_scene_path = UserData.Path + "/hs2maker/sleep/";
         internal string _video_adv_scene_path = UserData.Path + "/hs2maker/adv/";
 
-        // internal static Camera _cutsceneCamera;
+        internal UnityEngine.Video.VideoPlayer _sceneVideoPlayer;
 
-        // internal static GameObject _videoRoot;
-         internal UnityEngine.Video.VideoPlayer _sceneVideoPlayer;
-        // internal static RenderTexture _sceneVideoRenderTexture;
-        // internal static GameObject _sceneVideoCanvas;
-        // internal static UnityEngine.UI.RawImage _sceneVideoRawImage;
         internal static Canvas _sceneCanvas;
         internal static RenderTexture _sceneRT;
         internal static GameObject _overlayCanvasGO;
@@ -113,14 +107,13 @@ namespace HoneySelect2Maker
         internal bool _isAbleMyRoomVideo;
         internal bool _isAbleConciergeVideo;
         internal bool _isAbleLobbyVideo;
-        internal bool _isAbleFurVideo; 
         internal bool _isAbleSleepVideo;
         internal bool _isAbleAdvVideo;
 
         internal List<Canvas> _disabledCanvasCache = new List<Canvas>();
         private static string _assemblyLocation;
         internal static bool _reEntryHarmony = false;
-        
+
         private bool _loaded = false;
 
         private AssetBundle _bundle;
@@ -128,7 +121,7 @@ namespace HoneySelect2Maker
 
 
         #region Accessors
-         internal static ConfigEntry<bool> VideoModeActive { get; private set; }
+        internal static ConfigEntry<bool> VideoModeActive { get; private set; }
         #endregion
 
 
@@ -154,7 +147,7 @@ namespace HoneySelect2Maker
             if (Logic.GetVideoFiles(_self._video_title_scene_path).Count > 0)
             {
                 _isAbleTitleVideo = true;
-            }        
+            }
 
             // myroom
             if (Logic.GetVideoFiles(_self._video_myroom_scene_path).Count > 0)
@@ -168,25 +161,19 @@ namespace HoneySelect2Maker
                 _isAbleConciergeVideo = true;
             }
 
-           // lobby
+            // lobby
             if (Logic.GetVideoFiles(_self._video_lobby_scene_path).Count > 0)
             {
                 _isAbleLobbyVideo = true;
             }
 
-           // fur
-            if (Logic.GetVideoFiles(_self._video_furroom_scene_path).Count > 0)
-            {
-                _isAbleFurVideo = true;
-            }
-
-           // sleep
+            // sleep
             if (Logic.GetVideoFiles(_self._video_sleep_scene_path).Count > 0)
             {
                 _isAbleSleepVideo = true;
             }
 
-           // adv
+            // adv
             if (Logic.GetVideoFiles(_self._video_adv_scene_path).Count > 0)
             {
                 _isAbleAdvVideo = true;
@@ -231,10 +218,10 @@ namespace HoneySelect2Maker
 #endif
 
         protected override void Update()
-       {
+        {
             if (_loaded == false)
                 return;
-        } 
+        }
 
         #region Private Methods
         private void Init()
@@ -248,19 +235,19 @@ namespace HoneySelect2Maker
         #endregion
 
         #region Patches
-// Title
+        // Title
         [HarmonyPatch(typeof(HS2.TitleScene), "Start")]
         private static class TitleScene_Start_Patches
         {
-           private static void Postfix(HS2.TitleScene __instance)
-           {
-                UnityEngine.Debug.Log($">> Start in Title | {DateTime.Now:HH:mm:ss.fff}");
+            private static void Postfix(HS2.TitleScene __instance)
+            {
+                // UnityEngine.Debug.Log($">> Start in Title | {DateTime.Now:HH:mm:ss.fff}");
 
                 if (_self._isAbleTitleVideo) {
                     Logic.PlayVideo(_self._video_title_scene_path);
                     _self.StartCoroutine(WaitTitleScene());
-                } 
-           }
+                }
+            }
         }
 
         private static IEnumerator WaitTitleScene()
@@ -269,32 +256,32 @@ namespace HoneySelect2Maker
             yield return new WaitUntil(() => _videoFinished);
         }
 
-// Home
+        // Home
         [HarmonyPatch(typeof(HS2.HomeScene), "Start")]
         private static class HomeScene_Start_Patches
         {
-           private static bool Prefix(HS2.HomeScene __instance)
-           {
-                UnityEngine.Debug.Log($">> Start in HomeScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
+            private static bool Prefix(HS2.HomeScene __instance)
+            {
+                // UnityEngine.Debug.Log($">> Start in HomeScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
                 if (_reEntryHarmony)
                 {
                     _reEntryHarmony = false;
                     return true; // 원본 실행 허용
-                }  
-                
+                }
+
                 if (_self._isAbleMyRoomVideo) {
                     _self.StartCoroutine(WaitHomeSceneCall(__instance));
                     return false;
                 }
 
-                return true; 
-           }
+                return true;
+            }
         }
 
         private static IEnumerator WaitHomeSceneCall(HS2.HomeScene __instance)
         {
             string currentSceneName = SceneManager.GetActiveScene().name;
-            UnityEngine.Debug.Log($">>currentSceneName {currentSceneName} in WaitHomeSceneCall | {Time.realtimeSinceStartup:F3}");
+            // UnityEngine.Debug.Log($">>currentSceneName {currentSceneName} in WaitHomeSceneCall | {Time.realtimeSinceStartup:F3}");
 
             yield return new WaitForEndOfFrame();
             Logic.PlayVideo(_self._video_myroom_scene_path, false);
@@ -302,7 +289,7 @@ namespace HoneySelect2Maker
 
             // 🔥 원 함수 실행
             var method = typeof(HS2.HomeScene)
-                .GetMethod("Start", System.Reflection.BindingFlags.Instance | 
+                .GetMethod("Start", System.Reflection.BindingFlags.Instance |
                                     System.Reflection.BindingFlags.NonPublic);
 
             _reEntryHarmony = true;
@@ -313,33 +300,33 @@ namespace HoneySelect2Maker
             }
         }
 
-// Lobby
+        // Lobby
         [HarmonyPatch(typeof(HS2.LobbyScene), "Start")]
         private static class LobbyScene_Start_Patches
         {
-           private static bool Prefix(HS2.LobbyScene __instance)
-           {
-                UnityEngine.Debug.Log(Environment.StackTrace);
-                UnityEngine.Debug.Log($">> Start in LobbyScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
+            private static bool Prefix(HS2.LobbyScene __instance)
+            {
+                // UnityEngine.Debug.Log(Environment.StackTrace);
+                // UnityEngine.Debug.Log($">> Start in LobbyScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
                 if (_reEntryHarmony)
                 {
                     _reEntryHarmony = false;
                     return true; // 원본 실행 허용
-                }  
-                
+                }
+
                 if (_self._isAbleLobbyVideo) {
                     _self.StartCoroutine(WaitLobbySceneCall(__instance));
                     return false;
                 }
 
-                return true; 
-           }
+                return true;
+            }
         }
 
-       private static IEnumerator WaitLobbySceneCall(HS2.LobbyScene __instance)
+        private static IEnumerator WaitLobbySceneCall(HS2.LobbyScene __instance)
         {
             string currentSceneName = SceneManager.GetActiveScene().name;
-            UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitLobbySceneCall | {Time.realtimeSinceStartup:F3}");
+            // UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitLobbySceneCall | {Time.realtimeSinceStartup:F3}");
 
             yield return new WaitForEndOfFrame();
             Logic.PlayVideo(_self._video_lobby_scene_path, false);
@@ -347,7 +334,7 @@ namespace HoneySelect2Maker
 
             // 🔥 원 함수 실행
             var method = typeof(HS2.LobbyScene)
-                .GetMethod("Start", System.Reflection.BindingFlags.Instance | 
+                .GetMethod("Start", System.Reflection.BindingFlags.Instance |
                                     System.Reflection.BindingFlags.NonPublic);
 
             _reEntryHarmony = true;
@@ -358,83 +345,82 @@ namespace HoneySelect2Maker
             }
         }
 
-// FurRoom
-        [HarmonyPatch(typeof(HS2.FurRoomScene), "Start")]
-        private static class FurRoomScene_Start_Patches
-        {
-           private static bool Prefix(HS2.FurRoomScene __instance)
-           {
-                UnityEngine.Debug.Log($">> Start in FurRoomScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
-                if (_reEntryHarmony)
-                {
-                    _reEntryHarmony = false;
-                    return true; // 원본 실행 허용
-                }  
-                
-                if (_self._isAbleMyRoomVideo) {
-                    _self.StartCoroutine(WaitFurRoomSceneCall(__instance));
-                    return false;
-                }
+        // FurRoom
+        // [HarmonyPatch(typeof(HS2.FurRoomScene), "Start")]
+        // private static class FurRoomScene_Start_Patches
+        // {
+        //    private static bool Prefix(HS2.FurRoomScene __instance)
+        //    {
+        //         UnityEngine.Debug.Log($">> Start in FurRoomScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
+        //         if (_reEntryHarmony)
+        //         {
+        //             _reEntryHarmony = false;
+        //             return true; // 원본 실행 허용
+        //         }  
 
-                return true; 
-           }
-        }
+        //         if (_self._isAbleMyRoomVideo) {
+        //             _self.StartCoroutine(WaitFurRoomSceneCall(__instance));
+        //             return false;
+        //         }
 
-        private static IEnumerator WaitFurRoomSceneCall(HS2.FurRoomScene __instance)
-        {
-            string currentSceneName = SceneManager.GetActiveScene().name;
-            UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitFurRoomSceneCall | {Camera.main} | {Time.realtimeSinceStartup:F3}");
+        //         return true; 
+        //    }
+        // }
 
-            yield return new WaitForEndOfFrame();
-            Logic.PlayVideo(_self._video_furroom_scene_path, false);
-            yield return new WaitUntil(() => _videoFinished);
+        // private static IEnumerator WaitFurRoomSceneCall(HS2.FurRoomScene __instance)
+        // {
+        //     string currentSceneName = SceneManager.GetActiveScene().name;
+        //     // UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitFurRoomSceneCall | {Camera.main} | {Time.realtimeSinceStartup:F3}");
 
-            // 🔥 원 함수 실행
-            var method = typeof(HS2.FurRoomScene)
-                .GetMethod("Start", System.Reflection.BindingFlags.Instance | 
-                                    System.Reflection.BindingFlags.NonPublic);
+        //     yield return new WaitForEndOfFrame();
+        //     Logic.PlayVideo(_self._video_furroom_scene_path, false);
+        //     yield return new WaitUntil(() => _videoFinished);
 
-            _reEntryHarmony = true;
-            if (method != null)
-            {
-                var enumerator = (IEnumerator)method.Invoke(__instance, null);
-                yield return __instance.StartCoroutine(enumerator);
-            }
-        }
+        //     // 🔥 원 함수 실행
+        //     var method = typeof(HS2.FurRoomScene)
+        //         .GetMethod("Start", System.Reflection.BindingFlags.Instance | 
+        //                             System.Reflection.BindingFlags.NonPublic);
 
-// Concierge
+        //     _reEntryHarmony = true;
+        //     if (method != null)
+        //     {
+        //         var enumerator = (IEnumerator)method.Invoke(__instance, null);
+        //         yield return __instance.StartCoroutine(enumerator);
+        //     }
+        // }
+
+        // Concierge
         [HarmonyPatch(typeof(HS2.HomeUI), "CallConcierge")]
         private static class HomeUI_CallConcierge_Patches
         {
             private static bool Prefix(HS2.HomeUI __instance)
             {
-                UnityEngine.Debug.Log($">> action CallConcierge | {DateTime.Now:HH:mm:ss.fff}");
+                // UnityEngine.Debug.Log($">> action CallConcierge | {DateTime.Now:HH:mm:ss.fff}");
                 if (_reEntryHarmony)
                 {
                     _reEntryHarmony = false;
                     return true; // 원본 실행 허용
-                }  
+                }
 
                 if (_self._isAbleConciergeVideo) {
                     _self.StartCoroutine(WaitCallConcierge(__instance));
                     return false; // 원본 StartFade 실행 차단  
-                } 
-                
+                }
+
                 return true;
             }
         }
 
-       
         private static IEnumerator WaitCallConcierge(
             HS2.HomeUI __instance)
         {
             string currentSceneName = SceneManager.GetActiveScene().name;
-            UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitCallConcierge |{Time.realtimeSinceStartup:F3}");
+            // UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitCallConcierge |{Time.realtimeSinceStartup:F3}");
 
             yield return new WaitForEndOfFrame();
             Logic.PlayVideo(_self._video_concierge_scene_path, false);
             yield return new WaitUntil(() => _videoFinished);
-            
+
             // 🔥 원 함수 실행
             var method = typeof(HS2.HomeUI)
                 .GetMethod("CallConcierge", System.Reflection.BindingFlags.Instance |
@@ -447,81 +433,88 @@ namespace HoneySelect2Maker
             }
         }
 
-// ADV
-        [HarmonyPatch(typeof(ADV.ADVMainScene), "Start")]
-        private static class ADVMainScene_Start_Patches
+        [HarmonyPatch(typeof(ADV.ADVMainScene), "Open")]
+        private static class ADVMainScene_Open_Patches
         {
             private static bool Prefix(ADV.ADVMainScene __instance)
             {
 
+                Manager.Game game = Singleton<Manager.Game>.Instance;
+
+                // UnityEngine.Debug.Log($">> Heroine cnt {game.heroineList.Count}");
+                // foreach (Actor.Heroine heroine in game.heroineList) {
+                //     UnityEngine.Debug.Log($">> ChangeCoodinate in HScene sex {heroine.chaFile.parameter.sex}, name {heroine.chaFile.parameter.fullname}");
+                // }
+
                 Scene scene = SceneManager.GetActiveScene();
-                UnityEngine.Debug.Log($">> start in ADVMainScene {scene.name}, {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
+                // UnityEngine.Debug.Log($">> start in ADVMainScene {scene.name}, {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
                 if (_reEntryHarmony)
                 {
                     _reEntryHarmony = false;
                     return true;
                 }
-
-                if (_self._isAbleAdvVideo) {
-                    _self.StartCoroutine(WaitAdvSceneCall(__instance));
+                if (_self._isAbleAdvVideo)
+                {
+                    string heroinName = "";
+                    if (game.heroineList.Count > 0)
+                    {
+                        heroinName = heroine.chaFile.parameter.fullname;
+                    }
+                    _self.StartCoroutine(WaitAdvMainSceneCall(scene.name, __instance, heroinName));
                     return false;
                 }
-
-                // if(scene.name.Equals("PublicBath"))
-                // {
-                // }
-                // else if(scene.name.Equals("FrontOfBath"))
-                // {
-
-                // }
-                // else if(scene.name.Equals("SuiteRoom"))
-                // {
-
-                // }
-                // else if(scene.name.Equals("Lobby"))
-                // {
-
-                // }
-                // else if(scene.name.Equals("Japanese"))
-                // {
-
-                // }
-                // else if(scene.name.Equals("TortureRoom"))
-                // {
-
-                // }
-                // else if(scene.name.Equals("Garden_suny"))
-                // {
-
-                // }
-                // else if(scene.name.Equals("Japanese"))
-                // {
-
-                // }
-                // else if(scene.name.Equals("MyRoom"))
-                // {
-
-                // }
 
                 return true;
             }
         }
 
-        private static IEnumerator WaitAdvSceneCall(ADV.ADVMainScene __instance)
+        private static IEnumerator WaitAdvMainSceneCall(string sceneName, ADV.ADVMainScene __instance, string heroinName)
         {
-            //Manager.Scene.sceneFadeCanvas.StartFade(FadeCanvas.Fade.Out, false);
-            //Manager.Scene.sceneFadeCanvas.Reset();
+            Manager.ADVManager instance = Singleton<Manager.ADVManager>.Instance;
+            // UnityEngine.Debug.Log($">> WaitAdvSceneCall {__instance.packData.MapName},  {__instance.packData.EventCGName} | {DateTime.Now:HH:mm:ss.fff}");
 
             string currentSceneName = SceneManager.GetActiveScene().name;
-            UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitAdvSceneCall | {Camera.main} | {Time.realtimeSinceStartup:F3}");
 
             yield return new WaitForEndOfFrame();
-            Logic.PlayVideo(_self._video_adv_scene_path, false);
-            yield return new WaitUntil(() => _videoFinished);
+
+            if (sceneName.Equals("MyRoom")) {
+                if (__instance.packData.EventCGName.Equals("My room_Event36")) {
+                    // sleep
+                    Logic.PlayVideo(_self._video_adv_scene_path, false);
+                    yield return new WaitUntil(() => _videoFinished);
+                } else {
+                }
+            } else if  (sceneName.Equals("Japanese")) { 
+                
+            } else if  (sceneName.Equals("TortureRoom")) { 
+                
+            } else if  (sceneName.Equals("Garden_suny")) { 
+                
+            } else if  (sceneName.Equals("Garden_rain")) { 
+                
+            } else if  (sceneName.Equals("Lobby")) { 
+                
+            } else if  (sceneName.Equals("SuiteRoom")) { 
+                
+            } else if  (sceneName.Equals("FrontOfBath")) { 
+                
+            } else if  (sceneName.Equals("PublicToilet")) { 
+                
+            } else if  (sceneName.Equals("PublicBath")) { 
+                
+            } else if  (sceneName.Equals("MyRoom")) { 
+                
+            } else if  (sceneName.Equals("Office")) { 
+                
+            } else if  (sceneName.Equals("StaffRoom")) { 
+                
+            } else if  (sceneName.Equals("ClassRoom")) { 
+                
+            }
 
             // 🔥 원 함수 실행
             var method = typeof(ADV.ADVMainScene)
-                .GetMethod("Start", System.Reflection.BindingFlags.Instance |
+                .GetMethod("Open", System.Reflection.BindingFlags.Instance |
                                     System.Reflection.BindingFlags.NonPublic);
             _reEntryHarmony = true;
 
@@ -530,13 +523,14 @@ namespace HoneySelect2Maker
                 method.Invoke(__instance, null);
             }
         }
+
 // HSCene
         [HarmonyPatch(typeof(Manager.HSceneManager), "Start")]
         private static class HSceneManager_Start_Patches
         {
             private static bool Prefix(Manager.HSceneManager __instance)
             {
-                UnityEngine.Debug.Log($">> Start in HSceneManager | {DateTime.Now:HH:mm:ss.fff}");
+                // UnityEngine.Debug.Log($">> Start in HSceneManager | {DateTime.Now:HH:mm:ss.fff}");
                 return true;
             }
         }
@@ -546,12 +540,12 @@ namespace HoneySelect2Maker
         {
             private static void Postfix(Manager.HSceneManager __instance, ChaControl[] female)
             {
-                UnityEngine.Debug.Log($">> SetFemaleState in HSceneManager | {DateTime.Now:HH:mm:ss.fff}");
+                // UnityEngine.Debug.Log($">> SetFemaleState in HSceneManager | {DateTime.Now:HH:mm:ss.fff}");
                 foreach (ChaControl eachFemale in female)
                 {
                     if (eachFemale != null)
                     {
-                        UnityEngine.Debug.Log($">> eachFemale {eachFemale.chaFile.parameter.fullname}");
+                        // UnityEngine.Debug.Log($">> eachFemale {eachFemale.chaFile.parameter.fullname}");
                     }
                 }
 
@@ -785,8 +779,8 @@ namespace HoneySelect2Maker
                 if (!VideoModeActive.Value)
                     return true;
 
-                if (__instance != null && root != null)
-                    UnityEngine.Debug.Log($">> SetRoot {root.name}, scene {scene.name}, charName {__instance.Name}, charBirthDay {__instance.birthMonth}/{__instance.birthDay} | {DateTime.Now:HH:mm:ss.fff}");
+                // if (__instance != null && root != null)
+                //     UnityEngine.Debug.Log($">> SetRoot {root.name}, scene {scene.name}, charName {__instance.Name}, charBirthDay {__instance.birthMonth}/{__instance.birthDay} | {DateTime.Now:HH:mm:ss.fff}");
 
                 if (scene.name.Equals("Title") || scene.name.Equals("NightPool"))
                 {

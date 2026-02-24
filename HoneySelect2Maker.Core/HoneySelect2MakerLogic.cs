@@ -58,10 +58,36 @@ namespace HoneySelect2Maker
             return mp4List;
         }
         
+        internal static List<string> GetVideoFiles(string folderPath, string pattern)
+        {
+            List<string> mp4List = new List<string>();
+
+            if (!Directory.Exists(folderPath))
+                return mp4List;
+
+            // 모든 mp4 파일 가져오기
+            string[] files = Directory.GetFiles(folderPath, "*.mp4");
+
+            foreach (string filePath in files)
+            {
+                string fileName = Path.GetFileName(filePath);
+
+                // pattern 이 null 또는 빈값이면 전체 반환
+                if (string.IsNullOrWhiteSpace(pattern) ||
+                    fileName.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    mp4List.Add(fileName);
+                }
+            }
+
+            return mp4List;
+        }
+        
         internal static void EnsureOverlayCanvas(int sortingOrder)
         {
             if (HoneySelect2Maker._overlayCanvasGO != null)
             {
+                HoneySelect2Maker._sceneCanvas.enabled = true;
                 HoneySelect2Maker._sceneCanvas.sortingOrder = sortingOrder;
                 return;
             }
@@ -115,7 +141,7 @@ namespace HoneySelect2Maker
                 UnityEngine.Object.Destroy(HoneySelect2Maker._sceneRT);
             }
 
-            HoneySelect2Maker._sceneRT = new RenderTexture(1920, 1080, 0);
+            HoneySelect2Maker._sceneRT = new RenderTexture(Screen.width, Screen.height, 0);
             HoneySelect2Maker._sceneRT.Create();
 
             vp.renderMode = UnityEngine.Video.VideoRenderMode.RenderTexture;
@@ -142,7 +168,7 @@ namespace HoneySelect2Maker
         {
             vp.prepareCompleted -= OnPrepared;
 
-            UnityEngine.Debug.Log($">> Video Prepared | {DateTime.Now:HH:mm:ss.fff}");
+            // UnityEngine.Debug.Log($">> Video Prepared | {DateTime.Now:HH:mm:ss.fff}");
 
             vp.Play();
         }
@@ -167,10 +193,9 @@ namespace HoneySelect2Maker
         internal static void PlayVideo(string video_path, bool isTitle = true, int sortingOrder = 9999)
         {
                 HoneySelect2Maker._videoFinished = false;
-                UnityEngine.Debug.Log($">> PlayVideo {video_path} | {DateTime.Now:HH:mm:ss.fff}");
+                // UnityEngine.Debug.Log($">> PlayVideo {video_path} | {DateTime.Now:HH:mm:ss.fff}");
 
                 List<string> video_files  = new List<string>();
-                bool isMainCamera = true;
                 bool isLoop=false;
 
                 if (isTitle) {
@@ -219,6 +244,7 @@ namespace HoneySelect2Maker
         internal static void StopSceneVideo()
         {
             HoneySelect2Maker._self._sceneVideoPlayer.Stop();
+            HoneySelect2Maker._sceneCanvas.enabled = false;
         }     
     }
 }
