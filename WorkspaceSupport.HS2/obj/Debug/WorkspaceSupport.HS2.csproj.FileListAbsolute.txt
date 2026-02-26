@@ -1,0 +1,6 @@
+C:\share\timeline\HSPlugins-main\bin\HS2\WorkspaceSupport.dll
+C:\share\timeline\HSPlugins-main\bin\HS2\WorkspaceSupport.pdb
+C:\share\timeline\HSPlugins-main\WorkspaceSupport.HS2\obj\Debug\WorkspaceSupport.HS2.csproj.AssemblyReference.cache
+C:\share\timeline\HSPlugins-main\WorkspaceSupport.HS2\obj\Debug\WorkspaceSupport.HS2.csproj.CoreCompileInputs.cache
+C:\share\timeline\HSPlugins-main\WorkspaceSupport.HS2\obj\Debug\WorkspaceSupport.dll
+C:\share\timeline\HSPlugins-main\WorkspaceSupport.HS2\obj\Debug\WorkspaceSupport.pdb
