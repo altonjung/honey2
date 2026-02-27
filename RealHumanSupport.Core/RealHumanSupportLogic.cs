@@ -33,9 +33,172 @@ using AIChara;
 
 namespace RealHumanSupport
 {
-    public class Controller //: CharaCustomFunctionController
+    public class RealHumanSupportController: CharaCustomFunctionController
     {
+        internal RealHumanData realHumanData;
+        internal int status;// 0: init, 1: pause, 2: play
+
+
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
+
+
+        internal RealHumanData GetRealData()
+        {
+            return realHumanData;
+        }
+
+       private IEnumerator RoutineForBody(RealHumanData realHumanData)
+       {
+           float tearValue = 0;
+           float noseValue = 0;
+           float refValue = 0;
+           bool tearIncreasing = true;
+           bool noseIncreasing = true;
+           bool refIncreasing = true;
+
+           float previosBellySize = 0.0f;
+           float initBellySize = 0.0f;
+
+           if (realHumanData.pregnancyController != null)
+               initBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
+
+           while (true)
+           {
+                if (status == 2) // play
+                {
+                   float time = Time.time;
+                   if (RealHumanSupport.EyeShakeActive.Value)
+                   {
+                       foreach (Material mat in realHumanData.c_m_eye)
+                       {
+                           if (mat == null)
+                               continue;
+                           // sin 파형 (0 ~ 1로 정규화)
+                           float easedBump = (Mathf.Sin(time * Mathf.PI * 3.5f * 2f) + 1f) * 0.5f;
+
+                           float eyeScale = Mathf.Lerp(0.18f, 0.21f, easedBump);
+                           mat.SetFloat("_Texture4Rotator", eyeScale);
+
+                           eyeScale = Mathf.Lerp(0.1f, 0.2f, easedBump);
+                           mat.SetFloat("_Parallax", eyeScale);
+                       }
+                   }
+                    
+                   if (RealHumanSupport.BreathActive.Value)
+                   {
+                       if (realHumanData.pregnancyController != null)
+                       {   
+                           if(previosBellySize != realHumanData.pregnancyController.infConfig.inflationSize)
+                           {
+                               initBellySize = previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
+
+                               if (initBellySize > 30.0f)
+                               {
+                                   initBellySize = 30.0f;
+                               }
+                           } else
+                           {
+                               float sinValue = (Mathf.Sin(time * RealHumanSupport.BreathInterval.Value) + 1f) * 0.5f;
+                     
+                               realHumanData.pregnancyController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * RealHumanSupport.BreathStrong.Value;
+                               realHumanData.pregnancyController.MeshInflate(new MeshInflateFlags(realHumanData.pregnancyController), "StudioSlider");
+                               previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
+                           }
+                       }
+                   }
+
+#if FEATURE_TEARDROP
+                   if (RealHumanSupport.TearDropActive.Value)
+                   {
+                       float deltaTear = Time.deltaTime / 10f; // ← (10초)
+
+                       if (tearIncreasing)
+                       {
+                           tearValue += deltaTear;
+                           if (tearValue >= 1f)
+                           {
+                               tearValue = 1f;
+                               tearIncreasing = false;
+                           }
+                       }
+                       else
+                       {
+                           tearValue -= deltaTear;
+                           if (tearValue <= 0.3f)
+                           {
+                               tearValue = 0.3f;
+                               tearIncreasing = true;
+                           }
+                       }
+                        
+                       float tearSin = Mathf.Sin(tearValue * Mathf.PI);
+
+                       //  ---------------- 눈물 생성 ----------------
+                       if (realHumanData.m_tear_eye != null) {
+                           realHumanData.m_tear_eye.SetFloat("_NamidaScale", realHumanData.tearDropRate);
+                           realHumanData.m_tear_eye.SetFloat("_RefractionScale", tearSin); 
+                       }
+
+                       float deltaNose = Time.deltaTime / 3f; // ← (3초)
+
+                       if (noseIncreasing)
+                       {
+                           noseValue += deltaNose;
+                           if (noseValue >= 1f)
+                           {
+                               noseValue = 1f;
+                               noseIncreasing = false;
+                           }
+                       }
+                       else
+                       {
+                           noseValue -= deltaNose;
+                           if (noseValue <= 0.1f)
+                           {
+                               noseValue = 0.1f;
+                               noseIncreasing = true;
+                           }
+                       }
+                        
+                       float noseSin = Mathf.Sin(noseValue * Mathf.PI);
+                       // ----------------- 코평수 처리 -----------------
+                       if (realHumanData.nose_wing_l_tr != null) {
+
+                           float noseScaleFactor = 1f + (noseSin * 0.2f);
+                           Vector3 scalel = realHumanData.noseBaseScale;
+                           Vector3 scaler = realHumanData.noseBaseScale;
+
+                           scalel.x = realHumanData.noseBaseScale.x * noseScaleFactor;
+                           scaler.x = realHumanData.noseBaseScale.x * noseScaleFactor;
+
+                           realHumanData.nose_wing_l_tr.localScale = scalel;
+                           realHumanData.nose_wing_r_tr.localScale = scaler;
+                       }
+                   } else
+                   {
+                       if (realHumanData.m_tear_eye != null) {
+                           realHumanData.m_tear_eye.SetFloat("_NamidaScale", 0f);
+                           realHumanData.m_tear_eye.SetFloat("_RefractionScale", 0f);
+                       }
+
+                       if (realHumanData.noseScaleInitialized)
+                       {
+                           if (realHumanData.nose_wing_l_tr != null)
+                               realHumanData.nose_wing_l_tr.localScale = realHumanData.noseBaseScale;
+
+                           if (realHumanData.nose_wing_r_tr != null)
+                               realHumanData.nose_wing_r_tr.localScale = realHumanData.noseBaseScale;
+                       }
+                   }
+#endif
+                   yield return null;
+               }
+               else
+               {
+                   yield return new WaitForSeconds(1);
+               }
+           }
+       }    
 
         #region Private Methods
 
@@ -264,7 +427,7 @@ namespace RealHumanSupport
         }
 
 #if FEATURE_FACE_EXPRESSION_SUPPORT
-        internal static void SetExpressions(ChaControl chaCtrl, RealHumanData realHumanData)
+        internal void SetExpressions(ChaControl chaCtrl, RealHumanData realHumanData)
         {
             foreach (var fbsTarget in chaCtrl.fbsCtrl.EyesCtrl.FBSTarget)
             {
@@ -333,7 +496,7 @@ namespace RealHumanSupport
 #endif 
 
 #if FEATURE_TEARDROP
-        internal static void SetTearDrops(ChaControl chaCtrl, RealHumanData realHumanData) {
+        internal void SetTearDrops(ChaControl chaCtrl, RealHumanData realHumanData) {
             string bone_prefix_str = "cf_";
             if(chaCtrl.sex == 0)
                 bone_prefix_str = "cm_";
@@ -345,14 +508,22 @@ namespace RealHumanSupport
                 realHumanData.noseScaleInitialized = true;      
             }
         }        
+
+        internal void SetTearDropRate(ChaControl chaCtrl, RealHumanData realHumanData, float tearDropRate) {
+            
+            UnityEngine.Debug.Log($">> SetTearDropRate {realHumanData}");  
+
+            if (realHumanData != null)
+                realHumanData.tearDropRate = tearDropRate;
+        }          
 #endif
 
-        internal static void SetHairDown(ChaControl chaCtrl, RealHumanData realHumanData) {
+        internal void SetHairDown(ChaControl chaCtrl, RealHumanData realHumanData) {
             // string bone_prefix_str = "cf_";
             // if(chaCtrl.sex == 0)
             //     bone_prefix_str = "cm_";
 
-            if (realHumanData.root_bone != null)
+            if (realHumanData != null && realHumanData.root_bone != null)
             {
                 foreach (DynamicBone bone in realHumanData.hairDynamicBones)
                 {
@@ -374,6 +545,11 @@ namespace RealHumanSupport
                     bone.m_Stiffness  = 0.13f;
                 }
             }        
+        }
+
+        internal void SetPregnancyRoundness(ChaControl chaCtrl, RealHumanData realHumanData, float roundNess) {
+            if (realHumanData != null && realHumanData.pregnancyController != null)
+                realHumanData.pregnancyController.infConfig.inflationRoundness += roundNess;        
         }
 
 #if FEATURE_STRAPON_SUPPORT
@@ -426,7 +602,7 @@ namespace RealHumanSupport
             capsuleObj.transform.localPosition = Vector3.zero; 
         }
 #endif
-        internal static void SupportExtraDynamicBones(ChaControl chaCtrl, RealHumanData realHumanData)
+        internal void SupportExtraDynamicBones(ChaControl chaCtrl, RealHumanData realHumanData)
         {
             string bone_prefix_str = "cf_";
             if(chaCtrl.sex == 0)
@@ -949,18 +1125,26 @@ namespace RealHumanSupport
             return tip;
         }
 
-        internal static RealHumanData InitRealHumanData(ChaControl chaCtrl, RealHumanData realHumanData)
+
+        internal RealHumanData InitRealHumanData(ChaControl chaCtrl)
         {
+            UnityEngine.Debug.Log($">> InitRealHumanData {chaCtrl}");
+
+            realHumanData = new RealHumanData();
 #if FEATURE_FIX_EXISTING
             SyncExistingFeatures(charCtrl);
 #endif
             {
+                status = 0;
+
 #if FEATURE_FACE_BUMP_SUPPORT
                 realHumanData.head_areaBuffer = new ComputeBuffer(20, sizeof(float) * 6);
 #endif
                 realHumanData.body_areaBuffer = new ComputeBuffer(30, sizeof(float) * 6);
 
                 realHumanData.charControl = chaCtrl;
+
+                realHumanData.tearDropRate = RealHumanSupport.TearDropLevel.Value;
 
                 realHumanData.c_m_eye.Clear();
 
@@ -1110,7 +1294,17 @@ namespace RealHumanSupport
                         // }
                     }
                 }   
-            }         
+            }
+
+            SupportExtraDynamicBones(chaCtrl, realHumanData);
+            SupportEyeFastBlinkEffect(chaCtrl, realHumanData);
+            SupportBodyBumpEffect(chaCtrl, realHumanData);
+#if FEATURE_FACE_BUMP_SUPPORT            
+            SupportFaceBumpEffect(chaCtrl, realHumanData);
+#endif            
+
+            status = 2;
+            realHumanData.coroutine = chaCtrl.StartCoroutine(RoutineForBody(realHumanData));   
 
             return realHumanData;
         }
@@ -1642,202 +1836,6 @@ namespace RealHumanSupport
             }
         }
 
-#if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
-        internal static void SupportIKOnScene(ChaControl chaCtrl, RealHumanData realHumanData) {
-            if (!StudioAPI.InsideStudio && !MakerAPI.insideMaker) {
-
-                realHumanData.head_ik_data = new HeadIKData();
-                realHumanData.l_leg_ik_data = new LegIKData();
-                realHumanData.r_leg_ik_data = new LegIKData();
-
-                Transform[] headbones = chaControl.objBody.GetComponentsInChildren<Transform>();
-
-                foreach (Transform bone in headbones) {
-                    if (bone.gameObject.name.Contains("_J_Head"))
-                    {
-                        head_ik_data.head = bone;
-                        head_ik_data.baseHeadRotation = bone.localRotation;
-                    }
-                    else if (bone.gameObject.name.Contains("_J_Neck")) {
-                        head_ik_data.neck = bone;
-                        head_ik_data.baseNeckRotation = bone.localRotation;
-                    }
-                }
-
-
-                Transform[] bodybones = chaControl.objHead.GetComponentsInChildren<Transform>();
-
-                foreach (Transform bone in bodybones) {
-                    if (bone.gameObject.name.Contains("_J_Foot01_L"))
-                    {
-                        l_leg_ik_data.foot = bone;
-                    }   
-                    else if (bone.gameObject.name.Contains("_J_Foot01_R"))
-                    {
-                        r_leg_ik_data.foot = bone;
-                    } 
-                    else if (bone.gameObject.name.Contains("_J_LegLow01_L"))
-                    {
-                        l_leg_ik_data.knee = bone;
-                    }
-                    else if (bone.gameObject.name.Contains("_J_LegLow01_R"))
-                    {
-                        r_leg_ik_data.knee = bone;
-                    } 
-                    else if (bone.gameObject.name.Contains("_J_LegUp00_L"))
-                    {
-                        l_leg_ik_data.thigh = bone;
-                    }
-                    else if (bone.gameObject.name.Contains("_J_LegUp00_R"))
-                    {
-                        r_leg_ik_data.thigh = bone;
-                    }                    
-                }
-            }
-        }
-
-        internal static void SolveLegIK(
-            Transform thigh,
-            Transform knee,
-            Transform foot,
-            Transform target,
-            float weight) {
-    
-            Vector3 rootPos = thigh.position;
-            Vector3 midPos = knee.position;
-            Vector3 endPos = foot.position;
-            Vector3 targetPos = target.position;
-
-            float lenUpper = Vector3.Distance(rootPos, midPos);
-            float lenLower = Vector3.Distance(midPos, endPos);
-            float lenTarget = Vector3.Distance(rootPos, targetPos);
-
-            // 거리 제한
-            lenTarget = Mathf.Min(lenTarget, lenUpper + lenLower - 0.0001f);
-
-            // ======================
-            // Knee angle (Cosine law)
-            // ======================
-            float cosKnee =
-                (lenUpper * lenUpper + lenLower * lenLower - lenTarget * lenTarget) /
-                (2f * lenUpper * lenLower);
-
-            cosKnee = Mathf.Clamp(cosKnee, -1f, 1f);
-            float kneeAngle = Mathf.Acos(cosKnee) * Mathf.Rad2Deg;
-
-            // ======================
-            // Thigh rotation
-            // ======================
-            Vector3 dirToTarget = (targetPos - rootPos).normalized;
-            Quaternion thighRot = Quaternion.LookRotation(dirToTarget, thigh.up);
-
-            thigh.rotation = Quaternion.Slerp(
-                thigh.rotation,
-                thighRot,
-                weight
-            );
-
-            // ======================
-            // Knee rotation (local)
-            // ======================
-            Quaternion kneeRot = Quaternion.Euler(-kneeAngle, 0, 0);
-
-            knee.localRotation = Quaternion.Slerp(
-                knee.localRotation,
-                kneeRot,
-                weight
-            );
-
-            // ======================
-            // Foot rotation
-            // ======================
-            foot.rotation = Quaternion.Slerp(
-                foot.rotation,
-                target.rotation,
-                weight
-            );
-        }
-
-        // ==========================
-        // Head / Neck rotation only
-        // ==========================
-        internal static void RotateHead(Vector2 mouseDelta)
-        {
-            float yaw   = mouseDelta.x * 0.15f;
-            float pitch = -mouseDelta.y * 0.15f;
-
-            Vector3 euler = head.localEulerAngles;
-            euler.x = ClampAngle(euler.x + pitch, -40f, 40f);
-            euler.y = ClampAngle(euler.y + yaw, -60f, 60f);
-
-            head.localEulerAngles = euler;
-        }
-
-        internal static float ClampAngle(float angle, float min, float max)
-        {
-            angle = Mathf.Repeat(angle + 180f, 360f) - 180f;
-            return Mathf.Clamp(angle, min, max);
-        }
-
-        internal static GameObject CreateHitProxy(Transform neck, string name, float radius = 0.06f)
-        {
-            GameObject go = new GameObject($"{name}_HitProxy");
-
-            go.transform.SetParent(neck, false);
-            go.transform.localPosition = Vector3.zero;
-            go.transform.localRotation = Quaternion.identity;
-
-            SphereCollider col = go.AddComponent<SphereCollider>();
-            col.radius = radius; // 목 크기에 맞게 조절
-            col.isTrigger = true;
-
-            return go;
-        }
-
-        internal static void UpdateIKHead(HeadIKData headIKData, float mouseX, float mouseY) {
-            // float yaw   = Input.GetAxis("Mouse X") * 2.0f;
-            // float pitch = -Input.GetAxis("Mouse Y") * 2.0f;
-
-            headIKData.inputEuler.x += mouseX * 2f; // yaw
-            headIKData.inputEuler.y += mouseY * 2f; // pitch
-
-            // Clamp (중요)
-            headIKData.inputEuler.x = Mathf.Clamp(headIKData.inputEuler.x, -60f, 60f);
-            headIKData.inputEuler.y = Mathf.Clamp(headIKData.inputEuler.y, -40f, 40f);            
-        }
-
-        internal static void ReflectIKToAnimation(RealHumanData realHumanData) {
-            if (realHumanData.headIKData.weight <= 0f)
-                return;
-
-            // 목표 회전
-            Quaternion neckOffset = Quaternion.Euler(
-                realHumanData.headIKData.inputEuler.y * 0.4f,
-                realHumanData.headIKData.inputEuler.x * 0.4f,
-                0f
-            );
-
-            Quaternion headOffset = Quaternion.Euler(
-                realHumanData.headIKData.inputEuler.y * 0.6f,
-                realHumanData.headIKData.inputEuler.x * 0.6f,
-                0f
-            );
-
-            realHumanData.headIKData.neck.localRotation =
-                Quaternion.Slerp(
-                    realHumanData.headIKData.baseNeckRotation,
-                    realHumanData.headIKData.baseNeckRotation * neckOffset,
-                    realHumanData.headIKData.weight
-                );
-
-            realHumanData.headIKData.head.localRotation =
-                Quaternion.Slerp(
-                    realHumanData.headIKData.baseHeadRotation,
-                    realHumanData.headIKData.baseHeadRotation * headOffset,
-                    realHumanData.headIKData.weight
-                );
-        }
-#endif
 
         internal static Texture2D RenderTextureToTexture2D(RenderTexture rt)
         {
@@ -2127,7 +2125,9 @@ namespace RealHumanSupport
         public Transform nose_wing_l_tr;
         public Transform nose_wing_r_tr;
         public Vector3 noseBaseScale;
-        public bool noseScaleInitialized = false;        
+        public bool noseScaleInitialized = false;     
+
+        public float tearDropRate;   
 #endif
 
 #if FEATURE_FACE_EXPRESSION_SUPPORT
@@ -2146,47 +2146,10 @@ namespace RealHumanSupport
         public int eye_wink_idx_in_namida_of_mouthctrl;
 #endif
 
-#if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
-        public bool isNeckPressed;
-        public LegIKData l_leg_ik_data;
-        public LegIKData r_leg_ik_data;
-        public HeadIKData head_ik_data;
-#endif
-
         public RealHumanData()
         {
         }     
     }
-
-#if FEATURE_DYNAMIC_POSITION_CHANGE_SUPPORT
-    public class  LegIKData {
-        public Transform thigh;
-        public Transform knee;
-        public Transform foot;
-
-        public Transform target;
-        public Transform pole;
-        public float weight;
-    }
-
-    public class  HeadIKData {
-        public Transform neck;
-        public Transform head;
-                
-        public Quaternion baseNeckRotation;
-        public Quaternion baseHeadRotation;
-
-        public Vector2 inputEuler;
-
-        public float weight;
-
-        public HeadIKData()
-        {
-            this.inputEuler = new Vector2.zero;
-            this.weight = 1f;
-        }       
-    }
-#endif
 
 #if FEATURE_STRAPON_SUPPORT
     public class CapsuleTrigger : MonoBehaviour
