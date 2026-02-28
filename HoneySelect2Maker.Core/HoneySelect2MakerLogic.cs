@@ -36,29 +36,7 @@ namespace HoneySelect2Maker
 {
     public class Logic
     {
-
-        internal static List<string> GetVideoFiles(string folderPath)
-        {
-            List<string> mp4List = new List<string>();
-
-            if (!Directory.Exists(folderPath))
-            {
-                return mp4List;
-            }
-
-            string[] files = Directory.GetFiles(folderPath, "*.mp4");
-
-            foreach (string filePath in files)
-            {
-                // 확장자 포함 파일명만
-                string fileName = Path.GetFileName(filePath);
-                mp4List.Add(fileName);
-            }
-
-            return mp4List;
-        }
-        
-        internal static List<string> GetVideoFiles(string folderPath, string pattern)
+        internal static List<string> GetVideoFiles(string folderPath, string pattern = null)
         {
             List<string> mp4List = new List<string>();
 
@@ -66,7 +44,11 @@ namespace HoneySelect2Maker
                 return mp4List;
 
             // 모든 mp4 파일 가져오기
-            string[] files = Directory.GetFiles(folderPath, "*.mp4");
+            string[] files = Directory.GetFiles(folderPath)
+                              .Where(f =>
+                                  f.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
+                                  f.EndsWith(".hs2m", StringComparison.OrdinalIgnoreCase))
+                              .ToArray();
 
             foreach (string filePath in files)
             {
@@ -119,12 +101,40 @@ namespace HoneySelect2Maker
             HoneySelect2Maker._rawImage.color = Color.white;
         }
 
+        private static string ConvertHs2mToTempMp4(string hs2mPath)
+        {
+            const int SIGNATURE_SIZE = 8;
+
+            byte[] allBytes = File.ReadAllBytes(hs2mPath);
+
+            if (allBytes.Length <= SIGNATURE_SIZE)
+                throw new Exception("Invalid hs2m file.");
+
+            // signature 체크
+            string signature = System.Text.Encoding.ASCII.GetString(allBytes, 0, SIGNATURE_SIZE);
+            if (signature != "hs2maker")
+                throw new Exception("Invalid hs2m signature.");
+
+            // 임시 mp4 경로
+            string tempPath = Path.Combine(Path.GetTempPath(),
+                Path.GetFileNameWithoutExtension(hs2mPath) + "_temp.mp4");
+
+            // 8byte 이후만 저장
+            File.WriteAllBytes(tempPath, allBytes.Skip(SIGNATURE_SIZE).ToArray());
+
+            return tempPath;
+        }
+
         internal static void PlaySceneVideo(
             string path,
             bool loop = false,
+            bool audio = false,
             int sortingOrder = -100,
             Action callback = null)
         {
+
+            UnityEngine.Debug.Log($">> PlaySceneVideo {path} | loop {loop} | audio {audio} | sortingOrder {sortingOrder} | {DateTime.Now:HH:mm:ss.fff}");
+
             EnsureOverlayCanvas(sortingOrder);
 
             var vp = HoneySelect2Maker._self._sceneVideoPlayer;
@@ -132,7 +142,8 @@ namespace HoneySelect2Maker
             vp.Stop();
 
             vp.prepareCompleted -= OnPrepared;
-            vp.loopPointReached -= OnVideoCompleted;
+            if (!loop)
+                vp.loopPointReached -= OnVideoCompleted;
 
             // RenderTexture 생성
             if (HoneySelect2Maker._sceneRT != null)
@@ -151,15 +162,34 @@ namespace HoneySelect2Maker
             HoneySelect2Maker._rawImage.enabled = true;
 
             vp.source = UnityEngine.Video.VideoSource.Url;
-            vp.url = path;
+
+            string finalPath = path;
+            if (Path.GetExtension(path).Equals(".hs2m", StringComparison.OrdinalIgnoreCase))
+            {
+                finalPath = ConvertHs2mToTempMp4(path);
+            }
+            vp.url = finalPath;
             vp.isLooping = loop;
             vp.playOnAwake = false;
-            vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None;
 
+            if (audio)
+            {
+                vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.Direct;
+                // AudioSource source = vp.GetTargetAudioSource(0);
+                // if (source != null)
+                // {
+                //     source.volume = 1.0f;   // 기본 최대값
+                // }
+            }
+            else
+                vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None;
+            
             HoneySelect2Maker._onSceneVideoCompleted = callback;
 
             vp.prepareCompleted += OnPrepared;
-            vp.loopPointReached += OnVideoCompleted;
+
+            if (!loop)
+                vp.loopPointReached += OnVideoCompleted;
 
             vp.Prepare();
         }
@@ -175,6 +205,8 @@ namespace HoneySelect2Maker
 
         internal static void OnVideoCompleted(UnityEngine.Video.VideoPlayer vp)
         {
+            UnityEngine.Debug.Log($">> OnVideoCompleted() | isLoop {vp.isLooping}| {Time.realtimeSinceStartup:F3}");
+
             if (vp.isLooping)
                 return;
 
@@ -187,27 +219,68 @@ namespace HoneySelect2Maker
             HoneySelect2Maker._onSceneVideoCompleted?.Invoke();
             HoneySelect2Maker._onSceneVideoCompleted = null;
             HoneySelect2Maker._videoFinished = true;
+        }
+        internal static bool IsVideoFileExists(string videoPath)
+        {
+            if (string.IsNullOrEmpty(videoPath))
+                return false;
 
+            return File.Exists(videoPath);
+        }
+        internal static void PlayVideo(string video_path, bool isLoop=false, bool isAudio=false, int sortingOrder = 9999)
+        {
+            
+            HoneySelect2Maker._videoFinished = false;
+
+            if (IsVideoFileExists(video_path))
+            {
+                if (isLoop)
+                {
+                    PlaySceneVideo(
+                        video_path,
+                        isLoop,
+                        isAudio,
+                        sortingOrder
+                    );
+                }
+                else
+                {
+
+                    PlaySceneVideo(
+                        video_path,
+                        isLoop,
+                        isAudio,
+                        sortingOrder,
+                        () =>
+                        {
+                            if (sortingOrder == 9999)
+                            {
+                                // 컷신용 제거
+                                StopSceneVideo();
+                            }
+                        }
+                    );
+                }
+            } 
+            else
+            {
+                HoneySelect2Maker._videoFinished = true;
+            }
         }
 
-        internal static void PlayVideo(string video_path, bool isTitle = true, int sortingOrder = 9999)
+        internal static void PlayVideoRandom(string video_folder, bool isAudio=false, int sortingOrder = 9999)
         {
                 HoneySelect2Maker._videoFinished = false;
-                // UnityEngine.Debug.Log($">> PlayVideo {video_path} | {DateTime.Now:HH:mm:ss.fff}");
 
                 List<string> video_files  = new List<string>();
                 bool isLoop=false;
 
-                if (isTitle) {
-                    sortingOrder = -100;
-                }
-
-                video_files = GetVideoFiles(video_path);
+                video_files = GetVideoFiles(video_folder);
 
                 if (video_files.Count > 0)
                 {
                     int idx = UnityEngine.Random.Range(0, Mathf.Min(HoneySelect2Maker.VIDEO_MAX_COUNT, video_files.Count));
-                    string path = video_path + video_files[idx];
+                    string path = video_folder + video_files[idx];
 
                     if (path.Contains("loop"))
                     {
@@ -218,7 +291,8 @@ namespace HoneySelect2Maker
                     {
                         PlaySceneVideo(
                             path,
-                            true,
+                            isLoop,
+                            isAudio,
                             sortingOrder
                         );   
                     } 
@@ -227,18 +301,24 @@ namespace HoneySelect2Maker
 
                         PlaySceneVideo(
                             path,
-                            false,
+                            isLoop,
+                            isAudio,
                             sortingOrder,
                             () =>
-                            {   
-                                if (!isTitle) {
-                                // 컷신용 제거
+                            {
+                                if (sortingOrder == 9999)
+                                { 
+                                    // 컷신용 제거
                                     StopSceneVideo();
                                 }
                             }
                         );
                     }
-                }          
+            }
+            else
+            {
+                HoneySelect2Maker._videoFinished = true;
+            } 
         }
 
         internal static void StopSceneVideo()
