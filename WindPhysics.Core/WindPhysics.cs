@@ -91,7 +91,7 @@ namespace WindPhysics
 
         internal Dictionary<int, WindData> _ociObjectMgmt = new Dictionary<int, WindData>();
 
-        private Coroutine _CheckWindMgmtRoutine;    
+        private Coroutine _CheckWindMgmtCoroutine;    
 
         #endregion
 
@@ -184,7 +184,7 @@ namespace WindPhysics
                 false, this, val => _ShowUI = val);
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
 
-            _CheckWindMgmtRoutine = StartCoroutine(CheckWindMgmtRoutine());
+            _CheckWindMgmtCoroutine = StartCoroutine(CheckWindMgmtRoutine());
         }
 
 #if SUNSHINE || HONEYSELECT2 || AISHOUJO
@@ -395,7 +395,7 @@ namespace WindPhysics
         {
             while (true)
             {
-                if(_previousConfigKeyEnableWind != ConfigKeyEnableWind.Value || _previousInterval != WindInterval.Value)
+                if(_loaded && (_previousConfigKeyEnableWind != ConfigKeyEnableWind.Value || _previousInterval != WindInterval.Value))
                 {
                     List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
                     foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
@@ -729,7 +729,6 @@ namespace WindPhysics
                 if (!_loaded)
                 {
                     yield return null;
-                    continue;
                 }
 
                 if (windData.wind_status == Status.RUN)

@@ -115,11 +115,8 @@ namespace RealHumanSupport
 
         internal Texture2D _faceExpressionFemaleBumpMap2;
 
-        internal Texture2D _faceExpressionMaleBumpMap2;
+        internal Texture2D _bodyStrongFemaleBumpMap2;
 
-        internal Texture2D _bodyStrongFemale_A_BumpMap2;
-
-        internal Texture2D _bodyStrongMale_A_BumpMap2;
 #if FEATURE_TEARDROP
         internal Texture2D _TearDropImg;
 #endif
@@ -136,8 +133,6 @@ namespace RealHumanSupport
         internal static ConfigEntry<bool> TearDropActive { get; private set; }
 
         internal static ConfigEntry<bool> EyeShakeActive { get; private set; }
-
-        internal static ConfigEntry<bool> ExBoneColliderActive { get; private set; }
 
         internal static ConfigEntry<bool> BreathActive { get; private set; }
 #if FEATURE_FACE_BUMP_SUPPORT
@@ -169,8 +164,6 @@ namespace RealHumanSupport
 #endif
             EyeShakeActive = Config.Bind(support_type, "Eye Shaking", true, new ConfigDescription("Enable/Disable"));
 
-            ExBoneColliderActive = Config.Bind(support_type, "Extra Collider", true, new ConfigDescription("Enable/Disable"));
-
             BreathActive = Config.Bind(support_type, "Bumping Belly", true, new ConfigDescription("Enable/Disable"));
             
             TearDropActive = Config.Bind(support_type, "Tear Drop", true, new ConfigDescription("Enable/Disable"));
@@ -201,17 +194,16 @@ namespace RealHumanSupport
             var harmonyInstance = HarmonyExtensions.CreateInstance(GUID);
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
 
-            // UnityEngine.Debug.Log($">> start CheckRotationRoutine");
             _toolbarButton = new SimpleToolbarToggle(
                 "Open window",
                 "Open RealGirl window",
                 () => ResourceUtils.GetEmbeddedResource("toolbar_icon.png", typeof(RealHumanSupport).Assembly).LoadTexture(),
                 false, this, val => _ShowUI = val);
-            ToolbarManager.AddLeftToolbarControl(_toolbarButton);
-            
-            _CheckRotationRoutine = StartCoroutine(CheckRotationRoutine());
+            ToolbarManager.AddLeftToolbarControl(_toolbarButton);        
 
             CharacterApi.RegisterExtraBehaviour<RealHumanSupportController>(GUID);
+
+            _CheckRotationRoutine = StartCoroutine(CheckRotationRoutine());            
         }
 
 #if SUNSHINE || HONEYSELECT2 || AISHOUJO
@@ -319,14 +311,12 @@ namespace RealHumanSupport
                 return;
             }
 
-            _bodyStrongFemale_A_BumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_F_BumpMap2");
-            _bodyStrongMale_A_BumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_M_BumpMap2");
+            _bodyStrongFemaleBumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_F_BumpMap2");            
 #if FEATURE_TEARDROP
             _TearDropImg = _bundle.LoadAsset<Texture2D>("teardrop");
 #endif            
 #if FEATURE_FACE_BUMP_SUPPORT               
             _faceExpressionFemaleBumpMap2 = _bundle.LoadAsset<Texture2D>("Face_Expression_F_BumpMap2");
-            _faceExpressionMaleBumpMap2 = _bundle.LoadAsset<Texture2D>("Face_Expression_M_BumpMap2");
 #endif            
 
             _mergeComputeShader = _bundle.LoadAsset<ComputeShader>("MergeTextures.compute");
@@ -339,50 +329,51 @@ namespace RealHumanSupport
         IEnumerator CheckRotationRoutine()
         {
             while (true) // 무한 반복
-            {
-             
-                if (Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() > 0)
+            {   
+                if (_loaded && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() > 0)
                 {
                     TreeNodeObject _node = Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Last();
-                    ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-                    OCIChar ociChar = objectCtrlInfo as OCIChar;
-                    ChaControl chaControl = ociChar.GetChaControl();
-
-                    if (chaControl != null)
+                    if (_node != null)
                     {
-                        var controller = chaControl.GetComponent<RealHumanSupportController>();
-                        if (controller != null)
+                        ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+                        OCIChar ociChar = objectCtrlInfo as OCIChar;
+
+                        if (ociChar != null)
                         {
-                            if (!Input.GetMouseButton(0)) {
-                                RealHumanData realHumanData = controller.GetRealData();
+                            ChaControl chaControl = ociChar.GetChaControl();
+                            var controller = chaControl.GetComponent<RealHumanSupportController>();
+                            if (controller != null)
+                            {
+                                if (!Input.GetMouseButton(0)) {
+                                    RealHumanData realHumanData = controller.GetRealData();
 
-                                if (realHumanData != null)
-                                {
-                                    if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
-                                        realHumanData = RealHumanSupportController.GetMaterials(ociChar.GetChaControl(), realHumanData);
-
-                                    if (
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q != realHumanData.prev_fk_left_foot_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q != realHumanData.prev_fk_right_foot_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q != realHumanData.prev_fk_left_knee_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_knee_bone)._q != realHumanData.prev_fk_right_knee_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_thigh_bone)._q != realHumanData.prev_fk_left_thigh_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_thigh_bone)._q != realHumanData.prev_fk_right_thigh_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine01_bone)._q != realHumanData.prev_fk_spine01_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine02_bone)._q != realHumanData.prev_fk_spine02_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q != realHumanData.prev_fk_head_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_shoulder_bone)._q != realHumanData.prev_fk_left_shoulder_rot) ||
-                                        (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q != realHumanData.prev_fk_right_shoulder_rot)
-                                    )
+                                    if (realHumanData != null)
                                     {
-                                        RealHumanSupportController.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
-                                    }
-                                }                                             
-                            }  
-                        }                          
-                    }              
-                }
+                                        if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
+                                            realHumanData = RealHumanSupportController.GetMaterials(ociChar.GetChaControl(), realHumanData);
 
+                                        if (
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q != realHumanData.prev_fk_left_foot_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q != realHumanData.prev_fk_right_foot_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q != realHumanData.prev_fk_left_knee_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_knee_bone)._q != realHumanData.prev_fk_right_knee_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_thigh_bone)._q != realHumanData.prev_fk_left_thigh_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_thigh_bone)._q != realHumanData.prev_fk_right_thigh_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine01_bone)._q != realHumanData.prev_fk_spine01_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine02_bone)._q != realHumanData.prev_fk_spine02_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q != realHumanData.prev_fk_head_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_shoulder_bone)._q != realHumanData.prev_fk_left_shoulder_rot) ||
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q != realHumanData.prev_fk_right_shoulder_rot)
+                                        )
+                                        {
+                                            RealHumanSupportController.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
+                                        }
+                                    }
+                                }
+                            }                       
+                        }                        
+                    }
+                }
                 yield return new WaitForSeconds(0.5f); // 0.5초 대기
             }
         }      
