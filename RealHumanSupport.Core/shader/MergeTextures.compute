@@ -6,7 +6,7 @@ struct BAreaData
     float Y;
     float RadiusX;
     float RadiusY;
-    float BumpBooster;   // 중심 강도 배율 (0~2)
+    float BumpBooster;   // 0~2 (B 강도 배율)
     float Padding;       // stride 맞추기용
 };
 
@@ -29,7 +29,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float4 colA = TexA[int2(id.xy)];
     float4 colB = TexB[int2(id.xy)];
 
-    float4 cur = colA;   // RGB는 A 유지
+    float4 cur = colA;
 
     for (int i = 0; i < AreaCount; i++)
     {
@@ -41,36 +41,35 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         if (rx <= 0 || ry <= 0)
             continue;
 
-        float invRx = 1.0 / rx;
-        float invRy = 1.0 / ry;
-
         float areaY = (Height - 1) - area.Y;
 
         float dx = id.x - area.X;
         float dy = id.y - areaY;
 
-        float nx = dx * invRx;
-        float ny = dy * invRy;
+        float nx = dx / rx;
+        float ny = dy / ry;
 
         float ellipseVal = nx * nx + ny * ny;
 
         if (ellipseVal > 1.0)
             continue;
 
-        float t = sqrt(ellipseVal);                 // 0~1
-        float falloff = saturate(1.0 - t * t * t); // 중심=1, 경계=0
+        // 중심=1, 경계=0
+        float t = sqrt(ellipseVal);
+        float falloff = saturate(1.0 - t * t * t);
 
-        // 🔥 중심 기준 Boost 적용
-        float boostedBAlpha = colB.a * area.BumpBooster;
+        // 🔥 B의 alpha를 Booster 배율만큼 증가
+        float boostedB = colB.a * area.BumpBooster;
 
-        // 필요하면 clamp (HDR 아니라면 권장)
-        boostedBAlpha = saturate(boostedBAlpha);
-
-        // A ↔ Boosted B 블렌딩
-        cur.a = lerp(cur.a, boostedBAlpha, falloff);
-
-        cur.r = 1.0;   // HS2 bump 규칙
+        // 🔥 A 위에 B를 더하는 구조
+        cur.a += boostedB * falloff;
     }
+
+    // HDR 아니면 안전하게 clamp
+    cur.a = saturate(cur.a);
+
+    // HS2 bump 규칙
+    cur.r = 1.0;
 
     Result[int2(id.xy)] = cur;
 }

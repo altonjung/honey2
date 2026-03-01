@@ -457,8 +457,10 @@ namespace RealHumanSupport
                     var controller = __instance.GetComponent<RealHumanSupportController>();
                     if (controller != null)
                     {
+#if FEATURE_TEARDROP
                         controller.SetTearDropRate(__instance, controller.GetRealData(), value);
-                    }
+#endif
+                     }
                 }
                 return true;
             }
@@ -717,7 +719,7 @@ namespace RealHumanSupport
         }
 #endif
 
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 }
