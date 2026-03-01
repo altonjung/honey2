@@ -124,6 +124,8 @@ namespace RealHumanSupport
 
         internal Coroutine _CheckRotationRoutine;
 
+        private bool mouseReleased = false;
+
         // Config
 
 
@@ -220,6 +222,12 @@ namespace RealHumanSupport
         {
             if (_loaded == false)
                 return;
+
+            if (Input.GetMouseButtonUp(0))
+            {
+                mouseReleased = true;
+            }
+
         }        
 
        protected override void OnGUI()
@@ -328,6 +336,8 @@ namespace RealHumanSupport
 
         IEnumerator CheckRotationRoutine()
         {
+            bool isReleased = false;
+
             while (true) // 무한 반복
             {   
                 if (_loaded && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() > 0)
@@ -344,7 +354,9 @@ namespace RealHumanSupport
                             var controller = chaControl.GetComponent<RealHumanSupportController>();
                             if (controller != null)
                             {
-                                if (!Input.GetMouseButton(0)) {
+                                if (mouseReleased)
+                                {
+                                    mouseReleased = false;  // 한 번만 쓰고 초기화
                                     RealHumanData realHumanData = controller.GetRealData();
 
                                     if (realHumanData != null)
