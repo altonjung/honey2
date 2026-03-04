@@ -45,7 +45,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.6.0";
+        public const string Version = "0.9.7.0";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -74,11 +74,15 @@ namespace WindPhysics
         private bool _loaded = false;
 
         private static bool _ShowUI = false;
+
+#if FEATURE_PUBLIC
+
+#else
         private static SimpleToolbarToggle _toolbarButton;
-		
+#endif		
         private const int _uniqueId = ('W' << 24) | ('P' << 16) | ('P' << 8) | 'X';
 
-        private Rect _windowRect = new Rect(70, 10, 600, 10);
+        private Rect _windowRect = new Rect(70, 10, 550, 10);
 
         private float _minY = float.MaxValue;
         private float _maxY = float.MinValue;
@@ -107,8 +111,7 @@ namespace WindPhysics
         internal static ConfigEntry<float> WindAmplitude { get; private set; }
 
         internal static ConfigEntry<float> AccesoriesForce { get; private set; }
-        internal static ConfigEntry<float> AccesoriesDamping { get; private set; }
-        internal static ConfigEntry<float> AccesoriesStiffness { get; private set; }
+        internal static ConfigEntry<float> AccesoriesElastic { get; private set; }
 
         internal static ConfigEntry<float> HairForce { get; private set; }
 
@@ -134,11 +137,9 @@ namespace WindPhysics
             WindUpForce = Config.Bind("All", "ForceUp", 0.0f, new ConfigDescription("wind up force", new AcceptableValueRange<float>(0.0f, 0.5f)));
 
             WindForce = Config.Bind("All", "Force", 0.1f, new ConfigDescription("wind force", new AcceptableValueRange<float>(0.0f, 1.0f)));
-#if FEATURE_PUBLIC
-            WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(1.0f, 10.0f)));
-#else
+
             WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 60.0f)));
-#endif
+
             WindAmplitude = Config.Bind("All", "Amplitude", 1.0f, new ConfigDescription("wind amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
             // clothes
@@ -156,9 +157,8 @@ namespace WindPhysics
             // accesories
             AccesoriesForce = Config.Bind("Misc", "Force", 1.0f, new ConfigDescription("accesories force", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            AccesoriesDamping = Config.Bind("Misc", "Damping", 0.7f, new ConfigDescription("accesories damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            AccesoriesElastic = Config.Bind("Misc", "Elastic", 0.7f, new ConfigDescription("accesories elastic", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            AccesoriesStiffness = Config.Bind("Misc", "Stiffness", 1.0f, new ConfigDescription("accesories stiffness", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
             // option 
             ConfigKeyEnableWind = Config.Bind("Options", "Toggle effect", false, "Wind enabled/disabled");
@@ -168,7 +168,6 @@ namespace WindPhysics
             _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value;
             _previousInterval = WindInterval.Value;
 
-
             _self = this;
             Logger = base.Logger; 
 
@@ -176,15 +175,19 @@ namespace WindPhysics
 
             var harmony = HarmonyExtensions.CreateInstance(GUID);
             harmony.PatchAll(Assembly.GetExecutingAssembly());
+#if FEATURE_PUBLIC
 
+#else
             _toolbarButton = new SimpleToolbarToggle(
                 "Open window",
                 "Open WindPhysics window",
                 () => ResourceUtils.GetEmbeddedResource("wp_toolbar_icon.png", typeof(WindPhysics).Assembly).LoadTexture(),
                 false, this, val => _ShowUI = val);
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
-
+#endif
             _CheckWindMgmtCoroutine = StartCoroutine(CheckWindMgmtRoutine());
+
+            Logger.LogMessage($"{Name} {Version}.. by unbreakable dreamer");
         }
 
 #if SUNSHINE || HONEYSELECT2 || AISHOUJO
@@ -206,7 +209,9 @@ namespace WindPhysics
                 ConfigKeyEnableWind.Value = !ConfigKeyEnableWind.Value;
             }
         }
+#if FEATURE_PUBLIC
 
+#else
         protected override void OnGUI()
         {
             if (_ShowUI == false)
@@ -217,9 +222,15 @@ namespace WindPhysics
         }
        
 
+        private void draw_seperate()
+        {
+            GUILayout.Space(5);            
+            Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.5f));
+            GUI.Box(rect, GUIContent.none);
+            GUILayout.Space(10);
+        }
         private void WindowFunc(int id)
         {
-
             var studio = Studio.Studio.Instance;
 
             // ⭐ UI 조작 중이면 Studio 입력 막기
@@ -238,39 +249,47 @@ namespace WindPhysics
             // ================= UI =================
 // Global
             GUILayout.Label("Global");
+            // Gravity            
             GUILayout.BeginHorizontal();
-            // Gravity
-            GUILayout.Label(new GUIContent("G", "Gravity"), GUILayout.Width(20));
+            GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
             Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
             GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.EndHorizontal();
 
-            // direction
-            GUILayout.Label(new GUIContent("D", "Wind Direction"), GUILayout.Width(20));
+            // Flow
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Wind Flow", "Wind Flow"), GUILayout.Width(80));
             WindDirection.Value = GUILayout.HorizontalSlider(WindDirection.Value, 0.0f, 359.0f);
             GUILayout.Label(WindDirection.Value.ToString("0.00"), GUILayout.Width(40));
-            // force
+            GUILayout.EndHorizontal();
+
+            // Interval
+            GUILayout.BeginHorizontal();            
+            GUILayout.Label(new GUIContent("Interval", "Wind Interval"), GUILayout.Width(80));
+            WindInterval.Value = GUILayout.HorizontalSlider(WindInterval.Value, 0.0f, 60.0f);
+            GUILayout.Label(WindInterval.Value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.EndHorizontal();            
+
+            // Amplitude
+            GUILayout.BeginHorizontal(); 
+            GUILayout.Label(new GUIContent("Amplitude", "Wind Amplitude"),  GUILayout.Width(80));
+            WindAmplitude.Value = GUILayout.HorizontalSlider(WindAmplitude.Value, 1.0f, 10.0f);
+            GUILayout.Label(WindAmplitude.Value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.EndHorizontal();
+
+            // Force
+            GUILayout.BeginHorizontal();             
             GUILayout.Label(new GUIContent("F", "Wind Force"), GUILayout.Width(20));
             WindForce.Value = GUILayout.HorizontalSlider(WindForce.Value, 0.1f, 1.0f);
             GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
-            // force up
+            // Force up
             GUILayout.Label(new GUIContent("FU", "Wind ForceUp"),  GUILayout.Width(20));
             WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.0f, 0.5f);
             GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(40));
-
-            // amplitude
-            GUILayout.Label(new GUIContent("A", "Wind Amplitude"),  GUILayout.Width(20));
-            WindAmplitude.Value = GUILayout.HorizontalSlider(WindAmplitude.Value, 1.0f, 10.0f);
-            GUILayout.Label(WindAmplitude.Value.ToString("0.00"), GUILayout.Width(40));
-
-            // interval
-            GUILayout.Label(new GUIContent("I", "Interval"), GUILayout.Width(20));
-            WindInterval.Value = GUILayout.HorizontalSlider(WindInterval.Value, 0.0f, 60.0f);
-            GUILayout.Label(WindInterval.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
-
+            GUILayout.EndHorizontal(); 
+          
+            draw_seperate();
 // Hair
             GUILayout.Label("Hair");
             GUILayout.BeginHorizontal();
@@ -282,10 +301,23 @@ namespace WindPhysics
             GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
             HairForce.Value = GUILayout.HorizontalSlider(HairForce.Value, 0.1f, 1.0f);
             GUILayout.Label(HairForce.Value.ToString("0.00"), GUILayout.Width(40));
-
-
+            GUILayout.EndHorizontal();
+            
+            draw_seperate();            
+// Acc
+            GUILayout.Label("Accessory");
+            GUILayout.BeginHorizontal();
+            
+            GUILayout.Label(new GUIContent("D", "Elastic"), GUILayout.Width(20));
+            AccesoriesElastic.Value = GUILayout.HorizontalSlider(AccesoriesElastic.Value, 0.0f, 1.0f);
+            GUILayout.Label(AccesoriesElastic.Value.ToString("0.00"), GUILayout.Width(40));
+            
+            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
+            AccesoriesForce.Value = GUILayout.HorizontalSlider(AccesoriesForce.Value, 0.1f, 1.0f);
+            GUILayout.Label(AccesoriesForce.Value.ToString("0.00"), GUILayout.Width(40));
             GUILayout.EndHorizontal();
 
+            draw_seperate();
 // Cloth
             GUILayout.Label("Cloth");
             GUILayout.BeginHorizontal();
@@ -301,25 +333,9 @@ namespace WindPhysics
             GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
             ClotheForce.Value = GUILayout.HorizontalSlider(ClotheForce.Value, 0.1f, 1.0f);
             GUILayout.Label(ClotheForce.Value.ToString("0.00"), GUILayout.Width(40));
-
             GUILayout.EndHorizontal();
-// Acc
-            GUILayout.Label("Acc");
-            GUILayout.BeginHorizontal();
-            
-            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
-            AccesoriesDamping.Value = GUILayout.HorizontalSlider(AccesoriesDamping.Value, 0.0f, 1.0f);
-            GUILayout.Label(AccesoriesDamping.Value.ToString("0.00"), GUILayout.Width(40));
 
-            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
-            AccesoriesStiffness.Value = GUILayout.HorizontalSlider(AccesoriesStiffness.Value, 0.0f, 10.0f);
-            GUILayout.Label(AccesoriesStiffness.Value.ToString("0.00"), GUILayout.Width(40));
-
-            GUILayout.Label(new GUIContent("F", "DamForceping"), GUILayout.Width(20));
-            AccesoriesForce.Value = GUILayout.HorizontalSlider(AccesoriesForce.Value, 0.1f, 1.0f);
-            GUILayout.Label(AccesoriesForce.Value.ToString("0.00"), GUILayout.Width(40));
-
-            GUILayout.EndHorizontal();
+            GUILayout.Space(10);  
 
             GUILayout.BeginHorizontal();
             if (ConfigKeyEnableWind.Value == true)
@@ -350,7 +366,7 @@ namespace WindPhysics
 
             GUI.DragWindow();
         }
-
+#endif
         
         #endregion
 
@@ -543,8 +559,7 @@ namespace WindPhysics
             float hairElastic = HairElastic.Value;
             float hairForce = HairForce.Value;
 
-            float accessoriesDamping = AccesoriesDamping.Value;
-            float accessoriesStiffness = AccesoriesStiffness.Value;
+            float accessoriesElastic = AccesoriesElastic.Value;
             float accessoriesForce = AccesoriesForce.Value;
 
             float clothDamping = ClothDamping.Value;
@@ -616,8 +631,8 @@ namespace WindPhysics
                 if (bone == null)
                     continue;
 
-                bone.m_Damping = accessoriesDamping + UnityEngine.Random.Range(-0.2f, 0.2f);
-                bone.m_Stiffness = accessoriesStiffness;
+                bone.m_Elasticity = accessoriesElastic + UnityEngine.Random.Range(-0.2f, 0.2f);
+                // bone.m_Stiffness = accessoriesStiffness;
                 bone.m_Force = accessoriesFinalWind;
                 bone.m_Gravity = new Vector3(0f, gravityUp
                 ? UnityEngine.Random.Range(gravity, gravity + 0.03f)
@@ -966,26 +981,11 @@ namespace WindPhysics
             }
         }
 
-        // 개별 옷 변경 (cltoh 할당때문에 반드시 delay 처리해야함)
-        [HarmonyPatch(typeof(ChaControl), "ChangeClothes", typeof(int), typeof(int), typeof(bool))]
-        private static class ChaControl_ChangeClothes_Patches
+        // 개별 옷 변경 (cloth 할당때문에 반드시 delay 처리해야함)
+        [HarmonyPatch(typeof(ChaControl), "ChangeClothesAsync", typeof(int), typeof(int), typeof(bool), typeof(bool))]
+        private static class ChaControl_ChangeClothesAsync_Patches
         {
-            private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange)
-            {
-                OCIChar ociChar = __instance.GetOCIChar() as OCIChar;
-
-                if (ociChar != null)
-                {
-                    Logic.TryAllocateObject(ociChar);
-                }
-            }
-        }
-
-        // 코디네이션 변경 (cltoh 할당때문에 반드시 delay 처리해야함)
-        [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
-        internal static class ChaControl_SetAccessoryStateAll_Patches
-        {
-            public static void Postfix(ChaControl __instance, bool show)
+            private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange = false, bool asyncFlags = true)
             {
                 OCIChar ociChar = __instance.GetOCIChar() as OCIChar;
 
@@ -997,10 +997,40 @@ namespace WindPhysics
         }
 
         // 악세러리 변경
-        [HarmonyPatch(typeof(ChaControl), "ChangeAccessory", typeof(int), typeof(int), typeof(int), typeof(string), typeof(bool))]
-        private static class ChaControl_ChangeAccessory_Patches
+        [HarmonyPatch(typeof(ChaControl), "ChangeAccessoryAsync", typeof(int), typeof(int), typeof(int), typeof(string), typeof(bool), typeof(bool))]
+        private static class ChaControl_ChangeAccessoryAsync_Patches
         {
-            private static void Postfix(ChaControl __instance, int slotNo, int type, int id, string parentKey, bool forceChange)
+            private static void Postfix(ChaControl __instance, int slotNo, int type, int id, string parentKey, bool forceChange, bool asyncFlags = true)
+            {
+                OCIChar ociChar = __instance.GetOCIChar() as OCIChar;
+
+                if (ociChar != null)
+                {
+                    Logic.TryAllocateObject(ociChar);
+                }
+            }
+        }
+
+        // 헤어 변경
+        [HarmonyPatch(typeof(ChaControl), "ChangeHairAsync", typeof(int), typeof(int), typeof(bool), typeof(bool))]
+        private static class ChaControl_ChangeHairAsync_Patches
+        {
+            private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange = false, bool asyncFlags = true)
+            {
+                OCIChar ociChar = __instance.GetOCIChar() as OCIChar;
+
+                if (ociChar != null)
+                {
+                    Logic.TryAllocateObject(ociChar);
+                }
+            }
+        }        
+
+        // 코디네이션 변경 (cloth 할당때문에 반드시 delay 처리해야함)
+        [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
+        internal static class ChaControl_SetAccessoryStateAll_Patches
+        {
+            public static void Postfix(ChaControl __instance, bool show)
             {
                 OCIChar ociChar = __instance.GetOCIChar() as OCIChar;
 
