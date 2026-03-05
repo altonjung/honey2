@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using BepInEx.Logging;
+using TimelineCompatibility = ToolBox.TimelineCompatibility;
 using ToolBox;
 using ToolBox.Extensions;
 using UnityEngine;
@@ -186,6 +187,12 @@ namespace WindPhysics
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
 #endif
             _CheckWindMgmtCoroutine = StartCoroutine(CheckWindMgmtRoutine());
+
+            this.ExecuteDelayed2(() =>
+            {
+                TimelineCompatibility.Init();
+                Logic.TimelineCompatibility.Populate();
+            }, 3);
 
             Logger.LogMessage($"{Name} {Version}.. by unbreakable dreamer");
         }
@@ -809,8 +816,6 @@ namespace WindPhysics
                 }
             }
         }
-
-
         #endregion
 
         #region Patches

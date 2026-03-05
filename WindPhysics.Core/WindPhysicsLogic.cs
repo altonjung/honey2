@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using BepInEx.Logging;
+using KKAPI.Studio.UI.Toolbars;
 using ToolBox;
 using ToolBox.Extensions;
 using UILib;
@@ -225,6 +226,108 @@ namespace WindPhysics
                 bone.m_Stiffness = 0.26f;
             }
         }
+#endif
+
+#if FEATURE_TIMELINE_SUPPORT
+        #region Timeline Compatibility
+        internal static class TimelineCompatibility
+        {
+            public static void Populate()
+            {
+                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
+                    owner: WindPhysics.Name,
+                    id: "windEnable",
+                    name: "Enabled",
+                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
+                    {
+                        bool value = (bool)leftValue;
+                        if (WindPhysics.ConfigKeyEnableWind.Value != value) {
+                            WindPhysics.ConfigKeyEnableWind.Value = value;
+                        }
+                    },
+                    interpolateAfter: null,
+                    isCompatibleWithTarget: (oci) => true,
+                    getValue: (oci, parameter) => WindPhysics.ConfigKeyEnableWind.Value,
+                    readValueFromXml: (parameter, node) => node.ReadBool("value"),
+                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (bool)o),
+                    getParameter: GetParameter,
+                    readParameterFromXml: null,
+                    writeParameterToXml: null,
+                    checkIntegrity: CheckIntegrity
+                );
+                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
+                    owner: WindPhysics.Name,
+                    id: "windMove",
+                    name: "Direction",
+                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
+                    {
+                        float value = (float)leftValue;
+                        if (WindPhysics.WindDirection.Value != value)
+                            WindPhysics.WindDirection.Value = value;
+                    },
+                    interpolateAfter: null,
+                    isCompatibleWithTarget: (oci) => true,
+                    getValue: (oci, parameter) => WindPhysics.WindDirection.Value,
+                    readValueFromXml: (parameter, node) => node.ReadFloat("value"),
+                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (float)o),
+                    getParameter: GetParameter,
+                    readParameterFromXml: null,
+                    writeParameterToXml: null,
+                    checkIntegrity: CheckIntegrity
+                );
+                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
+                    owner: WindPhysics.Name,
+                    id: "windInterval",
+                    name: "Interval",
+                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
+                    {
+                        float value = (float)leftValue;
+                        if (WindPhysics.WindInterval.Value != value)
+                            WindPhysics.WindInterval.Value = value;
+                    },
+                    interpolateAfter: null,
+                    isCompatibleWithTarget: (oci) => true,
+                    getValue: (oci, parameter) => WindPhysics.WindInterval.Value,
+                    readValueFromXml: (parameter, node) => node.ReadFloat("value"),
+                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (float)o),
+                    getParameter: GetParameter,
+                    readParameterFromXml: null,
+                    writeParameterToXml: null,
+                    checkIntegrity: CheckIntegrity
+                );
+                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
+                    owner: WindPhysics.Name,
+                    id: "windForce",
+                    name: "Force",
+                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
+                    {
+                        float value = (float)leftValue;
+                        if (WindPhysics.WindForce.Value != value)
+                            WindPhysics.WindForce.Value = value;
+                    },
+                    interpolateAfter: null,
+                    isCompatibleWithTarget: (oci) => true,
+                    getValue: (oci, parameter) => WindPhysics.WindForce.Value,
+                    readValueFromXml: (parameter, node) => node.ReadFloat("value"),
+                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (float)o),
+                    getParameter: GetParameter,
+                    readParameterFromXml: null,
+                    writeParameterToXml: null,
+                    checkIntegrity: CheckIntegrity
+                );
+            }
+        }
+
+        private static bool CheckIntegrity(ObjectCtrlInfo oci, object parameter, object leftValue, object rightValue)
+        {
+            return parameter != null;
+        }
+
+        private static object GetParameter(ObjectCtrlInfo oci)
+        {
+            return oci;
+        }
+        #endregion
 #endif
 
     }
