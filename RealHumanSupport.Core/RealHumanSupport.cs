@@ -400,6 +400,7 @@ namespace RealHumanSupport
         #endregion
 
         #region Patches
+        
 
         [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
         internal static class WorkspaceCtrl_OnSelectSingle_Patches
@@ -509,7 +510,7 @@ namespace RealHumanSupport
                     var controller = _char.GetChaControl().GetComponent<RealHumanSupportController>();
                     if (controller != null)
                     {                     
-                        controller.SetHairDown(_char.GetChaControl(), controller.GetRealData());
+                        controller.SetHairDown();
                     }
                 }
                 return true;

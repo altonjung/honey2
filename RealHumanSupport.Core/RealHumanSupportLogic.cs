@@ -859,135 +859,155 @@ namespace RealHumanSupport
         }
 
 #if FEATURE_FACE_BLENDSHAPE_SUPPORT
-        internal void SetFaceBlendShapes(ChaControl chaCtrl, RealHumanData realHumanData)
+        internal void SetFaceBlendShapes()
         {
-            foreach (var fbsTarget in chaCtrl.fbsCtrl.EyesCtrl.FBSTarget)
+            if (realHumanData != null)
             {
-                SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
-                var mesh = srender.sharedMesh;
-                if (mesh && mesh.blendShapeCount > 0)
+                foreach (var fbsTarget in realHumanData.charControl.fbsCtrl.EyesCtrl.FBSTarget)
                 {
-                    for (int idx = 0; idx < mesh.blendShapeCount; idx++)
+                    SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
+                    var mesh = srender.sharedMesh;
+                    if (mesh && mesh.blendShapeCount > 0)
                     {
-                        string name = mesh.GetBlendShapeName(idx);
-
-                        if (name.Contains("_close"))
+                        for (int idx = 0; idx < mesh.blendShapeCount; idx++)
                         {
-                            if (!name.Contains("_close_L") && !name.Contains("_close_R")) {
+                            string name = mesh.GetBlendShapeName(idx);
+
+                            if (name.Contains("_close"))
+                            {
+                                if (!name.Contains("_close_L") && !name.Contains("_close_R"))
+                                {
+                                    if (name.Contains("head."))
+                                        realHumanData.eye_close_idx_in_head_of_eyectrl = idx;
+                                    else if (name.Contains("namida."))
+                                        realHumanData.eye_close_idx_in_namida_of_eyectrl = idx;
+                                    else
+                                        realHumanData.eye_close_idx_in_lash_of_eyectrl = idx;
+                                }
+                            }
+                            else if (name.Contains("_wink_R"))
+                            {
                                 if (name.Contains("head."))
-                                    realHumanData.eye_close_idx_in_head_of_eyectrl = idx;
+                                    realHumanData.eye_wink_idx_in_head_of_eyectrl = idx;
                                 else if (name.Contains("namida."))
-                                    realHumanData.eye_close_idx_in_namida_of_eyectrl = idx;
+                                    realHumanData.eye_wink_idx_in_namida_of_eyectrl = idx;
                                 else
-                                    realHumanData.eye_close_idx_in_lash_of_eyectrl = idx;
+                                    realHumanData.eye_wink_idx_in_lash_of_eyectrl = idx;
                             }
-                        }
-                        else if (name.Contains("_wink_R"))
-                        {
-                            if (name.Contains("head."))
-                                realHumanData.eye_wink_idx_in_head_of_eyectrl = idx;
-                            else if (name.Contains("namida."))
-                                realHumanData.eye_wink_idx_in_namida_of_eyectrl = idx;
-                            else
-                                realHumanData.eye_wink_idx_in_lash_of_eyectrl = idx;
                         }
                     }
                 }
-            }
 
-            foreach (var fbsTarget in chaCtrl.fbsCtrl.MouthCtrl.FBSTarget)
-            {
-                SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
-                var mesh = srender.sharedMesh;
-                if (mesh && mesh.blendShapeCount > 0)
+                foreach (var fbsTarget in realHumanData.charControl.fbsCtrl.MouthCtrl.FBSTarget)
                 {
-                    for (int idx = 0; idx < mesh.blendShapeCount; idx++)
+                    SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
+                    var mesh = srender.sharedMesh;
+                    if (mesh && mesh.blendShapeCount > 0)
                     {
-                        string name = mesh.GetBlendShapeName(idx);
+                        for (int idx = 0; idx < mesh.blendShapeCount; idx++)
+                        {
+                            string name = mesh.GetBlendShapeName(idx);
 
-                         if (name.Contains("_close"))
-                        {
-                            if (!name.Contains("_close_L") && !name.Contains("_close_R")) {
-                                if (name.Contains("head."))
-                                    realHumanData.eye_close_idx_in_head_of_mouthctrl = idx;
-                                else if (name.Contains("namida."))
-                                    realHumanData.eye_close_idx_in_namida_of_mouthctrl = idx;
+                            if (name.Contains("_close"))
+                            {
+                                if (!name.Contains("_close_L") && !name.Contains("_close_R"))
+                                {
+                                    if (name.Contains("head."))
+                                        realHumanData.eye_close_idx_in_head_of_mouthctrl = idx;
+                                    else if (name.Contains("namida."))
+                                        realHumanData.eye_close_idx_in_namida_of_mouthctrl = idx;
+                                }
                             }
-                        }
-                        else if (name.Contains("_wink_R"))
-                        {
-                            if (name.Contains("head."))
-                                realHumanData.eye_wink_idx_in_head_of_mouthctrl = idx;
-                            else if (name.Contains("namida."))
-                                realHumanData.eye_wink_idx_in_namida_of_mouthctrl = idx;
+                            else if (name.Contains("_wink_R"))
+                            {
+                                if (name.Contains("head."))
+                                    realHumanData.eye_wink_idx_in_head_of_mouthctrl = idx;
+                                else if (name.Contains("namida."))
+                                    realHumanData.eye_wink_idx_in_namida_of_mouthctrl = idx;
+                            }
                         }
                     }
                 }
-            }
+            }           
         }
 #endif 
 
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
-        internal void SetBodyBlendShapes(ChaControl chaCtrl, RealHumanData realHumanData)
+        internal void SetBodyBlendShapes()
         {
-            SkinnedMeshRenderer[] bodyRenderers = chaCtrl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
-            foreach (SkinnedMeshRenderer render in bodyRenderers.ToList()) {
-                var mesh = render.sharedMesh;      
-                for(int idx=0; idx < mesh.blendShapeCount; idx++)
+            if (realHumanData != null)
+            {
+                SkinnedMeshRenderer[] bodyRenderers = realHumanData.charControl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
+                foreach (SkinnedMeshRenderer render in bodyRenderers.ToList())
                 {
-                    string name = mesh.GetBlendShapeName(idx);
+                    var mesh = render.sharedMesh;
+                    for (int idx = 0; idx < mesh.blendShapeCount; idx++)
+                    {
+                        string name = mesh.GetBlendShapeName(idx);
 
-                    if (name.Contains("Legs Pull BothSide")) {
-                        realHumanData.fulleg_idx_in_body = idx;
+                        if (name.Contains("Legs Pull BothSide"))
+                        {
+                            realHumanData.fulleg_idx_in_body = idx;
+                        }
+                        else if (name.Contains("open Buttcheeks1"))
+                        {
+                            realHumanData.buttchecks1_idx_in_body = idx;
+                        }
+                        else if (name.Contains("open Buttcheeks2"))
+                        {
+                            realHumanData.buttchecks2_idx_in_body = idx;
+                        }
+                        else if (name.Contains("GP.Anus Open Large"))
+                        {
+                            realHumanData.anus_open_idx_in_body = idx;
+                        }
+                        else if (name.Contains("GP.Vagina Open All Inside"))
+                        {
+                            realHumanData.vagina_open_inside_idx_in_body = idx;
+                        }
+                        else if (name.Contains("GP.Vagina Open All Outside"))
+                        {
+                            realHumanData.vagina_open_outside_idx_in_body = idx;
+                        }
+                        else if (name.Contains("RG.Thigh Left Bent"))
+                        {
+                            realHumanData.thigh_left_bent_idx_in_body = idx;
+                        }
+                        else if (name.Contains("RG.Thigh Right Bent"))
+                        {
+                            realHumanData.thigh_right_bent_idx_in_body = idx;
+                        }
+                        else if (name.Contains("RG.Pubis Left Bent"))
+                        {
+                            realHumanData.pubis_left_bent_idx_in_body = idx;
+                        }
+                        else if (name.Contains("RG.Pubis Right Bent"))
+                        {
+                            realHumanData.pubis_right_bent_idx_in_body = idx;
+                        }
+
+                        // UnityEngine.Debug.Log($">> blendShape {name}, {idx} in body"); 
                     }
-                    else if (name.Contains("open Buttcheeks1")) {
-                        realHumanData.buttchecks1_idx_in_body = idx;
-                    }
-                    else if (name.Contains("open Buttcheeks2")) {
-                        realHumanData.buttchecks2_idx_in_body = idx;
-                    }
-                    else if (name.Contains("GP.Anus Open Large")) {
-                        realHumanData.anus_open_idx_in_body = idx;
-                    }
-                    else if (name.Contains("GP.Vagina Open All Inside")) {
-                        realHumanData.vagina_open_inside_idx_in_body = idx;
-                    }
-                    else if (name.Contains("GP.Vagina Open All Outside")) {
-                        realHumanData.vagina_open_outside_idx_in_body = idx;
-                    }
-                    else if (name.Contains("RG.Thigh Left Bent")) {
-                        realHumanData.thigh_left_bent_idx_in_body = idx;
-                    }
-                    else if (name.Contains("RG.Thigh Right Bent")) {
-                        realHumanData.thigh_right_bent_idx_in_body = idx;
-                    }
-                    else if (name.Contains("RG.Pubis Left Bent")) {
-                        realHumanData.pubis_left_bent_idx_in_body = idx;
-                    }
-                    else if (name.Contains("RG.Pubis Right Bent")) {
-                        realHumanData.pubis_right_bent_idx_in_body = idx;
-                    }                                                            
-                    
-                    // UnityEngine.Debug.Log($">> blendShape {name}, {idx} in body"); 
                 }
-            }                    
+            }                       
         }
 #endif
-    // >> blendShape GP.Basic Shape Legs Pull BothSide, 20 in body
-    // >> blendShape GP.Siri open Buttcheeks1, 221 in body
-    // >> blendShape GP.Siri open Buttcheeks2, 222 in body
 
 #if FEATURE_TEARDROP_SUPPORT
-        internal void SetTearDrops(ChaControl chaCtrl, RealHumanData realHumanData) {
-            string bone_prefix_str = "cf_";
-            if(chaCtrl.sex == 0)
-                bone_prefix_str = "cm_";
+        internal void SetTearDrops() {
+            if (realHumanData != null)
+            {
+                string bone_prefix_str = "cf_";
+                if (realHumanData.charControl.sex == 0)
+                    bone_prefix_str = "cm_";
 
-            realHumanData.nose_wing_l_tr = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_NoseWing_tx_L");
-            realHumanData.nose_wing_r_tr = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_NoseWing_tx_R");
-            if (realHumanData.nose_wing_l_tr != null) {
-                realHumanData.noseBaseScale = new Vector3(1.0f, 1.0f, 1.0f);
-                realHumanData.noseScaleInitialized = true;      
+                realHumanData.nose_wing_l_tr = realHumanData.charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_NoseWing_tx_L");
+                realHumanData.nose_wing_r_tr = realHumanData.charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_NoseWing_tx_R");
+                if (realHumanData.nose_wing_l_tr != null)
+                {
+                    realHumanData.noseBaseScale = new Vector3(1.0f, 1.0f, 1.0f);
+                    realHumanData.noseScaleInitialized = true;
+                }
             }
         }        
 
@@ -998,10 +1018,7 @@ namespace RealHumanSupport
         }          
 #endif
 
-        internal void SetHairDown(ChaControl chaCtrl, RealHumanData realHumanData) {
-            // string bone_prefix_str = "cf_";
-            // if(chaCtrl.sex == 0)
-            //     bone_prefix_str = "cm_";
+        internal void SetHairDown() {
 
             if (realHumanData != null && realHumanData.root_bone != null)
             {
@@ -1226,16 +1243,16 @@ namespace RealHumanSupport
                     }                    
                 }
 #if FEATURE_FACE_BLENDSHAPE_SUPPORT
-                SetFaceBlendShapes(chaCtrl, realHumanData);
+                SetFaceBlendShapes();
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
-                SetBodyBlendShapes(chaCtrl, realHumanData);
+                SetBodyBlendShapes();
 #endif
 
 #if FEATURE_TEARDROP_SUPPORT
-                SetTearDrops(chaCtrl, realHumanData);
+                SetTearDrops();
 #endif
-                SetHairDown(chaCtrl, realHumanData); 
+                SetHairDown(); 
                 // hair dynamic bone 연결 대상 finger collider 생성
                 List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();       
 
