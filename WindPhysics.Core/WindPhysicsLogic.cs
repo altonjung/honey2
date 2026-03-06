@@ -12,6 +12,7 @@ using UILib;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using System.Net.Http.Headers;
 
 #if AISHOUJO || HONEYSELECT2
 using CharaUtils;
@@ -19,32 +20,23 @@ using ExtensibleSaveFormat;
 using AIChara;
 using System.Security.Cryptography;
 using KKAPI.Studio;
+using KKAPI.Maker;
+using KKAPI;
+using KKAPI.Chara;
 using IllusionUtility.GetUtility;
 #endif
 
 
 namespace WindPhysics
 {
-    public class Logic
+    public class WindPhysicsController: CharaCustomFunctionController
     {  
-        internal static WindData CreateWindData(ObjectCtrlInfo objCtrlInfo)
+        internal WindData windData;
+
+        protected override void OnCardBeingSaved(GameMode currentGameMode) { }
+
+        internal WindData GetWindData()
         {
-            OCIChar ociChar = objCtrlInfo as OCIChar;
-
-            WindData windData = new WindData();
-            windData.objectCtrlInfo = objCtrlInfo;
-
-            if (ociChar != null)
-            {
-                string bone_prefix_str = "cf_";
-                if (ociChar.GetChaControl().sex == 0)
-                    bone_prefix_str = "cm_";
-
-                windData.root_bone = ociChar.GetChaControl().objAnim.transform.FindLoop(bone_prefix_str+"J_Root");
-                windData.head_bone = ociChar.GetChaControl().objAnim.transform.FindLoop(bone_prefix_str+"J_Head");
-                windData.neck_bone = ociChar.GetChaControl().objAnim.transform.FindLoop(bone_prefix_str+"J_Neck"); 
-            }
-
             return windData;
         }
 
@@ -63,107 +55,67 @@ namespace WindPhysics
             return selectedObjCtrlInfos;
         }
 
-        internal static IEnumerator ExecuteDynamicBoneAfterFrame(WindData windData)
+        
+        internal void UpdateDynamicBones()
         {
-            int frameCount = 15;
-            for (int i = 0; i < frameCount; i++)
-                yield return null;
-
-            ReallocateDynamicBones(windData);
-        }
-
-
-        internal static void ReallocateDynamicBones(WindData windData)
-        {
-            windData.wind_status = WindPhysics.ConfigKeyEnableWind.Value ? Status.RUN : Status.STOP;
-
-            // UnityEngine.Debug.Log($">> windData.objectCtrlInfo  {windData.objectCtrlInfo} in ReallocateDynamicBones");
-
-            if (windData.objectCtrlInfo != null)
+            // 새로 자원 할당
+            if (windData.chaCtrl != null)
             {
-                OCIChar ociChar = windData.objectCtrlInfo as OCIChar;
+                windData.wind_status = Status.RUN;
+                // Hair
+                string bone_prefix_str = "cf_";
+                if (windData.chaCtrl.sex == 0)
+                    bone_prefix_str = "cm_";                
 
-                if (ociChar != null) {
-                    ChaControl baseCharControl = ociChar.charInfo;
+                DynamicBone[] bones = windData.chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Head").GetComponentsInChildren<DynamicBone>(true);
+                windData.hairDynamicBones = bones.ToList();
 
-                    // 신규 자원 할당
-                    // Hair
-                    DynamicBone[] bones = baseCharControl.objBodyBone.transform.FindLoop("cf_J_Head").GetComponentsInChildren<DynamicBone>(true);
-                    windData.hairDynamicBones = bones.ToList();
-
-                    // Accesories
-                    foreach (var accessory in baseCharControl.objAccessory)
+                // Accesories
+                foreach (var accessory in windData.chaCtrl.objAccessory)
+                {
+                    if (accessory != null && accessory.GetComponentsInChildren<DynamicBone>().Length > 0)
                     {
-                        if (accessory != null && accessory.GetComponentsInChildren<DynamicBone>().Length > 0)
-                        {
-                            windData.accesoriesDynamicBones.Add(accessory.GetComponentsInChildren<DynamicBone>()[0]);
-                        }
+                        windData.accesoriesDynamicBones.Add(accessory.GetComponentsInChildren<DynamicBone>()[0]);
                     }
-
-                    // Cloth
-                    Cloth[] clothes = baseCharControl.transform.GetComponentsInChildren<Cloth>(true);
-
-                    windData.clothes = clothes.ToList();
-                    windData.cloth_status = windData.clothes.Count > 0 ? Cloth_Status.PHYSICS : Cloth_Status.EMPTY;
                 }
-                
-#if FEATURE_ITEM_SUPPORT
-                OCIItem ociItem = windData.objectCtrlInfo as OCIItem;
-                
-                if (ociItem != null) {                    
-                    DynamicBone[] bones = ociItem.guideObject.transformTarget.gameObject.GetComponentsInChildren<DynamicBone>(true);
-                    Cloth[] clothes = ociItem.guideObject.transformTarget.gameObject.GetComponentsInChildren<Cloth>(true);
 
-                    windData.accesoriesDynamicBones = bones.ToList();
-                    windData.clothes = clothes.ToList();
-                }
-#endif
+                // Cloth
+                Cloth[] clothes = windData.chaCtrl.transform.GetComponentsInChildren<Cloth>(true);
+
+                windData.clothes = clothes.ToList();
 
                 if (windData.clothes.Count != 0 || windData.hairDynamicBones.Count != 0 || windData.accesoriesDynamicBones.Count != 0)
                 {
-                      // Coroutine
-                    if (ociChar != null) {
-                            windData.coroutine = WindPhysics.ConfigKeyEnableWind.Value ? ociChar.charInfo.StartCoroutine(WindPhysics._self.WindRoutine(windData)) : null;  
-                    }
-#if FEATURE_ITEM_SUPPORT
-                    if (ociItem != null) {
-                        windData.coroutine = WindPhysics.ConfigKeyEnableWind.Value ? ociItem.guideObject.StartCoroutine(WindPhysics._self.WindRoutine(windData)) : null; 
-                    }
-#endif
+                    // Coroutine
+                    windData.coroutine = windData.chaCtrl.StartCoroutine(WindRoutine());
                 }
 
-                // UnityEngine.Debug.Log($">> windData.accesoriesDynamicBones {windData.accesoriesDynamicBones.Count},  windData.clothes {windData.clothes.Count}");
-            }
+                // UnityEngine.Debug.Log($">> windData.clothes.Count {windData.clothes.Count}, windData.hairDynamicBones.Count {windData.hairDynamicBones.Count}");
+            } 
         }
 
-        internal static void TryAllocateObject(ObjectCtrlInfo curObjCtrlInfo) {
-            WindData windData = null;
-            //신규 등록
-            if (WindPhysics._self._ociObjectMgmt.TryGetValue(curObjCtrlInfo.GetHashCode(), out var windData1))
-            {
-                windData = windData1;
-            } else
-            {
-                windData = CreateWindData(curObjCtrlInfo);
-                WindPhysics._self._ociObjectMgmt.Add(curObjCtrlInfo.GetHashCode(), windData);
-            }
+        internal IEnumerator ExecuteWindEffectDelayed()
+        {
+            int frameCount = 30;
+            for (int i = 0; i < frameCount; i++)
+                yield return null;
 
-            windData.wind_status = Status.RUN;
-            OCIChar ociChar = curObjCtrlInfo as OCIChar;
-            OCIItem ociItem = curObjCtrlInfo as OCIItem;
+            UpdateDynamicBones();
+        }                    
 
-            if (ociChar != null) {
-                ociChar.GetChaControl().StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
-            }
+        internal void ExecuteWindEffect(ChaControl chaControl)
+        {
+            UnityEngine.Debug.Log($">> ExecuteWindEffect {chaControl}");
 
-            // UnityEngine.Debug.Log($">> ociItem {ociItem} in TryAllocateObject");
-
-#if FEATURE_ITEM_SUPPORT
-            if (ociItem != null) {
-                ociItem.guideObject.StartCoroutine(ExecuteDynamicBoneAfterFrame(windData));
-            }
-#endif
+            if (chaControl != null) {
+                windData = InitWindData(chaControl);
+                if (WindPhysics.ConfigKeyEnableWind.Value) {
+                    windData.wind_status = Status.STOP; // 일단 기존 coroutine 종료
+                    chaControl.StartCoroutine(ExecuteWindEffectDelayed());
+                }
+            }            
         }
+
 
 #if FEATURE_FIX_LONGHAIR
         internal static PositionData GetBoneRotationFromTF(Transform t)
@@ -193,12 +145,12 @@ namespace WindPhysics
             return data;
         }
 
-        internal static float Remap(float value, float inMin, float inMax, float outMin, float outMax)
+        internal float Remap(float value, float inMin, float inMax, float outMin, float outMax)
         {
             return outMin + (value - inMin) * (outMax - outMin) / (inMax - inMin);
         }
 
-        internal static float GetRelativePosition(float a, float b)
+        internal float GetRelativePosition(float a, float b)
         {
             bool sameSign = (a >= 0 && b >= 0) || (a < 0 && b < 0);
 
@@ -208,147 +160,332 @@ namespace WindPhysics
                 return Math.Abs(Math.Abs(a) + Math.Abs(b)); // 부호 다름: 절댓값 더하기
         }
 
-        internal static void SetHairDown(ChaControl chaCtrl, WindData windData) {
+        internal void StopWindEffect() {
+            if (windData != null) {
+                windData.wind_status = Status.STOP;
+            }            
+        }
+#endif
+
+        internal void SetHairDown()
+        {
 
             // 월드 기준 방향
             Vector3 worldGravity = Vector3.down * 0.02f;
             Vector3 worldForce = new Vector3(0, -0.03f, -0.01f);
-                        
-            foreach (DynamicBone bone in windData.hairDynamicBones)
+            if (windData != null)
             {
+                foreach (DynamicBone bone in windData.hairDynamicBones)
+                {
+                    if (bone == null)
+                        continue;
+
+                    bone.m_Gravity = windData.head_bone.transform.InverseTransformDirection(worldGravity);
+                    bone.m_Force = windData.head_bone.transform.InverseTransformDirection(worldForce);
+                    bone.m_Damping = 0.13f;
+                    bone.m_Elasticity = 0.05f;
+                    bone.m_Stiffness = 0.26f;
+                }
+            }
+        }
+
+        internal WindData InitWindData(ChaControl chaCtrl)
+        {
+            if (chaCtrl != null)
+            {
+                if (windData == null) {            
+                    windData = new WindData();
+
+                    windData.chaCtrl = chaCtrl;
+                    string bone_prefix_str = "cf_";
+                    if (chaCtrl.sex == 0)
+                        bone_prefix_str = "cm_";
+
+                    windData.root_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Root");
+                    windData.head_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Head");
+                    windData.neck_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Neck");                 
+                }
+            }
+
+            return windData;
+        }
+
+        void ApplyWind(Vector3 windEffect, float factor, WindData windData)
+        {
+            float time = Time.time;
+
+            // Scale by current wind energy once to avoid repeated multiplies in loops.
+            windEffect *= factor;
+
+            // PERF: cache frequently used settings once per call.
+            bool gravityUp = WindPhysics.Gravity.Value >= 0f;
+            float gravity = WindPhysics.Gravity.Value;
+            float windForce = WindPhysics.WindForce.Value;
+            float windUpForce = WindPhysics.WindUpForce.Value;
+
+            float hairElastic = WindPhysics.HairElastic.Value;
+            float hairForce = WindPhysics.HairForce.Value;
+
+            float accessoriesElastic = WindPhysics.AccesoriesElastic.Value;
+            float accessoriesForce = WindPhysics.AccesoriesForce.Value;
+
+            float clothDamping = WindPhysics.ClothDamping.Value;
+            float clothStiffness = WindPhysics.ClothStiffness.Value;
+            float clothForce = WindPhysics.ClotheForce.Value;
+
+            // PERF: evaluate waves once per update instead of per element.
+            float windWave = Mathf.Max(Mathf.Sin(time * WindPhysics.WindAmplitude.Value), 0f);
+            float upWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(windWave, 0f));
+            float downWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(-windWave, 0f));
+
+            Vector3 hairFinalWind = windEffect * windForce * hairForce;
+            hairFinalWind.y += windWave * windUpForce * factor;
+
+            Vector3 accessoriesFinalWind = windEffect * windForce * accessoriesForce;
+            accessoriesFinalWind.y += windWave * windUpForce * factor;
+
+            Vector3 baseWind = windEffect.sqrMagnitude > 0f ? windEffect.normalized : Vector3.zero;
+            Vector3 externalWind = baseWind * windForce * clothForce;
+            float noise = (Mathf.PerlinNoise(time * 0.8f, 0f) - 0.5f) * 2f;
+
+            // Tuned multipliers for stronger lift and reduced downward pull.
+            const float upBoost = 5.0f;
+            const float downReduce = 0.15f;
+
+            Vector3 randomWind =
+                baseWind * noise * windForce * clothForce +
+                Vector3.up * (upWave * windUpForce * upBoost - downWave * windUpForce * downReduce);
+
+            Vector3 clothExternalUp = Vector3.up * gravity;
+            Vector3 clothExternalDown = externalWind * 600f * factor;
+            Vector3 clothRandomUp = randomWind * 400f * factor;
+            Vector3 clothRandomDown = randomWind * 1600f * factor;
+
+            // Hair
+            var hairBones = windData.hairDynamicBones;
+            for (int i = 0; i < hairBones.Count; i++)
+            {
+                var hairBone = hairBones[i];
+                if (hairBone == null)
+                    continue;
+
+                // Add subtle left/right spread based on head position.
+                Transform hairBoneRoot = hairBone.m_Root != null ? hairBone.m_Root : hairBone.transform;
+                Transform headTr = windData.head_bone;                
+                float sideSign = 0f;
+                if (headTr != null)
+                {
+                    Vector3 toHairBoneRoot = hairBoneRoot.position - headTr.position;
+                    float side = Vector3.Dot(toHairBoneRoot, headTr.right); // head 기준 hairRoot 가 왼쪽인지/오른쪽인지 내적으로 판단
+                    sideSign = Mathf.Sign(side);
+                }
+
+                float sideAmount = hairFinalWind.magnitude * UnityEngine.Random.Range(0.001f, 0.5f);
+                Vector3 sideWind = headTr != null ? headTr.right * sideSign * sideAmount : Vector3.zero;
+
+                hairBone.m_Elasticity = hairElastic + UnityEngine.Random.Range(-0.2f, 0.2f);
+                hairBone.m_Force = hairFinalWind + sideWind;
+                hairBone.m_Gravity = new Vector3(0, gravityUp
+                ? UnityEngine.Random.Range(gravity, gravity + 0.02f)
+                : UnityEngine.Random.Range(gravity, gravity - 0.01f), 0f);
+            }
+
+            // Accessories
+            var accessoryBones = windData.accesoriesDynamicBones;
+            for (int i = 0; i < accessoryBones.Count; i++)
+            {
+                var bone = accessoryBones[i];
                 if (bone == null)
                     continue;
 
-                bone.m_Gravity = realHumanData.head_bone.transform.InverseTransformDirection(worldGravity);
-                bone.m_Force =  realHumanData.head_bone.transform.InverseTransformDirection(worldForce);
-                bone.m_Damping = 0.13f;
-                bone.m_Elasticity = 0.05f;
-                bone.m_Stiffness = 0.26f;
+                bone.m_Elasticity = accessoriesElastic + UnityEngine.Random.Range(-0.2f, 0.2f);
+                // bone.m_Stiffness = accessoriesStiffness;
+                bone.m_Force = accessoriesFinalWind;
+                bone.m_Gravity = new Vector3(0f, gravityUp
+                ? UnityEngine.Random.Range(gravity, gravity + 0.03f)
+                : UnityEngine.Random.Range(gravity, gravity - 0.03f), 0f);
             }
-        }
-#endif
 
-#if FEATURE_TIMELINE_SUPPORT
-        #region Timeline Compatibility
-        internal static class TimelineCompatibility
-        {
-            public static void Populate()
+            // Clothes
+            var clothes = windData.clothes;
+            for (int i = 0; i < clothes.Count; i++)
             {
-                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
-                    owner: WindPhysics.Name,
-                    id: "windEnable",
-                    name: "Enabled",
-                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
-                    {
-                        bool value = (bool)leftValue;
-                        if (WindPhysics.ConfigKeyEnableWind.Value != value) {
-                            WindPhysics.ConfigKeyEnableWind.Value = value;
-                        }
-                    },
-                    interpolateAfter: null,
-                    isCompatibleWithTarget: (oci) => true,
-                    getValue: (oci, parameter) => WindPhysics.ConfigKeyEnableWind.Value,
-                    readValueFromXml: (parameter, node) => node.ReadBool("value"),
-                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (bool)o),
-                    getParameter: GetParameter,
-                    readParameterFromXml: null,
-                    writeParameterToXml: null,
-                    checkIntegrity: CheckIntegrity
-                );
-                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
-                    owner: WindPhysics.Name,
-                    id: "windMove",
-                    name: "Direction",
-                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
-                    {
-                        float value = (float)leftValue;
-                        if (WindPhysics.WindDirection.Value != value)
-                            WindPhysics.WindDirection.Value = value;
-                    },
-                    interpolateAfter: null,
-                    isCompatibleWithTarget: (oci) => true,
-                    getValue: (oci, parameter) => WindPhysics.WindDirection.Value,
-                    readValueFromXml: (parameter, node) => node.ReadFloat("value"),
-                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (float)o),
-                    getParameter: GetParameter,
-                    readParameterFromXml: null,
-                    writeParameterToXml: null,
-                    checkIntegrity: CheckIntegrity
-                );
-                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
-                    owner: WindPhysics.Name,
-                    id: "windInterval",
-                    name: "Interval",
-                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
-                    {
-                        float value = (float)leftValue;
-                        if (WindPhysics.WindInterval.Value != value)
-                            WindPhysics.WindInterval.Value = value;
-                    },
-                    interpolateAfter: null,
-                    isCompatibleWithTarget: (oci) => true,
-                    getValue: (oci, parameter) => WindPhysics.WindInterval.Value,
-                    readValueFromXml: (parameter, node) => node.ReadFloat("value"),
-                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (float)o),
-                    getParameter: GetParameter,
-                    readParameterFromXml: null,
-                    writeParameterToXml: null,
-                    checkIntegrity: CheckIntegrity
-                );
-                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
-                    owner: WindPhysics.Name,
-                    id: "windForce",
-                    name: "Force",
-                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
-                    {
-                        float value = (float)leftValue;
-                        if (WindPhysics.WindForce.Value != value)
-                            WindPhysics.WindForce.Value = value;
-                    },
-                    interpolateAfter: null,
-                    isCompatibleWithTarget: (oci) => true,
-                    getValue: (oci, parameter) => WindPhysics.WindForce.Value,
-                    readValueFromXml: (parameter, node) => node.ReadFloat("value"),
-                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (float)o),
-                    getParameter: GetParameter,
-                    readParameterFromXml: null,
-                    writeParameterToXml: null,
-                    checkIntegrity: CheckIntegrity
-                );
+                var cloth = clothes[i];
+                if (cloth == null)
+                    continue;
+
+                cloth.worldAccelerationScale = 1.0f;
+                cloth.worldVelocityScale = 0.0f;
+
+                if (gravityUp)
+                {
+                    cloth.useGravity = false;
+                    cloth.externalAcceleration = clothExternalUp;
+                    cloth.randomAcceleration = clothRandomUp;
+                }
+                else
+                {
+                    cloth.useGravity = true;
+                    cloth.externalAcceleration = clothExternalDown;
+                    cloth.randomAcceleration = clothRandomDown;
+                }
+
+                // PERF: use cached values and avoid repeated property access.
+                cloth.damping = clothDamping;
+                cloth.stiffnessFrequency = clothStiffness;
             }
         }
 
-        private static bool CheckIntegrity(ObjectCtrlInfo oci, object parameter, object leftValue, object rightValue)
+        private IEnumerator FadeoutWindEffect_Cloth(
+            List<Cloth> clothes,
+            int settleFrames = 15,
+            float settleForce = 0.2f)
         {
-            return parameter != null;
+            if (clothes == null || clothes.Count == 0)
+                yield break;
+
+            // 1. Remove wind immediately and apply a small grounding force.
+            foreach (var cloth in clothes)
+            {
+                if (cloth == null) continue;
+
+                cloth.randomAcceleration = Vector3.zero;
+                cloth.externalAcceleration = Vector3.down * settleForce;
+            }
+
+            // 2. Wait several frames so the cloth can settle.
+            for (int i = 0; i < settleFrames; i++)
+                yield return null; // Ensure at least one LateUpdate pass.
+
+            // 3. Restore normal external acceleration.
+            foreach (var cloth in clothes)
+            {
+                if (cloth == null) continue;
+
+                cloth.externalAcceleration = Vector3.zero;
+            }
         }
 
-        private static object GetParameter(ObjectCtrlInfo oci)
+        private IEnumerator FadeoutWindEffect_DynamicBone(
+            List<DynamicBone> dynamicBones,
+            int settleFrames = 15,
+            float settleGravity = 0.2f)
         {
-            return oci;
+            if (dynamicBones == null || dynamicBones.Count == 0)
+                yield break;
+
+            // 1. Remove wind force and apply temporary downward gravity.
+            foreach (var bone in dynamicBones)
+            {
+                if (bone == null) continue;
+
+                bone.m_Force = Vector3.zero;
+                bone.m_Gravity = Vector3.down * settleGravity;
+            }
+
+            // 2. Wait several frames so bones stabilize.
+            for (int i = 0; i < settleFrames; i++)
+                yield return null; // Ensure at least one LateUpdate pass.
+
+            // 3. Restore default gravity state.
+            foreach (var bone in dynamicBones)
+            {
+                if (bone == null) continue;
+
+                bone.m_Gravity = Vector3.zero;
+            }
         }
-        #endregion
-#endif
 
-    }
+        internal void StopWindEffect()
+        {
+            if (windData != null && windData.coroutine != null)
+            {
+                windData.wind_status = Status.STOP;
+            }
+        }
 
-    enum Cloth_Status
-    {
-        PHYSICS,
-        EMPTY
+        internal IEnumerator WindRoutine()
+        {
+            while (true)
+            {
+                if (!WindPhysics._self._loaded)
+                {
+                    yield return null;
+                }
+
+                if (windData.wind_status == Status.RUN)
+                {
+                    // Gather Y-range data once per cycle.
+                    foreach (var bone in windData.hairDynamicBones)
+                    {
+                        if (bone == null)
+                            continue;
+
+                        float y = bone.m_Root.position.y;
+                        windData._minY = Mathf.Min(windData._minY, y);
+                        windData._maxY = Mathf.Max(windData._maxY, y);
+                    }
+
+                    Quaternion globalRotation = Quaternion.Euler(0f, WindPhysics.WindDirection.Value, 0f);
+
+                    // Add small directional variation for less repetitive motion.
+                    float angleY = UnityEngine.Random.Range(-15, 15); // Front/back offset.
+                    float angleX = UnityEngine.Random.Range(-7, 7);   // Left/right offset.
+                    Quaternion localRotation = Quaternion.Euler(angleX, angleY, 0f);
+
+                    Quaternion rotation = globalRotation * localRotation;
+                    Vector3 direction = rotation * Vector3.back;
+
+                    // Slightly randomize base wind strength.
+                    Vector3 windEffect = direction.normalized * UnityEngine.Random.Range(0.1f, 0.15f);
+
+                    ApplyWind(windEffect, 1.0f, windData);
+                    yield return new WaitForSeconds(0.2f);
+
+                    // Fade out naturally over half of the configured interval.
+                    float windInterval = WindPhysics.WindInterval.Value;
+                    float keepWindTime = windInterval * 0.5f;
+                    float fadeTime = keepWindTime;
+
+                    float t = 0f;
+                    while (t < fadeTime)
+                    {
+                        t += Time.deltaTime;
+                        float fadeFactor = Mathf.SmoothStep(1f, 0f, t / fadeTime); // Smoothly decrease.
+                        ApplyWind(windEffect, fadeFactor, windData);
+                        yield return null;
+                    }
+
+                    if (keepWindTime <= 0.3f)
+                        yield return null;
+                    else
+                        yield return new WaitForSeconds(windInterval - keepWindTime);
+                } 
+                else
+                {
+                    yield return StartCoroutine(FadeoutWindEffect_Cloth(windData.clothes));
+                    yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.hairDynamicBones));
+                    yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.accesoriesDynamicBones));
+                    windData.coroutine = null;
+                    SetHairDown();
+
+                    yield break;
+                }
+            }
+        }
+
     }
 
     enum Status
     {
         IDLE,
         RUN,
-        STOP,
-        REMOVE
+        STOP
     }
 
     class WindData
     {
-        public ObjectCtrlInfo objectCtrlInfo;
+        public ChaControl chaCtrl;
 
         public Coroutine coroutine;
         public List<Cloth> clothes = new List<Cloth>();        
@@ -365,7 +502,9 @@ namespace WindPhysics
 
         public Status wind_status = Status.IDLE;
 
-        public Cloth_Status cloth_status = Cloth_Status.EMPTY;
+        public float _minY = float.MaxValue;
+        public float _maxY = float.MinValue;
+
 
         public WindData()
         {

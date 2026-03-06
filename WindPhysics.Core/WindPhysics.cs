@@ -29,6 +29,10 @@ using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 using static Illusion.Utils;
 #endif
+using KKAPI.Studio;
+using KKAPI.Studio.UI.Toolbars;
+using KKAPI.Utilities;
+using KKAPI.Chara;
 
 namespace WindPhysics
 {
@@ -69,10 +73,8 @@ namespace WindPhysics
         internal static new ManualLogSource Logger;
         internal static WindPhysics _self;
 
-        internal static Dictionary<string, string> boneDict = new Dictionary<string, string>();
-
         private static string _assemblyLocation;
-        private bool _loaded = false;
+        internal bool _loaded = false;
 
         private static bool _ShowUI = false;
 
@@ -85,16 +87,13 @@ namespace WindPhysics
 
         private Rect _windowRect = new Rect(70, 10, 550, 10);
 
-        private float _minY = float.MaxValue;
-        private float _maxY = float.MinValue;
-
         private bool _previousConfigKeyEnableWind;
         private float _previousInterval;
 
         // 위치에 따른 바람 강도
         private AnimationCurve _heightToForceCurve = AnimationCurve.Linear(0f, 1f, 1f, 0.1f); // 위로 갈수록 약함
 
-        internal Dictionary<int, WindData> _ociObjectMgmt = new Dictionary<int, WindData>();
+        internal Dictionary<int, ChaControl> _selectChaMgmt = new Dictionary<int, ChaControl>();
 
         private Coroutine _CheckWindMgmtCoroutine;    
 
@@ -117,8 +116,6 @@ namespace WindPhysics
         internal static ConfigEntry<float> HairForce { get; private set; }
 
         internal static ConfigEntry<float> HairElastic { get; private set; }
-        // internal static ConfigEntry<float> HairDamping { get; private set; }
-        // internal static ConfigEntry<float> HairStiffness { get; private set; }
 
         internal static ConfigEntry<float> ClotheForce { get; private set; }
         internal static ConfigEntry<float> ClothDamping { get; private set; }
@@ -146,9 +143,9 @@ namespace WindPhysics
             // clothes
             ClotheForce = Config.Bind("Cloth", "Force", 1.0f, new ConfigDescription("cloth force", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            ClothDamping = Config.Bind("Cloth", "Damping", 0.3f, new ConfigDescription("cloth damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("cloth damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            ClothStiffness = Config.Bind("Cloth", "Stiffness", 2.0f, new ConfigDescription("wind stiffness", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            ClothStiffness = Config.Bind("Cloth", "Stiffness", 7.0f, new ConfigDescription("wind stiffness", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
             // hair
             HairForce = Config.Bind("Hair", "Force", 1.0f, new ConfigDescription("hair force", new AcceptableValueRange<float>(0.1f, 1.0f)));
@@ -186,13 +183,15 @@ namespace WindPhysics
                 false, this, val => _ShowUI = val);
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
 #endif
+            CharacterApi.RegisterExtraBehaviour<WindPhysicsController>(GUID);
+
             _CheckWindMgmtCoroutine = StartCoroutine(CheckWindMgmtRoutine());
 
             this.ExecuteDelayed2(() =>
             {
                 TimelineCompatibility.Init();
-                Logic.TimelineCompatibility.Populate();
-            }, 3);
+                TimelineCompatibilityWindPhysics.Populate();
+            }, 3);                
 
             Logger.LogMessage($"{Name} {Version}.. by unbreakable dreamer");
         }
@@ -226,8 +225,7 @@ namespace WindPhysics
             
             if (StudioAPI.InsideStudio)
                 this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Wind Physics" + Version);
-        }
-       
+        }       
 
         private void draw_seperate()
         {
@@ -286,12 +284,14 @@ namespace WindPhysics
 
             // Force
             GUILayout.BeginHorizontal();             
-            GUILayout.Label(new GUIContent("F", "Wind Force"), GUILayout.Width(20));
+            GUILayout.Label(new GUIContent("Force", "Wind Force"), GUILayout.Width(80));
             WindForce.Value = GUILayout.HorizontalSlider(WindForce.Value, 0.1f, 1.0f);
             GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.EndHorizontal();
 
             // Force up
-            GUILayout.Label(new GUIContent("FU", "Wind ForceUp"),  GUILayout.Width(20));
+            GUILayout.BeginHorizontal();              
+            GUILayout.Label(new GUIContent("Force Up", "Wind ForceUp"),  GUILayout.Width(80));
             WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.0f, 0.5f);
             GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(40));
             GUILayout.EndHorizontal(); 
@@ -359,8 +359,14 @@ namespace WindPhysics
                 }   
             }
 
-            if (GUILayout.Button("Close"))
+            if(GUILayout.Button("Default"))
+            {
+                InitConfig();   
+            }
+
+            if (GUILayout.Button("Close")) {
                 _ShowUI = false;
+            }
             
             GUILayout.EndHorizontal();
 
@@ -387,435 +393,157 @@ namespace WindPhysics
             _loaded = true;
         }
 
-        private void MgmtInit()
+        private void InitConfig()
         {
-            foreach (var kvp in _ociObjectMgmt)
-            {
-                var key = kvp.Key;
-                WindData value = kvp.Value;
+            Gravity.Value = (float)Gravity.DefaultValue;
+            WindDirection.Value = (float)WindDirection.DefaultValue;
+            WindForce.Value = (float)WindForce.DefaultValue;
+            WindUpForce.Value = (float)WindUpForce.DefaultValue;            
+            WindInterval.Value = (float)WindInterval.DefaultValue;
+            WindAmplitude.Value = (float)WindAmplitude.DefaultValue;
 
-                value.clothes.Clear();
-                value.hairDynamicBones.Clear();
-                OCIChar ociChar = value.objectCtrlInfo as OCIChar;
+            ClotheForce.Value = (float)ClotheForce.DefaultValue;
+            ClothDamping.Value = (float)ClothDamping.DefaultValue;
+            ClothStiffness.Value = (float)ClothStiffness.DefaultValue;
 
-                if (ociChar != null)
-                {
-                    StopWindEffect(value);
-                }
-#if FEATURE_ITEM_SUPPORT
-                OCIItem ociItem = value.objectCtrlInfo as OCIItem;
-                if (ociItem != null)
-                {
-                    StopWindEffect(value);
-                }
-#endif
-            }
-            _ociObjectMgmt.Clear();
+            HairForce.Value = (float)HairForce.DefaultValue;
+            HairElastic.Value = (float)HairElastic.DefaultValue;
+
+            AccesoriesForce.Value = (float)AccesoriesForce.DefaultValue;
+            AccesoriesElastic.Value = (float)AccesoriesElastic.DefaultValue;
         }
 
-        // n 개 대상 아이템에 대해 active/inactive 동시 적용 처리 
+        private void MgmtInit()
+        {
+            foreach (var kvp in _selectChaMgmt)
+            {
+               var key = kvp.Key;
+               ChaControl chaCtrl = kvp.Value;
+
+                var controller = chaCtrl.GetComponent<WindPhysicsController>();
+                if (controller != null)
+                {    
+                    controller.StopWindEffect();
+                }
+            }
+
+            _selectChaMgmt.Clear();
+            _ShowUI = false;
+        }
+
         IEnumerator CheckWindMgmtRoutine()
         {
             while (true)
             {
                 if(_loaded && (_previousConfigKeyEnableWind != ConfigKeyEnableWind.Value || _previousInterval != WindInterval.Value))
                 {
-                    List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
-                    foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
+                    // 선택된 대상에 대해서만, 재처리
+                    foreach (var kvp in _selectChaMgmt)
                     {
-                        OCIChar ociChar = ctrlInfo as OCIChar;
-                        if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
-                        {                          
+                        var key = kvp.Key;
+                        ChaControl chaCtrl = kvp.Value;
+
+                        var controller = chaCtrl.GetComponent<WindPhysicsController>();
+                        if (controller != null)
+                        {    
                             if (ConfigKeyEnableWind.Value)
                             {
-                                OCIChar ociChar1 = windData.objectCtrlInfo as OCIChar;
-
-                                if (windData.coroutine == null)
-                                {                      
-                                    windData.wind_status = Status.RUN;
-                                    windData.coroutine = ociChar1.charInfo.StartCoroutine(WindRoutine(windData));
-                                }
-                            } 
-                            else
-                            {
-                                windData.wind_status = Status.STOP;
-#if FEATURE_FIX_LONGHAIR
-                                Logic.SetHairDown(ociChar1.GetChaControl(), windData);
-#endif
-                            }                            
-                        }
-#if FEATURE_ITEM_SUPPORT
-                        OCIItem ociItem = ctrlInfo as OCIItem;
-                        if (ociItem != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData1))
-                        {                          
-                            if (ConfigKeyEnableWind.Value)
-                            {
-                                OCIItem ociItem1 = windData1.objectCtrlInfo as OCIItem;
-
-                                if (windData1.wind_status == Status.RUN)
+                                WindData windData = controller.GetWindData();
+                                if (windData != null && windData.wind_status != Status.RUN)
                                 {
-                                    if (windData1.coroutine == null)
-                                    {                      
-                                        windData1.coroutine = ociItem.guideObject.StartCoroutine(WindRoutine(windData1));
-                                    }
+                                    controller.ExecuteWindEffect(chaCtrl);
                                 }
                             } else
                             {
-                                windData1.wind_status = Status.STOP;
-                            }                            
+                                controller.StopWindEffect();
+                                controller.SetHairDown();
+                            }
                         }
-#endif
-                    }                        
-
+                    }
+                
                     _previousInterval = WindInterval.Value;
                     _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value;          
                 } 
                 else
                 {
 #if FEATURE_FIX_LONGHAIR
-                    if (ConfigKeyEnableWind.Value) {
-                        List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
-                        foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
-                        {
-                            OCIChar ociChar = ctrlInfo as OCIChar;
-                            if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
-                            {    
-                                if (windData.head_bone != null && windData.hairDynamicBones.Count > 0)
-                                {
-                                    PositionData neckData = Logic.GetBoneRotationFromTF(windData.neck_bone);
-                                    PositionData headData = Logic.GetBoneRotationFromTF(windData.head_bone);
+                    // if (ConfigKeyEnableWind.Value) {
+                    //     List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
+                    //     foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
+                    //     {
+                    //         OCIChar ociChar = ctrlInfo as OCIChar;
+                    //         if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
+                    //         {    
+                    //             if (windData.head_bone != null && windData.hairDynamicBones.Count > 0)
+                    //             {
+                    //                 PositionData neckData = Logic.GetBoneRotationFromTF(windData.neck_bone);
+                    //                 PositionData headData = Logic.GetBoneRotationFromTF(windData.head_bone);
 
-                                    Vector3 worldGravity = Vector3.down * 0.02f;
-                                    Vector3 worldForce1 = Vector3.zero;          
-                                    Vector3 worldForce2 = Vector3.zero;   
-                                    Vector3 worldForce3 = Vector3.zero;   
+                    //                 Vector3 worldGravity = Vector3.down * 0.02f;
+                    //                 Vector3 worldForce1 = Vector3.zero;          
+                    //                 Vector3 worldForce2 = Vector3.zero;   
+                    //                 Vector3 worldForce3 = Vector3.zero;   
 
-                                    float zOffset = 0f;
-                                    float yOffset = 0f;
-                                    if (neckData._front >= 0f)
-                                    {   
-                                        // neck이 앞으로 숙인 유형                                                                        
-                                        float angle = Math.Abs(neckData._front);                                
-                                        yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.01f, 0.02f);
-                                        zOffset = yOffset;
-                                        worldForce1 = new Vector3(0, -yOffset, zOffset);
-                                    } else
-                                    {
-                                        // neck이 뒤로 숙인 유형                                                                        
-                                        float angle = Math.Abs(neckData._front);                                
-                                        yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.005f, 0.07f);
-                                        zOffset = yOffset;
-                                        worldForce1 = new Vector3(0, -yOffset, -zOffset);                                    
-                                    }
+                    //                 float zOffset = 0f;
+                    //                 float yOffset = 0f;
+                    //                 if (neckData._front >= 0f)
+                    //                 {   
+                    //                     // neck이 앞으로 숙인 유형                                                                        
+                    //                     float angle = Math.Abs(neckData._front);                                
+                    //                     yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.01f, 0.02f);
+                    //                     zOffset = yOffset;
+                    //                     worldForce1 = new Vector3(0, -yOffset, zOffset);
+                    //                 } else
+                    //                 {
+                    //                     // neck이 뒤로 숙인 유형                                                                        
+                    //                     float angle = Math.Abs(neckData._front);                                
+                    //                     yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.005f, 0.07f);
+                    //                     zOffset = yOffset;
+                    //                     worldForce1 = new Vector3(0, -yOffset, -zOffset);                                    
+                    //                 }
 
-                                    if (neckData._front < headData._front)
-                                    {
-                                        // head가 앞으로 숙인 유형                                                                        
-                                        float angle = Logic.GetRelativePosition(neckData._front, headData._front);                           
-                                        yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.01f, 0.03f);
-                                        zOffset = yOffset;
-                                        worldForce2 = new Vector3(0, -yOffset, zOffset);
-                                    } else
-                                    {
-                                        // head가 뒤로 숙인 유형   
-                                        float angle = Logic.GetRelativePosition(neckData._front, headData._front);
-                                        yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.005f, 0.035f);
-                                        zOffset = yOffset;
-                                        worldForce2 = new Vector3(0, -yOffset, -zOffset);                  
-                                    }
+                    //                 if (neckData._front < headData._front)
+                    //                 {
+                    //                     // head가 앞으로 숙인 유형                                                                        
+                    //                     float angle = Logic.GetRelativePosition(neckData._front, headData._front);                           
+                    //                     yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.01f, 0.03f);
+                    //                     zOffset = yOffset;
+                    //                     worldForce2 = new Vector3(0, -yOffset, zOffset);
+                    //                 } else
+                    //                 {
+                    //                     // head가 뒤로 숙인 유형   
+                    //                     float angle = Logic.GetRelativePosition(neckData._front, headData._front);
+                    //                     yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.005f, 0.035f);
+                    //                     zOffset = yOffset;
+                    //                     worldForce2 = new Vector3(0, -yOffset, -zOffset);                  
+                    //                 }
 
-                                    worldForce3 = worldForce1 + worldForce2;
+                    //                 worldForce3 = worldForce1 + worldForce2;
                                     
-                                    // hair 에 대해 world position 적용
-                                    foreach (DynamicBone hairDynamicBone in realHumanData1.hairDynamicBones)
-                                    {
-                                        if (hairDynamicBone == null)
-                                            continue;
+                    //                 // hair 에 대해 world position 적용
+                    //                 foreach (DynamicBone hairDynamicBone in realHumanData1.hairDynamicBones)
+                    //                 {
+                    //                     if (hairDynamicBone == null)
+                    //                         continue;
 
-                                        // DynamicBone 기준 로컬 변환
-                                        hairDynamicBone.m_Gravity =
-                                            realHumanData1.root_bone.InverseTransformDirection(worldGravity);
+                    //                     // DynamicBone 기준 로컬 변환
+                    //                     hairDynamicBone.m_Gravity =
+                    //                         realHumanData1.root_bone.InverseTransformDirection(worldGravity);
 
-                                        hairDynamicBone.m_Force =
-                                            realHumanData1.root_bone.InverseTransformDirection(worldForce3);
-                                    }                         
-                                }                     
-                            }
-                        }
-                    }
+                    //                     hairDynamicBone.m_Force =
+                    //                         realHumanData1.root_bone.InverseTransformDirection(worldForce3);
+                    //                 }                         
+                    //             }                     
+                    //         }
+                    //     }
+                    // }
 #endif
                 }
 
-                yield return new WaitForSeconds(0.5f); // 1.0초 대기
+                yield return new WaitForSeconds(0.3f); // 0.3초 대기
             }
         }
 
-        void ApplyWind(Vector3 windEffect, float factor, WindData windData)
-        {
-            float time = Time.time;
-
-            // Scale by current wind energy once to avoid repeated multiplies in loops.
-            windEffect *= factor;
-
-            // PERF: cache frequently used settings once per call.
-            bool gravityUp = Gravity.Value >= 0f;
-            float gravity = Gravity.Value;
-            float windForce = WindForce.Value;
-            float windUpForce = WindUpForce.Value;
-
-            float hairElastic = HairElastic.Value;
-            float hairForce = HairForce.Value;
-
-            float accessoriesElastic = AccesoriesElastic.Value;
-            float accessoriesForce = AccesoriesForce.Value;
-
-            float clothDamping = ClothDamping.Value;
-            float clothStiffness = ClothStiffness.Value;
-            float clothForce = ClotheForce.Value;
-
-            // PERF: evaluate waves once per update instead of per element.
-            float windWave = Mathf.Max(Mathf.Sin(time * WindAmplitude.Value), 0f);
-            float upWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(windWave, 0f));
-            float downWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(-windWave, 0f));
-
-            Vector3 hairFinalWind = windEffect * windForce * hairForce;
-            hairFinalWind.y += windWave * windUpForce * factor;
-
-            Vector3 accessoriesFinalWind = windEffect * windForce * accessoriesForce;
-            accessoriesFinalWind.y += windWave * windUpForce * factor;
-
-            Vector3 baseWind = windEffect.sqrMagnitude > 0f ? windEffect.normalized : Vector3.zero;
-            Vector3 externalWind = baseWind * windForce * clothForce;
-            float noise = (Mathf.PerlinNoise(time * 0.8f, 0f) - 0.5f) * 2f;
-
-            // Tuned multipliers for stronger lift and reduced downward pull.
-            const float upBoost = 5.0f;
-            const float downReduce = 0.15f;
-
-            Vector3 randomWind =
-                baseWind * noise * windForce * clothForce +
-                Vector3.up * (upWave * windUpForce * upBoost - downWave * windUpForce * downReduce);
-
-            Vector3 clothExternalUp = Vector3.up * gravity;
-            Vector3 clothExternalDown = externalWind * 600f * factor;
-            Vector3 clothRandomUp = randomWind * 400f * factor;
-            Vector3 clothRandomDown = randomWind * 1600f * factor;
-
-            // Hair
-            var hairBones = windData.hairDynamicBones;
-            for (int i = 0; i < hairBones.Count; i++)
-            {
-                var hairBone = hairBones[i];
-                if (hairBone == null)
-                    continue;
-
-                // Add subtle left/right spread based on head position.
-                Transform hairBoneRoot = hairBone.m_Root != null ? hairBone.m_Root : hairBone.transform;
-                Transform headTr = windData.head_bone;                
-                float sideSign = 0f;
-                if (headTr != null)
-                {
-                    Vector3 toHairBoneRoot = hairBoneRoot.position - headTr.position;
-                    float side = Vector3.Dot(toHairBoneRoot, headTr.right); // head 기준 hairRoot 가 왼쪽인지/오른쪽인지 내적으로 판단
-                    sideSign = Mathf.Sign(side);
-                }
-
-                float sideAmount = hairFinalWind.magnitude * UnityEngine.Random.Range(0.001f, 0.5f);
-                Vector3 sideWind = headTr != null ? headTr.right * sideSign * sideAmount : Vector3.zero;
-
-                hairBone.m_Elasticity = hairElastic + UnityEngine.Random.Range(-0.2f, 0.2f);
-                hairBone.m_Force = hairFinalWind + sideWind;
-                hairBone.m_Gravity = new Vector3(0, gravityUp
-                ? UnityEngine.Random.Range(gravity, gravity + 0.02f)
-                : UnityEngine.Random.Range(gravity, gravity - 0.01f), 0f);
-            }
-
-            // Accessories
-            var accessoryBones = windData.accesoriesDynamicBones;
-            for (int i = 0; i < accessoryBones.Count; i++)
-            {
-                var bone = accessoryBones[i];
-                if (bone == null)
-                    continue;
-
-                bone.m_Elasticity = accessoriesElastic + UnityEngine.Random.Range(-0.2f, 0.2f);
-                // bone.m_Stiffness = accessoriesStiffness;
-                bone.m_Force = accessoriesFinalWind;
-                bone.m_Gravity = new Vector3(0f, gravityUp
-                ? UnityEngine.Random.Range(gravity, gravity + 0.03f)
-                : UnityEngine.Random.Range(gravity, gravity - 0.03f), 0f);
-            }
-
-            // Clothes
-            var clothes = windData.clothes;
-            for (int i = 0; i < clothes.Count; i++)
-            {
-                var cloth = clothes[i];
-                if (cloth == null)
-                    continue;
-
-                cloth.worldAccelerationScale = 1.0f;
-                cloth.worldVelocityScale = 0.0f;
-
-                if (gravityUp)
-                {
-                    cloth.useGravity = false;
-                    cloth.externalAcceleration = clothExternalUp;
-                    cloth.randomAcceleration = clothRandomUp;
-                }
-                else
-                {
-                    cloth.useGravity = true;
-                    cloth.externalAcceleration = clothExternalDown;
-                    cloth.randomAcceleration = clothRandomDown;
-                }
-
-                // PERF: use cached values and avoid repeated property access.
-                cloth.damping = clothDamping;
-                cloth.stiffnessFrequency = clothStiffness;
-            }
-        }
-
-        private IEnumerator FadeoutWindEffect_Cloth(
-            List<Cloth> clothes,
-            int settleFrames = 15,
-            float settleForce = 0.2f)
-        {
-            if (clothes == null || clothes.Count == 0)
-                yield break;
-
-            // 1. Remove wind immediately and apply a small grounding force.
-            foreach (var cloth in clothes)
-            {
-                if (cloth == null) continue;
-
-                cloth.randomAcceleration = Vector3.zero;
-                cloth.externalAcceleration = Vector3.down * settleForce;
-            }
-
-            // 2. Wait several frames so the cloth can settle.
-            for (int i = 0; i < settleFrames; i++)
-                yield return null; // Ensure at least one LateUpdate pass.
-
-            // 3. Restore normal external acceleration.
-            foreach (var cloth in clothes)
-            {
-                if (cloth == null) continue;
-
-                cloth.externalAcceleration = Vector3.zero;
-            }
-        }
-
-        private IEnumerator FadeoutWindEffect_DynamicBone(
-            List<DynamicBone> dynamicBones,
-            int settleFrames = 15,
-            float settleGravity = 0.2f)
-        {
-            if (dynamicBones == null || dynamicBones.Count == 0)
-                yield break;
-
-            // 1. Remove wind force and apply temporary downward gravity.
-            foreach (var bone in dynamicBones)
-            {
-                if (bone == null) continue;
-
-                bone.m_Force = Vector3.zero;
-                bone.m_Gravity = Vector3.down * settleGravity;
-            }
-
-            // 2. Wait several frames so bones stabilize.
-            for (int i = 0; i < settleFrames; i++)
-                yield return null; // Ensure at least one LateUpdate pass.
-
-            // 3. Restore default gravity state.
-            foreach (var bone in dynamicBones)
-            {
-                if (bone == null) continue;
-
-                bone.m_Gravity = Vector3.zero;
-            }
-        }
-
-        internal void StopWindEffect(WindData windData)
-        {
-            if (windData.coroutine != null)
-            {
-                windData.wind_status = Status.STOP;
-            }
-        }
-
-        internal IEnumerator WindRoutine(WindData windData)
-        {
-            while (true)
-            {
-                if (!_loaded)
-                {
-                    yield return null;
-                }
-
-                if (windData.wind_status == Status.RUN)
-                {
-                    // Gather Y-range data once per cycle.
-                    foreach (var bone in windData.hairDynamicBones)
-                    {
-                        if (bone == null)
-                            continue;
-
-                        float y = bone.m_Root.position.y;
-                        _minY = Mathf.Min(_minY, y);
-                        _maxY = Mathf.Max(_maxY, y);
-                    }
-
-                    Quaternion globalRotation = Quaternion.Euler(0f, WindDirection.Value, 0f);
-
-                    // Add small directional variation for less repetitive motion.
-                    float angleY = UnityEngine.Random.Range(-15, 15); // Front/back offset.
-                    float angleX = UnityEngine.Random.Range(-7, 7);   // Left/right offset.
-                    Quaternion localRotation = Quaternion.Euler(angleX, angleY, 0f);
-
-                    Quaternion rotation = globalRotation * localRotation;
-                    Vector3 direction = rotation * Vector3.back;
-
-                    // Slightly randomize base wind strength.
-                    Vector3 windEffect = direction.normalized * UnityEngine.Random.Range(0.1f, 0.15f);
-
-                    ApplyWind(windEffect, 1.0f, windData);
-                    yield return new WaitForSeconds(0.2f);
-
-                    // Fade out naturally over half of the configured interval.
-                    float windInterval = WindInterval.Value;
-                    float keepWindTime = windInterval * 0.5f;
-                    float fadeTime = keepWindTime;
-
-                    float t = 0f;
-                    while (t < fadeTime)
-                    {
-                        t += Time.deltaTime;
-                        float fadeFactor = Mathf.SmoothStep(1f, 0f, t / fadeTime); // Smoothly decrease.
-                        ApplyWind(windEffect, fadeFactor, windData);
-                        yield return null;
-                    }
-
-                    if (keepWindTime <= 0.3f)
-                        yield return null;
-                    else
-                        yield return new WaitForSeconds(windInterval - keepWindTime);
-                } 
-                else
-                {
-                    yield return StartCoroutine(FadeoutWindEffect_Cloth(windData.clothes));
-                    yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.hairDynamicBones));
-                    yield return StartCoroutine(FadeoutWindEffect_DynamicBone(windData.accesoriesDynamicBones));
-                    windData.coroutine = null;
-
-                    if (windData.wind_status == Status.REMOVE) {
-                        _ociObjectMgmt.Remove(windData.objectCtrlInfo.GetHashCode());
-                    }
-
-                    yield break;
-                }
-            }
-        }
         #endregion
 
         #region Patches
@@ -825,50 +553,41 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
-                // UnityEngine.Debug.Log($">> OnSelectSingle");
 
                 ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
 
                 if (selectedCtrlInfo == null)
-                    return true;
+                   return true;
 
-                // 기존 다중 대상 중 선택되지 못한 대상은 모두 stop
-                foreach (var kvp in _self._ociObjectMgmt)
+                OCIChar ociChar =  selectedCtrlInfo as OCIChar;
+
+                if (ociChar != null)
                 {
-                    var key = kvp.Key;
-                    WindData value = kvp.Value;
+                    ChaControl chaCtrl = ociChar.GetChaControl();
 
-                    if (value.objectCtrlInfo != selectedCtrlInfo)
+                    if (_self._selectChaMgmt.TryGetValue(chaCtrl.GetHashCode(), out var chaCtrl1))
                     {
-                        value.wind_status = Status.STOP;
-                        // UnityEngine.Debug.Log($">> STOP {value.objectCtrlInfo}");
-                    }
-                }
-                
-                if (_self._ociObjectMgmt.TryGetValue(selectedCtrlInfo.GetHashCode(), out var windData))
-                {
-                    if (windData.coroutine == null)
-                    {
-                        OCIChar ociChar = selectedCtrlInfo as OCIChar;
-                        if (ociChar != null)
-                        {
-                            windData.wind_status = Status.RUN;
-                            windData.coroutine = ociChar.charInfo.StartCoroutine(_self.WindRoutine(windData));
-                        }
+                        var controller = chaCtrl1.GetComponent<WindPhysicsController>();
 
-#if FEATURE_ITEM_SUPPORT
-                        OCIItem ociItem = selectedCtrlInfo as OCIItem;
-                        if (ociItem != null)
+                        if (controller != null)
                         {
-                            windData.wind_status = Status.RUN;
-                            windData.coroutine = ociItem.guideObject.StartCoroutine(_self.WindRoutine(windData));
+                            WindData windData = controller.GetWindData();
+                            if (windData.wind_status != Status.RUN)
+                            {
+                                controller.ExecuteWindEffect(chaCtrl1);
+                            }
                         }
-#endif
-                    }
-                } else
-                {
-                    // 선택 대상 신규 등록
-                    Logic.TryAllocateObject(selectedCtrlInfo); 
+                    } 
+                    else
+                    {
+                        _self._selectChaMgmt.Add(chaCtrl.GetHashCode(), chaCtrl);
+                        var controller = chaCtrl.GetComponent<WindPhysicsController>();
+                     
+                        if (controller != null)
+                        {                  
+                            controller.ExecuteWindEffect(chaCtrl);
+                        }
+                    }                 
                 }
 
                 return true;
@@ -880,61 +599,45 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance)
             {
-                // UnityEngine.Debug.Log($">> OnSelectMultiple");
 
-                List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
-
-                // 기존 다중 대상 중 선택되지 못한 대상은 모두 stop
-                foreach (var kvp in _self._ociObjectMgmt)
+                foreach (TreeNodeObject node in Studio.Studio.instance.treeNodeCtrl.selectNodes)
                 {
-                    var key = kvp.Key;
-                    WindData value = kvp.Value;
-                    bool isSelected = false;
-                    foreach (ObjectCtrlInfo objCtrlInfo in selectedObjCtrlInfos)
+                    ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(node);
+
+                    if (selectedCtrlInfo == null)
+                        return true;
+
+                    OCIChar ociChar =  selectedCtrlInfo as OCIChar;
+
+                    if (ociChar != null)
                     {
-                        if (objCtrlInfo == value.objectCtrlInfo)
+                        ChaControl chaCtrl = ociChar.GetChaControl();
+
+                        if (_self._selectChaMgmt.TryGetValue(chaCtrl.GetHashCode(), out var chaCtrl1))
                         {
-                            isSelected = true;
-                            break;
-                        }
-                    }
+                            var controller = chaCtrl1.GetComponent<WindPhysicsController>();
 
-                    if (!isSelected)
-                    {
-                        value.wind_status = Status.STOP;
-                        // UnityEngine.Debug.Log($">> STOP {value.objectCtrlInfo}");
-                    }
-                }
-
-                // 선택된 대상에 대해 재활성화 혹은 신규 등록
-                foreach (ObjectCtrlInfo objCtrlInfo in selectedObjCtrlInfos)
-                {
-                    if (_self._ociObjectMgmt.TryGetValue(objCtrlInfo.GetHashCode(), out var windData))
-                    {
-                        if (windData.coroutine == null)
+                            if (controller != null)
+                            {
+                                WindData windData = controller.GetWindData();
+                                if (windData != null && windData.wind_status != Status.RUN)
+                                {
+                                    controller.ExecuteWindEffect(chaCtrl1);
+                                }
+                            }
+                        } 
+                        else
                         {
-                            OCIChar ociChar = objCtrlInfo as OCIChar;
-                            if (ociChar != null)
-                            {
-                                windData.wind_status = Status.RUN;
-                                windData.coroutine = ociChar.charInfo.StartCoroutine(_self.WindRoutine(windData));
+                            _self._selectChaMgmt.Add(chaCtrl.GetHashCode(), chaCtrl);
+                            var controller = chaCtrl.GetComponent<WindPhysicsController>();
+                        
+                            if (controller != null)
+                            {                  
+                                controller.ExecuteWindEffect(chaCtrl);
                             }
-
-#if FEATURE_ITEM_SUPPORT
-                            OCIItem ociItem = objCtrlInfo as OCIItem;
-                            if (ociItem != null)
-                            {
-                                windData.wind_status = Status.RUN;
-                                windData.coroutine = ociItem.guideObject.StartCoroutine(_self.WindRoutine(windData));
-                            }
-#endif
-                        }
-                    }
-                    else
-                    {
-                        Logic.TryAllocateObject(objCtrlInfo); 
-                    }
-                }
+                        }                 
+                    }                    
+                }            
 
                 return true;
             }
@@ -945,13 +648,23 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance, TreeNodeObject _node)
             {
-                // 기존 다중 대상 모두 Stop 
-                foreach (var kvp in _self._ociObjectMgmt)
+                // 선택된 대상 모두 Stop 
+                foreach (var kvp in _self._selectChaMgmt)
                 {
                     var key = kvp.Key;
-                    WindData value = kvp.Value;
-                    value.wind_status = Status.STOP;
+                    ChaControl chaCtrl = kvp.Value;
+
+                    if (chaCtrl != null)
+                    {                 
+                        var controller = chaCtrl.GetComponent<WindPhysicsController>();
+                        if (controller != null)
+                        {                  
+                            controller.StopWindEffect();
+                        }    
+                    }
                 }
+
+                _self._selectChaMgmt.Clear();
 
                 return true;
             }
@@ -967,10 +680,7 @@ namespace WindPhysics
                 if (unselectedCtrlInfo == null)
                     return true;
 
-                if (_self._ociObjectMgmt.TryGetValue(unselectedCtrlInfo.GetHashCode(), out var windData))
-                {
-                    windData.wind_status = Status.REMOVE;
-                }
+                _self._selectChaMgmt.Remove(unselectedCtrlInfo.GetHashCode());
 
                 return true;
             }
@@ -982,7 +692,18 @@ namespace WindPhysics
         {
             public static void Postfix(OCIChar __instance, string _path)
             {
-                Logic.TryAllocateObject(__instance);
+                ChaControl chaControl = __instance.GetChaControl();
+
+                if (chaControl != null)
+                {                 
+                    var controller = chaControl.GetComponent<WindPhysicsController>();
+                    if (controller != null)
+                    {                  
+                        WindData windData = controller.GetWindData();
+                        if (windData != null && windData.wind_status == Status.RUN)
+                            controller.ExecuteWindEffect(chaControl);
+                    }    
+                }
             }
         }
 
@@ -992,11 +713,16 @@ namespace WindPhysics
         {
             private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange = false, bool asyncFlags = true)
             {
-                OCIChar ociChar = __instance.GetOCIChar() as OCIChar;
-
-                if (ociChar != null)
-                {
-                    Logic.TryAllocateObject(ociChar);
+                ChaControl chaControl = __instance as ChaControl;
+                if (chaControl != null)
+                {                 
+                    var controller = chaControl.GetComponent<WindPhysicsController>();
+                    if (controller != null)
+                    {                  
+                        WindData windData = controller.GetWindData();
+                        if (windData != null && windData.wind_status == Status.RUN)
+                            controller.ExecuteWindEffect(chaControl);
+                    }    
                 }
             }
         }
@@ -1007,11 +733,16 @@ namespace WindPhysics
         {
             private static void Postfix(ChaControl __instance, int slotNo, int type, int id, string parentKey, bool forceChange, bool asyncFlags = true)
             {
-                OCIChar ociChar = __instance.GetOCIChar() as OCIChar;
-
-                if (ociChar != null)
-                {
-                    Logic.TryAllocateObject(ociChar);
+                ChaControl chaControl = __instance as ChaControl;
+                if (chaControl != null)
+                {                 
+                    var controller = chaControl.GetComponent<WindPhysicsController>();
+                    if (controller != null)
+                    {                  
+                        WindData windData = controller.GetWindData();
+                        if (windData != null && windData.wind_status == Status.RUN)
+                            controller.ExecuteWindEffect(chaControl);
+                    }    
                 }
             }
         }
@@ -1022,11 +753,16 @@ namespace WindPhysics
         {
             private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange = false, bool asyncFlags = true)
             {
-                OCIChar ociChar = __instance.GetOCIChar() as OCIChar;
-
-                if (ociChar != null)
-                {
-                    Logic.TryAllocateObject(ociChar);
+                ChaControl chaControl = __instance as ChaControl;
+                if (chaControl != null)
+                {                 
+                    var controller = chaControl.GetComponent<WindPhysicsController>();
+                    if (controller != null)
+                    {                  
+                        WindData windData = controller.GetWindData();
+                        if (windData != null && windData.wind_status == Status.RUN)
+                            controller.ExecuteWindEffect(chaControl);
+                    }    
                 }
             }
         }        
@@ -1037,11 +773,16 @@ namespace WindPhysics
         {
             public static void Postfix(ChaControl __instance, bool show)
             {
-                OCIChar ociChar = __instance.GetOCIChar() as OCIChar;
-
-                if (ociChar != null)
-                {
-                    Logic.TryAllocateObject(ociChar);
+                ChaControl chaControl = __instance as ChaControl;
+                if (chaControl != null)
+                {                 
+                    var controller = chaControl.GetComponent<WindPhysicsController>();
+                    if (controller != null)
+                    {                  
+                        WindData windData = controller.GetWindData();
+                        if (windData != null && windData.wind_status == Status.RUN)
+                            controller.ExecuteWindEffect(chaControl);
+                    }
                 }
             }
         }
@@ -1051,12 +792,127 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance, bool _close)
             {
-                // UnityEngine.Debug.Log($">> InitScene");
                 _self.MgmtInit();
                 return true;
             }
         }
 
         #endregion
-    }       
+
+#if FEATURE_TIMELINE_SUPPORT
+        #region Timeline Compatibility
+        internal static class TimelineCompatibilityWindPhysics
+        {
+            public static void Populate()
+            {
+                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
+                    owner: WindPhysics.Name,
+                    id: "windEnable",
+                    name: "Enabled",
+                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
+                    {
+                        bool value = (bool)leftValue;
+                        if (WindPhysics.ConfigKeyEnableWind.Value != value) {
+                            WindPhysics.ConfigKeyEnableWind.Value = value;
+
+                            if (value) {
+                                OCIChar ociChar =  oci as OCIChar;
+
+                                if (ociChar != null)
+                                {
+                                    var controller = ociChar.GetChaControl().GetComponent<WindPhysicsController>();
+                            
+                                    if (controller != null)
+                                    {                  
+                                        controller.ExecuteWindEffect(ociChar.GetChaControl());
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    interpolateAfter: null,
+                    isCompatibleWithTarget: (oci) => oci is OCIChar,
+                    getValue: (oci, parameter) => WindPhysics.ConfigKeyEnableWind.Value,
+                    readValueFromXml: (parameter, node) => node.ReadBool("value"),
+                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (bool)o),
+                    getParameter: GetParameter,
+                    readParameterFromXml: null,
+                    writeParameterToXml: null,
+                    checkIntegrity: CheckIntegrity
+                );
+                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
+                    owner: WindPhysics.Name,
+                    id: "windFlow",
+                    name: "Flow",
+                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
+                    {
+                        float value = (float)leftValue;
+                        if (WindPhysics.WindDirection.Value != value)
+                            WindPhysics.WindDirection.Value = value;
+                    },
+                    interpolateAfter: null,
+                    isCompatibleWithTarget: (oci) => oci is OCIChar,
+                    getValue: (oci, parameter) => WindPhysics.WindDirection.Value,
+                    readValueFromXml: (parameter, node) => node.ReadFloat("value"),
+                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (float)o),
+                    getParameter: GetParameter,
+                    readParameterFromXml: null,
+                    writeParameterToXml: null,
+                    checkIntegrity: CheckIntegrity
+                );
+                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
+                    owner: WindPhysics.Name,
+                    id: "windInterval",
+                    name: "Interval",
+                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
+                    {
+                        float value = (float)leftValue;
+                        if (WindPhysics.WindInterval.Value != value)
+                            WindPhysics.WindInterval.Value = value;
+                    },
+                    interpolateAfter: null,
+                    isCompatibleWithTarget: (oci) => oci is OCIChar,
+                    getValue: (oci, parameter) => WindPhysics.WindInterval.Value,
+                    readValueFromXml: (parameter, node) => node.ReadFloat("value"),
+                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (float)o),
+                    getParameter: GetParameter,
+                    readParameterFromXml: null,
+                    writeParameterToXml: null,
+                    checkIntegrity: CheckIntegrity
+                );
+                ToolBox.TimelineCompatibility.AddInterpolableModelDynamic(
+                    owner: WindPhysics.Name,
+                    id: "windForce",
+                    name: "Force",
+                    interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
+                    {
+                        float value = (float)leftValue;
+                        if (WindPhysics.WindForce.Value != value)
+                            WindPhysics.WindForce.Value = value;
+                    },
+                    interpolateAfter: null,
+                    isCompatibleWithTarget: (oci) => oci is OCIChar,
+                    getValue: (oci, parameter) => WindPhysics.WindForce.Value,
+                    readValueFromXml: (parameter, node) => node.ReadFloat("value"),
+                    writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (float)o),
+                    getParameter: GetParameter,
+                    readParameterFromXml: null,
+                    writeParameterToXml: null,
+                    checkIntegrity: CheckIntegrity
+                );
+            }
+        }
+
+        private static bool CheckIntegrity(ObjectCtrlInfo oci, object parameter, object leftValue, object rightValue)
+        {
+            return parameter != null;
+        }
+
+        private static object GetParameter(ObjectCtrlInfo oci)
+        {
+            return oci;
+        }
+        #endregion
+#endif        
+    }           
 }
