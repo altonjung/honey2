@@ -69,13 +69,13 @@ namespace RealHumanSupport
 #endif
     {
         #region Constants
-        public const string Name = "RealHumanSupport";
+        public const string Name = "RealGirlSupport";
         public const string Version = "0.9.1.0";
-        public const string GUID = "com.alton.illusionplugins.RealHuman";
+        public const string GUID = "com.alton.illusionplugins.RealGirl";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
-        private const string _extSaveKey = "RealHuman_support";
+        private const string _extSaveKey = "RealGirl_support";
 #endif
         #endregion
 
