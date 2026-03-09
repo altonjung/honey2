@@ -187,11 +187,13 @@ namespace WindPhysics
 
             _CheckWindMgmtCoroutine = StartCoroutine(CheckWindMgmtRoutine());
 
+#if FEATURE_TIMELINE_SUPPORT
             this.ExecuteDelayed2(() =>
             {
                 TimelineCompatibility.Init();
                 TimelineCompatibilityWindPhysics.Populate();
-            }, 3);                
+            }, 3);
+#endif
 
             Logger.LogMessage($"{Name} {Version}.. by unbreakable dreamer");
         }
@@ -381,7 +383,7 @@ namespace WindPhysics
         }
 #endif
         
-        #endregion
+#endregion
 
         #region Public Methods
 
@@ -913,6 +915,6 @@ namespace WindPhysics
             return oci;
         }
         #endregion
-#endif        
+#endif
     }           
 }
