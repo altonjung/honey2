@@ -426,6 +426,11 @@ namespace UndressPhysics
                     endCoroutineCnt++;
             }
 
+            if (endCoroutineCnt != _undressDataList.Count)
+            {
+                Logger.LogMessage("Wait until undress ends");
+            }
+
             if (Studio.Studio.Instance.treeNodeCtrl.selectNodes.Length != 0 && endCoroutineCnt == _undressDataList.Count)
             {
                 var nodes = Studio.Studio.Instance.treeNodeCtrl.selectNodes;
