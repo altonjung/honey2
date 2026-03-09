@@ -81,7 +81,11 @@ namespace UndressPhysics
 
         private Rect _windowRect = new Rect(70, 10, 400, 10);
 
-        internal const string CLOTH_COLLIDER_PREFIX = "Cloth colliders";
+        internal const string UNDRESS_COLLIDER_PREFIX = "UndressPhyics_Collider";
+        internal const string CLOTH_COLLIDER_PREFIX = "Cloth colliders support";
+        
+        internal static List<SphereColliderPair> _sphereColliders = new List < SphereColliderPair >();
+        internal static List<CapsuleColliderData> _capsuleColliders = new List<CapsuleColliderData>();
 
         private bool _loaded = false;
         private Status _status = Status.IDLE;
@@ -91,7 +95,8 @@ namespace UndressPhysics
 
         private AnimationCurve UndressCurve;
 
-        internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressShortcut { get; private set; }
+
+        internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressAllShortcut { get; private set; }
         internal static ConfigEntry<float> ClothUndressForce { get; private set; }
         internal static ConfigEntry<float> ClothDamping { get; private set; }
         internal static ConfigEntry<float> ClothStiffness { get; private set; }
@@ -123,7 +128,7 @@ namespace UndressPhysics
 
             ClothUndressDuration = Config.Bind("Option", "Duration", 15.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 60.0f)));
 
-            ConfigKeyDoUndressShortcut = Config.Bind("ShortKey", "Undress key", new KeyboardShortcut(KeyCode.LeftControl, KeyCode.U));
+            ConfigKeyDoUndressAllShortcut = Config.Bind("ShortKey", "Undress key", new KeyboardShortcut(KeyCode.LeftControl, KeyCode.U));
 
             PullCurve = new AnimationCurve(
                 new Keyframe(0f, 0f, 0f, 0.2f),   // 시작, 거의 평평하게
@@ -170,9 +175,9 @@ namespace UndressPhysics
             if (_loaded == false)
                 return;
 
-            if (ConfigKeyDoUndressShortcut.Value.IsDown())
+            if (ConfigKeyDoUndressAllShortcut.Value.IsDown())
             {   
-                DoUndress();
+                DoUndressAll();
             }
         }
 
@@ -235,7 +240,7 @@ namespace UndressPhysics
 
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Do Undress"))
-                DoUndress();
+                DoUndressAll();
 
             if (GUILayout.Button("Close"))
                 _ShowUI = false;
@@ -264,7 +269,7 @@ namespace UndressPhysics
             _loaded = true;
         }        
 
-         private IEnumerator Undress(
+         private IEnumerator UndressPartCoroutine(
             UndressData undressData,
             Cloth cloth,
             float duration)
@@ -386,18 +391,19 @@ namespace UndressPhysics
                 timer += Time.deltaTime;
                 yield return null;
             }
+
+            undressData.coroutine = null;
         }
 
         private IEnumerator DoUnressCoroutine(UndressData undressData, Cloth cloth)
         {
             // UnityEngine.Debug.Log($">> DoUnressCoroutine {cloth}");
-
             if (cloth != null)
             {
                 while (!_loaded)
                     yield return null;
 
-                yield return StartCoroutine(Undress(undressData, cloth, ClothUndressDuration.Value));         
+                yield return StartCoroutine(UndressPartCoroutine(undressData, cloth, ClothUndressDuration.Value));         
             }
 
             // 기본 spine collider
@@ -410,63 +416,103 @@ namespace UndressPhysics
             undressData.coroutine = null;
         }
 
-        private void DoUndress(){
-            OCIChar ociChar = null;
+        private void DoUndressAll(){
+            int endCoroutineCnt = 0;
+            
+            // 전체 coroutine 종료 개수 확인
             foreach (UndressData undressData in _undressDataList)
             {
-                ociChar = undressData.ociChar;
+                if (undressData.coroutine == null)
+                    endCoroutineCnt++;
             }
 
-            if (ociChar != null)
+            if (Studio.Studio.Instance.treeNodeCtrl.selectNodes.Length != 0 && endCoroutineCnt == _undressDataList.Count)
             {
-                Logic.ReallocateUndressDataList(_self, ociChar);
-                foreach (UndressData undressData in _undressDataList)
-                {
-                    if (undressData != null)
+                var nodes = Studio.Studio.Instance.treeNodeCtrl.selectNodes;
+
+                TreeNodeObject lastNode = nodes[nodes.Length - 1];
+
+                ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(lastNode);
+
+                OCIChar ociChar = objectCtrlInfo as OCIChar;
+
+                if (ociChar != null)
+                {   
+                    ChaControl chaCtrl = ociChar.GetChaControl();   
+                    
+                    InitUndress(chaCtrl);
+
+                    var clothTop = chaCtrl.objClothes[0];
+                    var clothBottom = chaCtrl.objClothes[1];
+
+                    if (clothTop != null) {
+                        Cloth[] clothes = clothTop.GetComponentsInChildren<Cloth>(true);
+
+                        AllocateUndressData(chaCtrl, clothes, true);
+                        Logic.AllocateClothColliders(chaCtrl, Logic.topManifestXml, "top", "999941520", clothes);
+                    }
+
+                    if (clothBottom != null) {
+                        Cloth[] clothes = clothBottom.GetComponentsInChildren<Cloth>(true);
+
+                        AllocateUndressData(chaCtrl, clothes, false);
+                        Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "999941521", clothes);
+                    }
+
+                    // undess 용 cloth collider 자동 할당
+                    foreach (UndressData undressData in _undressDataList)
                     {
-                        if (undressData.coroutine == null) {
-                            undressData.coroutine = StartCoroutine(DoUnressCoroutine(undressData, undressData.cloth));
+                        if (undressData != null)
+                        {
+                            if (undressData.coroutine == null) {
+                                undressData.coroutine = StartCoroutine(DoUnressCoroutine(undressData, undressData.cloth));
+                            }
                         }
                     }
+                }   
+            }         
+        }
+
+        private void InitUndress(ChaControl chaCtrl)
+        {
+            // 초기화
+            foreach(UndressData undressData in _undressDataList)
+            {
+                if (undressData.coroutine != null) {
+                    StopCoroutine(undressData.coroutine);
+                    Logic.RestoreMaxDistances(undressData);
                 }
-            }            
+            }
+
+            _undressDataList.Clear();
+            _sphereColliders.Clear();
+            _capsuleColliders.Clear();
+
+            Logic.RemoveUndressPhysicsColliders(chaCtrl.gameObject);
+        }
+
+        private void AllocateUndressData(ChaControl chaCtrl, Cloth[] clothes, bool isTop)
+        {   
+            if (chaCtrl != null)
+            {
+                foreach(Cloth cloth in clothes)
+                {
+                    UndressData undressData = Logic.GetUndressData(cloth, chaCtrl, isTop);
+                    _undressDataList.Add(undressData);
+                }
+            }
         }
 
         #endregion
 
-        #region Patches        
-
-        [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
-        internal static class WorkspaceCtrl_OnSelectSingle_Patches
-        {
-            private static bool Prefix(object __instance, TreeNodeObject _node)
-            {
-                ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-                OCIChar ociChar = objectCtrlInfo as OCIChar;
-
-                // 새로 할당
-                Logic.ReallocateUndressDataList(_self, ociChar);
-                
-                return true;
-            }
-        }
-
-        [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnDeselectSingle), typeof(TreeNodeObject))]
-        internal static class WorkspaceCtrl_OnDeselectSingle_Patches
-        {
-            private static bool Prefix(object __instance, TreeNodeObject _node)
-            {
-                Logic.RemoveUndressDataList(_self);
-                return true;
-            }
-        }
+        #region Patches
 
         [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
         private static class Studio_InitScene_Patches
         {
             private static bool Prefix(object __instance, bool _close)
             {
-                Logic.RemoveUndressDataList(_self);
+                // Logic.RemoveUndressDataList(_self);
                 return true;
             }
         }
