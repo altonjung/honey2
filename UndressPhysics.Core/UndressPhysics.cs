@@ -320,12 +320,12 @@ namespace UndressPhysics
 
             float endPull = 5.0f;
 
-            float topMaxDistance = 2f * ClothUndressForce.Value;
-            float midMaxDistance = 3f * ClothUndressForce.Value;
-            float bottomMaxDistance = 4f * ClothUndressForce.Value;
+            float topMaxDistance = 1.5f * ClothUndressForce.Value * 3f;
+            float midMaxDistance = 3.5f * ClothUndressForce.Value * 3f;
+            float bottomMaxDistance = 5f * ClothUndressForce.Value * 3f;
 
             float startRadius = undressData.IsTop ? 0.5f : 1.0f; // push down 용 collider 기본 크기 설정
-            var collider = undressData.collider;
+            var pivotCollider = undressData.collider;
 
             float timer = 0f;
 
@@ -336,8 +336,10 @@ namespace UndressPhysics
 
                 float t = timer / duration;
 
-                if (collider != null)
-                    collider.radius = Mathf.Lerp(startRadius, 1.5f, t);
+                if (pivotCollider != null) {
+                    pivotCollider.radius = Mathf.Lerp(startRadius, 2.0f, t);
+                    pivotCollider.height = pivotCollider.radius * 2.0f;
+                }
 
                 // 🔥 Pull도 곡선 적용
                 float pull = PullCurve.Evaluate(t) * endPull;
@@ -348,7 +350,7 @@ namespace UndressPhysics
                 for (int i = 0; i < vertCount; i++)
                 {
                     // 🔥 height 기반 지연
-                    float delay = normalizedY[i] * 0.2f; // 위쪽일수록 늦게
+                    float delay = normalizedY[i] * 0.3f; // 위쪽일수록 늦게
                     float localT = Mathf.Clamp01((t - delay) / (1f - delay));
 
                     // 🔥 AnimationCurve 적용
@@ -356,14 +358,14 @@ namespace UndressPhysics
 
                     float targetMaxDistance;
 
-                    if (normalizedY[i] > 0.80f)
+                    if (normalizedY[i] > 0.70f)
                     {
                         targetMaxDistance = Mathf.Lerp(
                             startDistances[i],
                             topMaxDistance,
                             curveT);
                     }
-                    else if (normalizedY[i] > 0.50f)
+                    else if (normalizedY[i] > 0.40f)
                     {
                         targetMaxDistance = Mathf.Lerp(
                             startDistances[i],
@@ -391,8 +393,6 @@ namespace UndressPhysics
                 timer += Time.deltaTime;
                 yield return null;
             }
-
-            undressData.coroutine = null;
         }
 
         private IEnumerator DoUnressCoroutine(UndressData undressData, Cloth cloth)
@@ -407,13 +407,28 @@ namespace UndressPhysics
             }
 
             // 기본 spine collider
-            if (undressData.collider)            
+            if (undressData.collider) {
                 if (undressData.IsTop)                
                     undressData.collider.radius = 0.3f;
                 else 
                     undressData.collider.radius = 0.5f;
+            }
+
             Logic.RestoreMaxDistances(undressData);
             undressData.coroutine = null;
+
+            int endCoroutineCnt = 0;
+            // 전체 coroutine 종료 개수 확인
+            foreach (UndressData item in _undressDataList)
+            {
+                if (item.coroutine == null)
+                    endCoroutineCnt++;
+            }
+
+            if (endCoroutineCnt == _undressDataList.Count)
+            {
+                Logger.LogMessage("undress done");
+            }
         }
 
         private void DoUndressAll(){

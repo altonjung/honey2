@@ -365,7 +365,7 @@ namespace UndressPhysics
             return collider;
         }
     
-        private static CapsuleCollider AddCapsuleSpineCollider(GameObject colliderObject, Transform bone, Vector3 position, float radius=1.2f, float height=2.0f, int direction=1)
+        private static CapsuleCollider AddExtraCapsuleCollider(GameObject colliderObject, Transform bone, Vector3 position, float radius=1.2f, float height=2.0f, int direction=1)
         {
             colliderObject.transform.SetParent(bone, false);
 
@@ -379,6 +379,18 @@ namespace UndressPhysics
             // 2 = Z 축
             return capsule;
         }
+
+        private static SphereCollider AddExtraSphereCollider(GameObject colliderObject, Transform bone, Vector3 position, float radius=1.2f)
+        {
+            colliderObject.transform.SetParent(bone, false);
+
+            var sphere = colliderObject.AddComponent<SphereCollider>();
+            sphere.center = position;
+            sphere.radius = radius;
+            return sphere;
+        }
+        
+
         internal static void RemoveUndressPhysicsColliders(GameObject bodyRoot)
         {
             var colliders = bodyRoot.GetComponentsInChildren<Collider>(true);
@@ -413,11 +425,9 @@ namespace UndressPhysics
             cloth.capsuleColliders = list.ToArray();
         }
 
-        private static CapsuleCollider CreateExtraClothCollider(ChaControl charControl, Cloth cloth, string name, float radius, float height, Vector3? position = null)
+        private static CapsuleCollider CreateExtraClothCollider(ChaControl charControl, Cloth cloth, string name, float radius, float height, int direction = 1)
         {
-            Vector3 pos = position ?? Vector3.zero;
-
-            CapsuleCollider spineCollider = null;
+            CapsuleCollider extraCollider = null;
 
             Transform root_bone = charControl.objBodyBone.transform.FindLoop(name);
 
@@ -430,11 +440,11 @@ namespace UndressPhysics
 
                 // spine collider
                 GameObject boneObj = new GameObject(UndressPhysics.UNDRESS_COLLIDER_PREFIX + name);
-                spineCollider = AddCapsuleSpineCollider(boneObj, root_bone, pos, radius, height);
-                UpdateExtraCapsuleCollider(cloth, spineCollider);
+                extraCollider = AddExtraCapsuleCollider(boneObj, root_bone, Vector3.zero, radius, height, direction);
+                UpdateExtraCapsuleCollider(cloth, extraCollider);
             }
 
-            return spineCollider;
+            return extraCollider;
         }
 
         internal static UndressData GetUndressData(Cloth cloth, ChaControl chaCtrl, bool isTop)
@@ -458,20 +468,13 @@ namespace UndressPhysics
             // top, down 확인 필요
             // ground
             if (undressData.IsTop) {
-                var newCollider1 = CreateExtraClothCollider(chaCtrl, undressData.cloth, "cf_J_Neck", 0.3f, 2.0f);
+                var newCollider1 = CreateExtraClothCollider(chaCtrl, undressData.cloth, "cf_J_Neck", 0.3f, 0.6f, 1);
                 // Cloth에 적용
                 undressData.collider = newCollider1;
-                var list = cloth.capsuleColliders?.ToList() ?? new List<CapsuleCollider>();
-                list.Add(newCollider1);
-                cloth.capsuleColliders = list.ToArray();
             } else {
-                var newCollider1 = CreateExtraClothCollider(chaCtrl, undressData.cloth, "cf_J_Spine01", 0.6f, 2.0f);
+                var newCollider1 = CreateExtraClothCollider(chaCtrl, undressData.cloth, "cf_J_Spine01", 0.6f, 1.2f);
                 var newCollider2 = CreateExtraClothCollider(chaCtrl, undressData.cloth, "cf_J_Kosi02", 0.8f, 3.0f);
                 undressData.collider = newCollider1;
-                var list = cloth.capsuleColliders?.ToList() ?? new List<CapsuleCollider>();
-                list.Add(newCollider1);
-                list.Add(newCollider2);
-                cloth.capsuleColliders = list.ToArray();
             }
             
             // 🔹 Cloth 기준 coefficients 저장
