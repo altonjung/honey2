@@ -41,13 +41,14 @@ namespace UndressPhysics
                     <CapsuleCollider boneName='cf_J_Spine03' radius='0.60' center='0.00, 0.40, 0.00' height='2.60' direction='0' />
                     <CapsuleCollider boneName='cf_J_Kosi01' radius='1.05' center='0.00, -0.15, -0.10' height='3.00' direction='1' />
                     <CapsuleCollider boneName='cf_J_Kosi02' radius='1.15' center='0.00, 0.00, -0.13' height='3.00' direction='1' />
+                    <CapsuleCollider boneName='cf_J_Neck' radius='0.3' center='0.00, 0.00, 0.00' height='0.60' direction='1' />
                 </cloth>
             </AI_ClothColliders>";
 
         internal const string bottomManifestXml = @"
             <AI_ClothColliders>
                 <cloth>
-                    <SphereColliderPair>
+                     <SphereColliderPair>
                         <first boneName='cf_J_LegUp01_s_L' radius='0.88' center='0.09, -0.04, 0.08' />
                         <second boneName='cf_J_LegKnee_low_s_L' radius='0.8' center='0.06, -0.30, -0.35' />
                     </SphereColliderPair>
@@ -128,7 +129,8 @@ namespace UndressPhysics
                         <first boneName='cf_J_LegLow03_s_R' radius='0.38' center='-0.07, -1.07, -0.10' />
                         <second boneName='cf_J_Foot02_R' radius='0.38' center='0.00, -0.32, 1.30' />
                     </SphereColliderPair>
-
+                    
+                    <CapsuleCollider boneName='cf_J_Spine01' radius='0.60' center='0.00, 0.00, 0.00' height='1.20' direction='1' />
                     <CapsuleCollider boneName='cf_N_height' radius='60.00' center='0.00, -60.00, 0.00' height='1.00' direction='1' />
                 </cloth>
             </AI_ClothColliders>";
@@ -139,12 +141,10 @@ namespace UndressPhysics
             var root = doc.Root;
             if (root == null) return;
 
-            var existing = GetExistingColliderNames(chaCtrl.transform);
-
             foreach (var cloth in root.Elements("cloth"))
             {
                 // 1️⃣ XML에서 이미 존재하는 collider 제거
-                FilterExistingColliders(cloth, existing);
+                // FilterExistingColliders(cloth, existing);
 
                 // 2️⃣ 남은 collider만 생성
                 foreach (var element in cloth.Elements())
@@ -167,56 +167,57 @@ namespace UndressPhysics
             UpdateClothColliders(chaCtrl, clothes);
         }
 
-        internal static HashSet<string> GetExistingColliderNames(Transform clothRoot)
+        internal static void BackupClothColliders(Cloth cloth)
         {
-            var set = new HashSet<string>();
+            if (UndressPhysics._clothColliderBackup.ContainsKey(cloth))
+                return;
 
-            var colliders = clothRoot.GetComponentsInChildren<Collider>(true);
-
-            foreach (var col in colliders)
+            UndressPhysics._clothColliderBackup[cloth] = new ClothColliderBackup
             {
-                if (col.name.StartsWith(UndressPhysics.CLOTH_COLLIDER_PREFIX))
-                    set.Add(col.name);
-            }
-
-            return set;
+                Sphere = cloth.sphereColliders,
+                Capsule = cloth.capsuleColliders
+            };
         }
-
-        internal static void FilterExistingColliders(XElement clothElement, HashSet<string> existing)
+        internal static void RestoreClothColliders(Cloth cloth)
         {
-
-            var nodes = clothElement.Elements().ToList();
-
-            foreach (var node in nodes)
+            if (UndressPhysics._clothColliderBackup.TryGetValue(cloth, out var backup))
             {
-                if (node.Name == "CapsuleCollider")
-                {
-                    var boneName = node.Attribute("boneName")?.Value;
-                    var colliderName = UndressPhysics.CLOTH_COLLIDER_PREFIX + "_" + boneName;
-
-                    if (existing.Contains(colliderName))
-                        node.Remove();
-                }
-                else if (node.Name == "SphereColliderPair")
-                {
-                    var first = node.Element("first");
-                    var second = node.Element("second");
-
-                    var bone1 = first?.Attribute("boneName")?.Value;
-                    var bone2 = second?.Attribute("boneName")?.Value;
-
-                    var name1 = UndressPhysics.CLOTH_COLLIDER_PREFIX + "_" + bone1;
-                    var name2 = UndressPhysics.CLOTH_COLLIDER_PREFIX + "_" + bone2;
-
-                    if (existing.Contains(name1) || existing.Contains(name2))
-                        node.Remove();
-                }
+                cloth.sphereColliders = backup.Sphere;
+                cloth.capsuleColliders = backup.Capsule;
             }
         }
 
-        internal static long GetDictKey(int clothPartId, int itemId)
+        internal static void ClearBackup()
         {
-            return ((long)clothPartId << sizeof(int) * 8) | (uint)itemId;
+            UndressPhysics._clothColliderBackup.Clear();
+        }
+
+        internal static void UpdateClothColliders(ChaControl chaCtrl, Cloth[] targets)
+        {
+            foreach (var target in targets)
+            {
+                BackupClothColliders(target);
+
+                var sphereResults = new List<ClothSphereColliderPair>();
+                var capsuleResults = new List<CapsuleCollider>();
+
+                foreach (var pair in UndressPhysics._sphereColliders)
+                {
+                    var c1 = AddSphereCollider(chaCtrl, pair.first);
+                    var c2 = AddSphereCollider(chaCtrl, pair.second);
+
+                    sphereResults.Add(new ClothSphereColliderPair(c1, c2));
+                }
+
+                foreach (var capsule in UndressPhysics._capsuleColliders)
+                {
+                    var collider = AddCapsuleCollider(chaCtrl, capsule);
+                    capsuleResults.Add(collider);
+                }
+
+                target.sphereColliders = sphereResults.ToArray();
+                target.capsuleColliders = capsuleResults.ToArray();
+            }
         }
 
         private static SphereColliderData GetSphereColliderData(XElement element, string uniqueId)
@@ -257,42 +258,6 @@ namespace UndressPhysics
                 float.Parse(parts[2], CultureInfo.InvariantCulture));
         }
 
-        private static void UpdateClothColliders(ChaControl chaCtrl, Cloth[] targets)
-        {
-            foreach (var target in targets)
-            {
-                // 기존 collider 복사
-                var sphereResults = new List<ClothSphereColliderPair>();
-                var capsuleResults = new List<CapsuleCollider>();
-
-                if (target.sphereColliders != null)
-                    sphereResults.AddRange(target.sphereColliders);
-
-                if (target.capsuleColliders != null)
-                    capsuleResults.AddRange(target.capsuleColliders);
-
-                // Sphere 추가
-                foreach (var pair in UndressPhysics._sphereColliders)
-                {
-                    var c1 = AddSphereCollider(chaCtrl, pair.first);
-                    var c2 = AddSphereCollider(chaCtrl, pair.second);
-
-                    sphereResults.Add(new ClothSphereColliderPair(c1, c2));
-                }
-
-                // Capsule 추가
-                foreach (var capsule in UndressPhysics._capsuleColliders)
-                {
-                    var collider = AddCapsuleCollider(chaCtrl, capsule);
-                    capsuleResults.Add(collider);
-                }
-
-                // 다시 적용
-                target.sphereColliders = sphereResults.ToArray();
-                target.capsuleColliders = capsuleResults.ToArray();
-            }
-        }
-
         private static SphereCollider AddSphereCollider(ChaControl chaCtrl, SphereColliderData sphereColliderData)
         {
             if (sphereColliderData == null)
@@ -306,7 +271,7 @@ namespace UndressPhysics
         private static SphereCollider AddSphereCollider(ChaControl chaCtrl, string boneName, string colliderName, float colliderRadius = 0.5f, Vector3 colliderCenter = new Vector3())
         {
             // todo find all bones and cache them for later finding to save time
-            var bone = chaCtrl.transform.FindLoop(boneName);
+            var bone = chaCtrl.objBodyBone.transform.FindLoop(boneName);
             if (bone == null)
                 return null;
 
@@ -327,20 +292,20 @@ namespace UndressPhysics
             return collider;
         }
 
-        private static CapsuleCollider AddCapsuleCollider(ChaControl chaCtrl, CapsuleColliderData sphereColliderData)
+        private static CapsuleCollider AddCapsuleCollider(ChaControl chaCtrl, CapsuleColliderData capsuleColliderData)
         {
-            if (sphereColliderData == null)
+            if (capsuleColliderData == null)
                 return null;
-            string colliderName = $"{UndressPhysics.UNDRESS_COLLIDER_PREFIX}_{sphereColliderData.BoneName}";
-            if (!sphereColliderData.ColliderNamePostfix.IsNullOrEmpty())
-                colliderName += $"_{sphereColliderData.ColliderNamePostfix}";
-            return AddCapsuleCollider(chaCtrl, sphereColliderData.BoneName, colliderName, sphereColliderData.ColliderRadius, sphereColliderData.CollierHeight, sphereColliderData.ColliderCenter, sphereColliderData.Direction);
+            string colliderName = $"{UndressPhysics.UNDRESS_COLLIDER_PREFIX}_{capsuleColliderData.BoneName}";
+            if (!capsuleColliderData.ColliderNamePostfix.IsNullOrEmpty())
+                colliderName += $"_{capsuleColliderData.ColliderNamePostfix}";
+            return AddCapsuleCollider(chaCtrl, capsuleColliderData.BoneName, colliderName, capsuleColliderData.ColliderRadius, capsuleColliderData.CollierHeight, capsuleColliderData.ColliderCenter, capsuleColliderData.Direction);
         }
 
-        private static CapsuleCollider AddCapsuleCollider(ChaControl chaCtrl, string boneName, string colliderName, float colliderRadius = 0.5f, float collierHeight = 0f, Vector3 colliderCenter = new Vector3(), int colliderDirection = 0)
+        private static CapsuleCollider AddCapsuleCollider(ChaControl chaCtrl, string rootBoneName, string colliderName, float colliderRadius = 0.5f, float collierHeight = 0f, Vector3 colliderCenter = new Vector3(), int colliderDirection = 0)
         {
             // todo find all bones and cache them for later finding to save time
-            var bone = chaCtrl.transform.FindLoop(boneName);
+            var bone = chaCtrl.objBodyBone.transform.FindLoop(rootBoneName);
             if (bone == null)
                 return null;
 
@@ -364,252 +329,68 @@ namespace UndressPhysics
 
             return collider;
         }
-    
-        private static CapsuleCollider AddExtraCapsuleCollider(GameObject colliderObject, Transform bone, Vector3 position, float radius=1.2f, float height=2.0f, int direction=1)
+
+        internal static UndressData CreateUndressData(Cloth cloth, ChaControl chaCtrl, bool isTop)
         {
-            colliderObject.transform.SetParent(bone, false);
-
-            var capsule = colliderObject.AddComponent<CapsuleCollider>();
-            capsule.center = position;
-            capsule.radius = radius;
-            capsule.height = height;
-            capsule.direction = direction;
-            // 0 = X 축
-            // 1 = Y 축
-            // 2 = Z 축
-            return capsule;
-        }
-
-        private static SphereCollider AddExtraSphereCollider(GameObject colliderObject, Transform bone, Vector3 position, float radius=1.2f)
-        {
-            colliderObject.transform.SetParent(bone, false);
-
-            var sphere = colliderObject.AddComponent<SphereCollider>();
-            sphere.center = position;
-            sphere.radius = radius;
-            return sphere;
-        }
-        
-
-        internal static void RemoveUndressPhysicsColliders(GameObject bodyRoot)
-        {
-            var colliders = bodyRoot.GetComponentsInChildren<Collider>(true);
-
-            foreach (var col in colliders)
-            {
-                if (col.gameObject.name.StartsWith(UndressPhysics.UNDRESS_COLLIDER_PREFIX))
-                {
-                    GameObject.Destroy(col); // Collider 컴포넌트만 제거
-                }
-            }
-        }
-
-        static void UpdateExtraCapsuleCollider(Cloth cloth, CapsuleCollider col)
-        {
-            CapsuleCollider[] old = cloth.capsuleColliders;
-
-            if (old == null)
-            {
-                cloth.capsuleColliders = new CapsuleCollider[] { col };
-                return;
-            }
-
-            List<CapsuleCollider> list = new List<CapsuleCollider>(old);
-
-            // 기존 동일 collider 제거
-            list.RemoveAll(c => c == col);
-
-            // 다시 추가
-            list.Add(col);
-
-            cloth.capsuleColliders = list.ToArray();
-        }
-
-        private static CapsuleCollider CreateExtraClothCollider(ChaControl charControl, Cloth cloth, string name, float radius, float height, int direction = 1)
-        {
-            CapsuleCollider extraCollider = null;
-
-            Transform root_bone = charControl.objBodyBone.transform.FindLoop(name);
-
-            if (root_bone != null) {
-                Transform colliderTr = root_bone.Find(UndressPhysics.UNDRESS_COLLIDER_PREFIX + name);
-
-                if (colliderTr != null) {
-                      UnityEngine.Object.Destroy(colliderTr.gameObject);
-                }
-
-                // spine collider
-                GameObject boneObj = new GameObject(UndressPhysics.UNDRESS_COLLIDER_PREFIX + name);
-                extraCollider = AddExtraCapsuleCollider(boneObj, root_bone, Vector3.zero, radius, height, direction);
-                UpdateExtraCapsuleCollider(cloth, extraCollider);
-            }
-
-            return extraCollider;
-        }
-
-        internal static UndressData GetUndressData(Cloth cloth, ChaControl chaCtrl, bool isTop)
-        {
-            // UnityEngine.Debug.Log($">> GetUndressData");
-
             UndressData undressData = new UndressData();
             undressData.ociChar = chaCtrl.GetOCIChar();
             undressData.coroutine = null;
             undressData.cloth = cloth;
-
-            // Body renderer (참고용)
-            undressData.meshRenderer =
-                GetBodyRenderer(undressData.ociChar.guideObject.transformTarget);
-
-            Collider[] allColliders = undressData.ociChar.guideObject.transformTarget.GetComponentsInChildren<Collider>();
-            
             undressData.IsTop = isTop;
+            // UnityEngine.Debug.Log($">> isTop {undressData.IsTop} in {UndressPhysics.Name}");
 
-            // UnityEngine.Debug.Log($">> isTop {undressData.IsTop}");
-            // top, down 확인 필요
-            // ground
+            string colliderName = "";
             if (undressData.IsTop) {
-                var newCollider1 = CreateExtraClothCollider(chaCtrl, undressData.cloth, "cf_J_Neck", 0.3f, 0.6f, 1);
-                // Cloth에 적용
-                undressData.collider = newCollider1;
-            } else {
-                var newCollider1 = CreateExtraClothCollider(chaCtrl, undressData.cloth, "cf_J_Spine01", 0.6f, 1.2f);
-                var newCollider2 = CreateExtraClothCollider(chaCtrl, undressData.cloth, "cf_J_Kosi02", 0.8f, 3.0f);
-                undressData.collider = newCollider1;
-            }
-            
-            // 🔹 Cloth 기준 coefficients 저장
-            ClothSkinningCoefficient[] coeffs = cloth.coefficients;
-            float[] maxDistances = new float[coeffs.Length];
-
-            for (int i = 0; i < coeffs.Length; i++)
+                colliderName = $"{UndressPhysics.UNDRESS_COLLIDER_PREFIX}_cf_J_Neck_999999990";
+            } else
             {
-                maxDistances[i] = coeffs[i].maxDistance;
+                colliderName = $"{UndressPhysics.UNDRESS_COLLIDER_PREFIX}_cf_J_Spine01_8888888880";
             }
 
-            undressData.originalMaxDistances[cloth] = maxDistances;
-            // 🔹 물리 설정 복원
+            Transform target_bone = chaCtrl.objBodyBone.transform.FindLoop(colliderName);
+            if (target_bone != null)
+            {
+                CapsuleCollider[] colliders = target_bone.gameObject.GetComponentsInChildren<CapsuleCollider>(true);
+                // UnityEngine.Debug.Log($">> colliders {colliders.Length} in {UndressPhysics.Name}");
+
+                if (colliders.Length > 0)
+                {
+                    undressData.collider = colliders[0];
+                }
+            }
 
             return undressData;
         }
 
         internal static void RestoreMaxDistances(UndressData undressData)
         {
-            // 2️⃣ solver 리셋 (이때 떨어지지 않음)
-            if (undressData.cloth != null) {
-                undressData.cloth.enabled = false;
-                undressData.cloth.enabled = true;
-                
-                float[] originalMax = undressData.originalMaxDistances[undressData.cloth];
+            if (undressData.cloth != null)
+            {
+                var cloth = undressData.cloth;
+
+                cloth.worldVelocityScale = 0f;
+                cloth.worldAccelerationScale = 0f;
+                cloth.useGravity = false;
+
+                cloth.enabled = false;
+                cloth.enabled = true;
+
+                float[] originalMax = undressData.originalMaxDistances[cloth];
 
                 if (originalMax != null && originalMax.Length > 0)
                 {
-                    ClothSkinningCoefficient[] coeffs = undressData.cloth.coefficients;
+                    var coeffs = cloth.coefficients;
                     int count = Mathf.Min(coeffs.Length, originalMax.Length);
 
                     for (int i = 0; i < count; i++)
                         coeffs[i].maxDistance = originalMax[i];
 
-                    undressData.cloth.coefficients = coeffs;
+                    cloth.coefficients = coeffs;
                 }
 
-                // 3️⃣ 정상 물리 복원
-                undressData.cloth.worldVelocityScale = 0f;
-                undressData.cloth.worldAccelerationScale = 1f;
-                undressData.cloth.useGravity = true;
+                cloth.ClearTransformMotion();   // ⭐ 중요 (velocity reset)
             }
         }
-
-        internal static SkinnedMeshRenderer GetBodyRenderer(Transform targetTransform)
-        {
-            SkinnedMeshRenderer bodyRenderer = null;
-#if AISHOUJO || HONEYSELECT2
-            List<Transform> transformStack = new List<Transform>();
-
-            transformStack.Add(targetTransform);
-
-            while (transformStack.Count != 0)
-            {
-                Transform currTransform = transformStack[transformStack.Count - 1];
-                transformStack.RemoveAt(transformStack.Count - 1);
-
-                if (currTransform.Find("p_cf_body_00"))
-                {
-                    Transform bodyTransform = currTransform.Find("p_cf_body_00");
-                    AIChara.CmpBody bodyCmp = bodyTransform.GetComponent<AIChara.CmpBody>();
-
-                    if (bodyCmp != null)
-                    {
-                        if (bodyCmp.targetCustom != null && bodyCmp.targetCustom.rendBody != null)
-                        {
-                            bodyRenderer = bodyCmp.targetCustom.rendBody.transform.GetComponent<SkinnedMeshRenderer>();
-                        }
-                        else
-                        {
-                            if (bodyCmp.targetEtc != null && bodyCmp.targetEtc.objBody != null)
-                            {
-                                bodyRenderer = bodyCmp.targetEtc.objBody.GetComponent<SkinnedMeshRenderer>();
-                            }
-                        }
-                    }
-
-                    break;
-                }
-                else if (currTransform.Find("p_cm_body_00"))
-                {
-                    Transform bodyTransform = currTransform.Find("p_cm_body_00");
-                    AIChara.CmpBody bodyCmp = bodyTransform.GetComponent<AIChara.CmpBody>();
-
-                    if (bodyCmp != null)
-                    {
-                        if (bodyCmp.targetCustom != null && bodyCmp.targetCustom.rendBody != null)
-                        {
-                            bodyRenderer = bodyCmp.targetCustom.rendBody.transform.GetComponent<SkinnedMeshRenderer>();
-                        }
-                        else
-                        {
-                            if (bodyCmp.targetEtc != null && bodyCmp.targetEtc.objBody != null)
-                            {
-                                bodyRenderer = bodyCmp.targetEtc.objBody.GetComponent<SkinnedMeshRenderer>();
-                            }
-                        }
-                    }
-
-                    break;
-                }
-
-                for (int i = 0; i < currTransform.childCount; i++)
-                {
-                    transformStack.Add(currTransform.GetChild(i));
-                }
-            }
-#endif
-            return bodyRenderer;
-        }
-
-        //internal static void TryAllocateObject(UndressPhysics instance, OCIChar ociChar) {
-        //    ociChar.GetChaControl().StartCoroutine(ExecuteAfterFrame(instance, ociChar));
-        //}
-
-    //    internal static IEnumerator ExecuteAfterFrame(UndressPhysics instance, OCIChar ociChar)
-    //     {
-    //         int frameCount = 20;
-    //         for (int i = 0; i < frameCount; i++)
-    //             yield return null;
-
-    //         ReallocateUndressDataList(instance, ociChar);
-    //     }
-
-        // internal static void RemoveUndressDataList()
-        // {   
-        //     foreach(UndressData undressData in UndressPhysics._undressDataList)
-        //     {
-        //         if (undressData.coroutine != null) {
-        //             instance.StopCoroutine(undressData.coroutine);
-        //         }
-        //     }
-
-        //     UndressPhysics._undressDataList.Clear();
-        // }
     }
 
 
@@ -617,7 +398,7 @@ namespace UndressPhysics
         public OCIChar ociChar;
         public Cloth cloth;
         public Dictionary<Cloth, float[]> originalMaxDistances = new Dictionary<Cloth, float[]>();
-        public SkinnedMeshRenderer meshRenderer;
+        // public SkinnedMeshRenderer meshRenderer;
         public CapsuleCollider collider;
         public Coroutine coroutine;
         public bool IsTop; // top, bottom
@@ -673,5 +454,11 @@ namespace UndressPhysics
             this.first = first;
             this.second = second;
         }
+    }
+
+    internal class ClothColliderBackup
+    {
+        public ClothSphereColliderPair[] Sphere;
+        public CapsuleCollider[] Capsule;
     }
 }

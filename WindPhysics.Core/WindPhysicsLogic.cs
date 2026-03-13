@@ -105,7 +105,7 @@ namespace WindPhysics
 
         internal void ExecuteWindEffect(ChaControl chaControl)
         {
-            UnityEngine.Debug.Log($">> ExecuteWindEffect {chaControl}");
+            // UnityEngine.Debug.Log($">> ExecuteWindEffect {chaControl}");
 
             if (chaControl != null) {
                 windData = InitWindData(chaControl);

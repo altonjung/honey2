@@ -50,12 +50,12 @@ namespace UndressPhysics
     {
         #region Constants
         public const string Name = "UndressPhysics";
-        public const string Version = "0.9.0.1";
+        public const string Version = "0.9.1.0";
         public const string GUID = "com.alton.illusionplugins.UndressPhysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
-        private const string _extSaveKey = "undress_support";
+        private const string _extSaveKey = "undress_physics";
 #endif
         #endregion
 
@@ -87,7 +87,12 @@ namespace UndressPhysics
         internal static List<SphereColliderPair> _sphereColliders = new List < SphereColliderPair >();
         internal static List<CapsuleColliderData> _capsuleColliders = new List<CapsuleColliderData>();
 
+        internal static readonly Dictionary<Cloth, ClothColliderBackup> _clothColliderBackup
+                        = new Dictionary<Cloth, ClothColliderBackup>();
+
         private bool _loaded = false;
+
+        private bool _quickStop = false;
         private Status _status = Status.IDLE;
         internal List<UndressData> _undressDataList = new List<UndressData>();
 
@@ -98,9 +103,8 @@ namespace UndressPhysics
 
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressAllShortcut { get; private set; }
         internal static ConfigEntry<float> ClothUndressForce { get; private set; }
-        internal static ConfigEntry<float> ClothDamping { get; private set; }
-        internal static ConfigEntry<float> ClothStiffness { get; private set; }
-        internal static ConfigEntry<float> ClothUndressDuration { get; private set; }        
+        internal static ConfigEntry<float> ClothUndressDuration { get; private set; }
+        internal static ConfigEntry<float> ClothStiffness { get; private set; }   
 
         internal enum Status
         {
@@ -120,26 +124,24 @@ namespace UndressPhysics
         {
             base.Awake();
 
-            ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("", new AcceptableValueRange<float>(0.3f, 0.8f)));
-
             ClothStiffness = Config.Bind("Cloth", "Stiffness", 5.0f, new ConfigDescription("", new AcceptableValueRange<float>(3.0f, 8.0f)));
 
-            ClothUndressForce = Config.Bind("Option", "Force", 5.0f, new ConfigDescription("multiple", new AcceptableValueRange<float>(1f, 10f)));
+            ClothUndressForce = Config.Bind("Option", "Force", 5.0f, new ConfigDescription("multiple", new AcceptableValueRange<float>(1f, 20f)));
 
             ClothUndressDuration = Config.Bind("Option", "Duration", 15.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 60.0f)));
 
             ConfigKeyDoUndressAllShortcut = Config.Bind("ShortKey", "Undress key", new KeyboardShortcut(KeyCode.LeftControl, KeyCode.U));
 
-            PullCurve = new AnimationCurve(
-                new Keyframe(0f, 0f, 0f, 0.2f),   // 시작, 거의 평평하게
-                new Keyframe(0.5f, 0.3f, 0.2f, 0.8f), // 중간, 점점 가속
-                new Keyframe(1f, 1f, 0.8f, 1f)    // 끝, 빠르게 1로
+            UndressCurve = new AnimationCurve(
+                new Keyframe(0f, 0f, 0f, 2.5f),
+                new Keyframe(0.25f, 0.45f, 1.2f, 0.6f),
+                new Keyframe(1f, 1f, 0.2f, 0f)
             );
 
-            UndressCurve = new AnimationCurve(
-                new Keyframe(0f, 0f, 0f, 0.1f),   // 초반 거의 정체
-                new Keyframe(0.6f, 0.4f, 0.1f, 1f), // 중반 점점 가속
-                new Keyframe(1f, 1f, 1f, 1f)      // 끝에서 빠르게 최대
+            PullCurve = new AnimationCurve(
+                new Keyframe(0.25f, 0.35f, 1.2f, 0.8f),
+                new Keyframe(0.7f, 0.8f, 0.8f, 0.4f),
+                new Keyframe(1f, 1f, 0.2f, 0f)
             );
 
             _self = this;
@@ -227,12 +229,8 @@ namespace UndressPhysics
 // Cloth
             GUILayout.Label("Cloth");
             GUILayout.BeginHorizontal();
-            
-            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
-            ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.3f, 0.8f);
-            GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(40));
-
-            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
+   
+            GUILayout.Label(new GUIContent("Stiffness", "Stiffness"), GUILayout.Width(80));
             ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 3.0f, 8.0f);
             GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(40));
 
@@ -241,6 +239,16 @@ namespace UndressPhysics
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Do Undress"))
                 DoUndressAll();
+           
+            if(GUILayout.Button("Stop Undress"))
+            {
+                _quickStop = true;
+            }
+
+            if(GUILayout.Button("Default"))
+            {
+                InitConfig();   
+            }
 
             if (GUILayout.Button("Close"))
                 _ShowUI = false;
@@ -269,16 +277,22 @@ namespace UndressPhysics
             _loaded = true;
         }        
 
+        private void InitConfig()
+        {
+            ClothStiffness.Value = (float)ClothStiffness.DefaultValue;
+            ClothUndressForce.Value = (float)ClothUndressForce.DefaultValue;
+            ClothUndressDuration.Value = (float)ClothUndressDuration.DefaultValue;
+        }
+
          private IEnumerator UndressPartCoroutine(
             UndressData undressData,
-            Cloth cloth,
-            float duration)
+            Cloth cloth)
         {
             if (cloth == null)
                 yield break;
 
             cloth.useGravity = true;
-            cloth.damping = ClothDamping.Value;
+            cloth.damping = 0.5f;//ClothDamping.Value;
             cloth.stiffnessFrequency = ClothStiffness.Value;
             cloth.worldAccelerationScale = 1.0f;
             cloth.worldVelocityScale = 0.0f;
@@ -320,27 +334,39 @@ namespace UndressPhysics
 
             float endPull = 5.0f;
 
-            float topMaxDistance = 1.5f * ClothUndressForce.Value * 3f;
-            float midMaxDistance = 3.5f * ClothUndressForce.Value * 3f;
-            float bottomMaxDistance = 5f * ClothUndressForce.Value * 3f;
+            float topMaxDistance = 0f;
+            float midMaxDistance = 0f;
+            float bottomMaxDistance = 0f;
 
             float startRadius = undressData.IsTop ? 0.5f : 1.0f; // push down 용 collider 기본 크기 설정
+            float endRadius = undressData.IsTop ? 1.6f : 2.6f; // push down 용 collider 기본 크기 설정
             var pivotCollider = undressData.collider;
 
             float timer = 0f;
-
-            while (timer < duration)
-            {
+            
+            while (timer < ClothUndressDuration.Value && !_quickStop)
+            {   
                 if (cloth == null)
                     yield break;
 
-                float t = timer / duration;
+                float t = timer / ClothUndressDuration.Value;
 
                 if (pivotCollider != null) {
-                    pivotCollider.radius = Mathf.Lerp(startRadius, 2.0f, t);
-                    pivotCollider.height = pivotCollider.radius * 2.0f;
+                    pivotCollider.radius = Mathf.Lerp(startRadius, endRadius, t);
+                    pivotCollider.height = pivotCollider.radius * endRadius;
                 }
 
+                if (undressData.IsTop) {
+                    topMaxDistance = 1.5f * ClothUndressForce.Value * 1f;
+                    midMaxDistance = 2.0f * ClothUndressForce.Value * 2f;
+                    bottomMaxDistance = 2.5f * ClothUndressForce.Value * 3f; 
+                } else
+                {
+                    topMaxDistance = 1.5f * ClothUndressForce.Value * 2f;
+                    midMaxDistance = 3.5f * ClothUndressForce.Value * 3f;
+                    bottomMaxDistance = 5.5f * ClothUndressForce.Value * 4f;
+                }
+                
                 // 🔥 Pull도 곡선 적용
                 float pull = PullCurve.Evaluate(t) * endPull;
                 cloth.externalAcceleration = Vector3.down * pull;
@@ -350,7 +376,7 @@ namespace UndressPhysics
                 for (int i = 0; i < vertCount; i++)
                 {
                     // 🔥 height 기반 지연
-                    float delay = normalizedY[i] * 0.3f; // 위쪽일수록 늦게
+                    float delay = normalizedY[i] * 0.2f; // 위쪽일수록 늦게
                     float localT = Mathf.Clamp01((t - delay) / (1f - delay));
 
                     // 🔥 AnimationCurve 적용
@@ -358,14 +384,14 @@ namespace UndressPhysics
 
                     float targetMaxDistance;
 
-                    if (normalizedY[i] > 0.70f)
+                    if (normalizedY[i] > 0.80f)
                     {
                         targetMaxDistance = Mathf.Lerp(
                             startDistances[i],
                             topMaxDistance,
                             curveT);
                     }
-                    else if (normalizedY[i] > 0.40f)
+                    else if (normalizedY[i] > 0.60f)
                     {
                         targetMaxDistance = Mathf.Lerp(
                             startDistances[i],
@@ -388,7 +414,7 @@ namespace UndressPhysics
                 }
 
                 if (changed)
-                    cloth.coefficients = coeffs;
+                   cloth.coefficients = coeffs;
 
                 timer += Time.deltaTime;
                 yield return null;
@@ -403,19 +429,37 @@ namespace UndressPhysics
                 while (!_loaded)
                     yield return null;
 
-                yield return StartCoroutine(UndressPartCoroutine(undressData, cloth, ClothUndressDuration.Value));         
+                undressData.cloth.ClearTransformMotion();
+                undressData.cloth.worldVelocityScale = 0f;
+                undressData.cloth.worldAccelerationScale = 1f;
+                undressData.cloth.useGravity = true;
+
+                // 🔹 Cloth coefficients 저장
+                ClothSkinningCoefficient[] coeffs = cloth.coefficients;
+                float[] maxDistances = new float[coeffs.Length];
+                for (int i = 0; i < coeffs.Length; i++)
+                {
+                    maxDistances[i] = coeffs[i].maxDistance;
+                }
+                undressData.originalMaxDistances[cloth] = maxDistances;
+
+                yield return StartCoroutine(UndressPartCoroutine(undressData, cloth));         
             }
 
             // 기본 spine collider
             if (undressData.collider) {
-                if (undressData.IsTop)                
-                    undressData.collider.radius = 0.3f;
-                else 
-                    undressData.collider.radius = 0.5f;
+
+                float resetRadius = 0.6f;
+                if (undressData.IsTop)
+                {
+                    resetRadius = 0.3f;
+                }
+                undressData.collider.radius = resetRadius;
+                undressData.collider.height = resetRadius * 2.0f;
             }
 
-            Logic.RestoreMaxDistances(undressData);
             undressData.coroutine = null;
+            Logic.RestoreMaxDistances(undressData);
 
             int endCoroutineCnt = 0;
             // 전체 coroutine 종료 개수 확인
@@ -428,12 +472,23 @@ namespace UndressPhysics
             if (endCoroutineCnt == _undressDataList.Count)
             {
                 Logger.LogMessage("undress done");
+                // cloth.enabled = false;
+                // cloth.enabled = true;
+                EndUndress(undressData.ociChar.GetChaControl());
             }
         }
 
         private void DoUndressAll(){
             int endCoroutineCnt = 0;
             
+            _quickStop = false;
+
+            if (_undressDataList.Count == 0)
+            {
+                Logger.LogMessage("No physics cloths found");
+                return;
+            }
+
             // 전체 coroutine 종료 개수 확인
             foreach (UndressData undressData in _undressDataList)
             {
@@ -444,6 +499,7 @@ namespace UndressPhysics
             if (endCoroutineCnt != _undressDataList.Count)
             {
                 Logger.LogMessage("Wait until undress ends");
+                return;
             }
 
             if (Studio.Studio.Instance.treeNodeCtrl.selectNodes.Length != 0 && endCoroutineCnt == _undressDataList.Count)
@@ -460,23 +516,25 @@ namespace UndressPhysics
                 {   
                     ChaControl chaCtrl = ociChar.GetChaControl();   
                     
-                    InitUndress(chaCtrl);
-
                     var clothTop = chaCtrl.objClothes[0];
                     var clothBottom = chaCtrl.objClothes[1];
 
                     if (clothTop != null) {
                         Cloth[] clothes = clothTop.GetComponentsInChildren<Cloth>(true);
-
-                        AllocateUndressData(chaCtrl, clothes, true);
-                        Logic.AllocateClothColliders(chaCtrl, Logic.topManifestXml, "top", "999941520", clothes);
+                        if (clothes.Length > 0) {
+                            Logic.AllocateClothColliders(chaCtrl, Logic.topManifestXml, "top", "999999990", clothes);
+                            Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "8888888880", clothes);
+                            AllocateUndressData(chaCtrl, clothes, true);
+                        }
                     }
 
                     if (clothBottom != null) {
                         Cloth[] clothes = clothBottom.GetComponentsInChildren<Cloth>(true);
 
-                        AllocateUndressData(chaCtrl, clothes, false);
-                        Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "999941521", clothes);
+                        if (clothes.Length > 0) {
+                            Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "8888888880", clothes);
+                            AllocateUndressData(chaCtrl, clothes, false);
+                        }
                     }
 
                     // undess 용 cloth collider 자동 할당
@@ -493,22 +551,31 @@ namespace UndressPhysics
             }         
         }
 
-        private void InitUndress(ChaControl chaCtrl)
+        private void EndUndress(ChaControl chaCtrl)
         {
             // 초기화
             foreach(UndressData undressData in _undressDataList)
             {
                 if (undressData.coroutine != null) {
                     StopCoroutine(undressData.coroutine);
-                    Logic.RestoreMaxDistances(undressData);
                 }
+
+                Logic.RestoreClothColliders(undressData.cloth);
             }
 
             _undressDataList.Clear();
             _sphereColliders.Clear();
             _capsuleColliders.Clear();
 
-            Logic.RemoveUndressPhysicsColliders(chaCtrl.gameObject);
+            var transforms = chaCtrl.objBodyBone.GetComponentsInChildren<Transform>(true);
+
+            foreach (var tr in transforms)
+            {
+                if (tr.name.StartsWith(UndressPhysics.UNDRESS_COLLIDER_PREFIX))
+                {
+                    GameObject.Destroy(tr.gameObject); // GameObject 전체 제거
+                }
+            }
         }
 
         private void AllocateUndressData(ChaControl chaCtrl, Cloth[] clothes, bool isTop)
@@ -517,7 +584,7 @@ namespace UndressPhysics
             {
                 foreach(Cloth cloth in clothes)
                 {
-                    UndressData undressData = Logic.GetUndressData(cloth, chaCtrl, isTop);
+                    UndressData undressData = Logic.CreateUndressData(cloth, chaCtrl, isTop);
                     _undressDataList.Add(undressData);
                 }
             }
@@ -532,7 +599,7 @@ namespace UndressPhysics
         {
             private static bool Prefix(object __instance, bool _close)
             {
-                // Logic.RemoveUndressDataList(_self);
+                Logic.ClearBackup();
                 return true;
             }
         }
