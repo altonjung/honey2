@@ -34,6 +34,24 @@ using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 #endif
 
+/*
+    기본로직
+
+    1) TOP, BOTTOM 으로 구성된 undress cloth template 정의하여 undress용 collider 구성
+    2) undress collider 적용 시 cloth collider plugin 에서 할당된 기존 collider 는 별도 저장
+    3) undress collider 적용 후 기존 collider 재복원
+    4) undress effect를 극대화하기 위해 pivot collider 를 아래와 같이 운영
+        - Top cloth 경우 neck 에 별도 collider 를 두고 undress 시 radius 크기 동적 적용
+        - Botton cloth 경우 spine 에 별도 collider 를 두고 undress 시 raidus 크기 동적 용
+*/
+/*
+    남은작업
+
+    1) collider adjust 지원
+        - overral, breast, hip
+    2) hands collider 지원
+    3) ingame 지원
+*/
 namespace UndressPhysics
 {
 #if BEPINEX
@@ -79,7 +97,7 @@ namespace UndressPhysics
 		
         private const int _uniqueId = ('U' << 24) | ('D' << 16) | ('S' << 8) | 'S';
 
-        private Rect _windowRect = new Rect(70, 10, 400, 10);
+        private Rect _windowRect = new Rect(140, 10, 400, 10);
 
         internal const string UNDRESS_COLLIDER_PREFIX = "UndressPhyics_Collider";
         internal const string CLOTH_COLLIDER_PREFIX = "Cloth colliders support";
@@ -357,9 +375,9 @@ namespace UndressPhysics
                 }
 
                 if (undressData.IsTop) {
-                    topMaxDistance = 1.5f * ClothUndressForce.Value * 1f;
-                    midMaxDistance = 2.0f * ClothUndressForce.Value * 2f;
-                    bottomMaxDistance = 2.5f * ClothUndressForce.Value * 3f; 
+                    topMaxDistance = 1.5f * ClothUndressForce.Value * 1.5f;
+                    midMaxDistance = 2.0f * ClothUndressForce.Value * 2.5f;
+                    bottomMaxDistance = 2.5f * ClothUndressForce.Value * 3.5f; 
                 } else
                 {
                     topMaxDistance = 1.5f * ClothUndressForce.Value * 2f;
@@ -483,12 +501,6 @@ namespace UndressPhysics
             
             _quickStop = false;
 
-            if (_undressDataList.Count == 0)
-            {
-                Logger.LogMessage("No physics cloths found");
-                return;
-            }
-
             // 전체 coroutine 종료 개수 확인
             foreach (UndressData undressData in _undressDataList)
             {
@@ -502,7 +514,7 @@ namespace UndressPhysics
                 return;
             }
 
-            if (Studio.Studio.Instance.treeNodeCtrl.selectNodes.Length != 0 && endCoroutineCnt == _undressDataList.Count)
+            if (Studio.Studio.Instance.treeNodeCtrl.selectNodes.Length != 0)
             {
                 var nodes = Studio.Studio.Instance.treeNodeCtrl.selectNodes;
 
@@ -522,8 +534,8 @@ namespace UndressPhysics
                     if (clothTop != null) {
                         Cloth[] clothes = clothTop.GetComponentsInChildren<Cloth>(true);
                         if (clothes.Length > 0) {
-                            Logic.AllocateClothColliders(chaCtrl, Logic.topManifestXml, "top", "999999990", clothes);
-                            Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "8888888880", clothes);
+                            Logic.AllocateClothColliders(chaCtrl, Logic.topManifestXml, "top", "999999990", clothes, true);
+                            Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "8888888880", clothes, false);
                             AllocateUndressData(chaCtrl, clothes, true);
                         }
                     }
@@ -532,20 +544,26 @@ namespace UndressPhysics
                         Cloth[] clothes = clothBottom.GetComponentsInChildren<Cloth>(true);
 
                         if (clothes.Length > 0) {
-                            Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "8888888880", clothes);
+                            Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "8888888880", clothes, false);
                             AllocateUndressData(chaCtrl, clothes, false);
                         }
                     }
 
-                    // undess 용 cloth collider 자동 할당
-                    foreach (UndressData undressData in _undressDataList)
+                    if (_undressDataList.Count == 0)
                     {
-                        if (undressData != null)
+                        Logger.LogMessage("No physics cloths found");
+                    } else
+                    {
+                        // undess 용 cloth collider 자동 할당
+                        foreach (UndressData undressData in _undressDataList)
                         {
-                            if (undressData.coroutine == null) {
-                                undressData.coroutine = StartCoroutine(DoUnressCoroutine(undressData, undressData.cloth));
+                            if (undressData != null)
+                            {
+                                if (undressData.coroutine == null) {
+                                    undressData.coroutine = StartCoroutine(DoUnressCoroutine(undressData, undressData.cloth));
+                                }
                             }
-                        }
+                        }   
                     }
                 }   
             }         

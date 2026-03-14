@@ -37,10 +37,9 @@ namespace UndressPhysics
         internal const string topManifestXml = @"
             <AI_ClothColliders>
                 <cloth>
-                    <CapsuleCollider boneName='cf_J_Spine02' radius='0.91' center='0.00, -0.10, 0.00' height='3.90' direction='1' />
-                    <CapsuleCollider boneName='cf_J_Spine03' radius='0.60' center='0.00, 0.40, 0.00' height='2.60' direction='0' />
-                    <CapsuleCollider boneName='cf_J_Kosi01' radius='1.05' center='0.00, -0.15, -0.10' height='3.00' direction='1' />
-                    <CapsuleCollider boneName='cf_J_Kosi02' radius='1.15' center='0.00, 0.00, -0.13' height='3.00' direction='1' />
+                    <CapsuleCollider boneName='cf_J_Spine03' radius='1.00' center='0.00, 0.00, 0.00' height='2.60' direction='0' />
+                    <CapsuleCollider boneName='cf_J_Spine02' radius='0.90' center='0.00, 0.65, 0.30' height='3.20' direction='0' />
+                    <CapsuleCollider boneName='cf_J_Kosi02' radius='1.30' center='0.00, 0.00, 0.00' height='3.00' direction='1' />
                     <CapsuleCollider boneName='cf_J_Neck' radius='0.3' center='0.00, 0.00, 0.00' height='0.60' direction='1' />
                 </cloth>
             </AI_ClothColliders>";
@@ -130,12 +129,12 @@ namespace UndressPhysics
                         <second boneName='cf_J_Foot02_R' radius='0.38' center='0.00, -0.32, 1.30' />
                     </SphereColliderPair>
                     
-                    <CapsuleCollider boneName='cf_J_Spine01' radius='0.60' center='0.00, 0.00, 0.00' height='1.20' direction='1' />
+                    <CapsuleCollider boneName='cf_J_Spine01' radius='0.60' center='0.00, 0.00, 0.00' height='1.40' direction='1' />
                     <CapsuleCollider boneName='cf_N_height' radius='60.00' center='0.00, -60.00, 0.00' height='1.00' direction='1' />
                 </cloth>
             </AI_ClothColliders>";
 
-        internal static void AllocateClothColliders(ChaControl chaCtrl, string xml, string clothName, string uniqueId, Cloth[] clothes)
+        internal static void AllocateClothColliders(ChaControl chaCtrl, string xml, string clothName, string uniqueId, Cloth[] clothes, bool isTop)
         {
             var doc = XDocument.Parse(xml);
             var root = doc.Root;
@@ -143,10 +142,6 @@ namespace UndressPhysics
 
             foreach (var cloth in root.Elements("cloth"))
             {
-                // 1️⃣ XML에서 이미 존재하는 collider 제거
-                // FilterExistingColliders(cloth, existing);
-
-                // 2️⃣ 남은 collider만 생성
                 foreach (var element in cloth.Elements())
                 {
                     if (element.Name == "CapsuleCollider")
@@ -164,7 +159,7 @@ namespace UndressPhysics
                 }
             }
 
-            UpdateClothColliders(chaCtrl, clothes);
+            UpdateClothColliders(chaCtrl, clothes, isTop);
         }
 
         internal static void BackupClothColliders(Cloth cloth)
@@ -192,7 +187,7 @@ namespace UndressPhysics
             UndressPhysics._clothColliderBackup.Clear();
         }
 
-        internal static void UpdateClothColliders(ChaControl chaCtrl, Cloth[] targets)
+        internal static void UpdateClothColliders(ChaControl chaCtrl, Cloth[] targets, bool isTop)
         {
             foreach (var target in targets)
             {
@@ -201,6 +196,17 @@ namespace UndressPhysics
                 var sphereResults = new List<ClothSphereColliderPair>();
                 var capsuleResults = new List<CapsuleCollider>();
 
+                // isTop이면 origin collider 먼저 추가
+                if (isTop && UndressPhysics._clothColliderBackup.TryGetValue(target, out var backup))
+                {
+                    if (backup.Sphere != null)
+                        sphereResults.AddRange(backup.Sphere);
+
+                    if (backup.Capsule != null)
+                        capsuleResults.AddRange(backup.Capsule);
+                }
+
+                // Sphere 추가
                 foreach (var pair in UndressPhysics._sphereColliders)
                 {
                     var c1 = AddSphereCollider(chaCtrl, pair.first);
@@ -209,6 +215,7 @@ namespace UndressPhysics
                     sphereResults.Add(new ClothSphereColliderPair(c1, c2));
                 }
 
+                // Capsule 추가
                 foreach (var capsule in UndressPhysics._capsuleColliders)
                 {
                     var collider = AddCapsuleCollider(chaCtrl, capsule);
