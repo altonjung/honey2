@@ -49,6 +49,20 @@ using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 using KKAPI.Chara;
 
+/*
+    기본로직
+
+    1) 각 캐릭터에 RealGirlSupport 로직 자동 추가
+    2) 각 pose 에 따른 얼굴 | 다리 | 몸  dynamic-bumpmap 지원
+    3) belly inflation, teadrop 지원    
+*/
+/*
+    남은작업
+
+    1) pose 시 관절별 어색한 영역 보정 기능 추가
+    2) 팔 영역 dynamic-bumpmap 지원
+    3) ingame 지원
+*/
 
 namespace RealHumanSupport
 {
@@ -70,7 +84,7 @@ namespace RealHumanSupport
     {
         #region Constants
         public const string Name = "RealGirlSupport";
-        public const string Version = "0.9.1.0";
+        public const string Version = "0.9.1.1";
         public const string GUID = "com.alton.illusionplugins.RealGirl";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -107,7 +121,7 @@ namespace RealHumanSupport
 		
         private const int _uniqueId = ('R' << 24) | ('E' << 16) | ('A' << 8) | 'G';
 
-        private Rect _windowRect = new Rect(70, 10, 400, 10);
+        private Rect _windowRect = new Rect(140, 10, 400, 10);
         
         private WinkState _winkState = WinkState.Idle;
         
@@ -422,21 +436,21 @@ namespace RealHumanSupport
                     {
                         controller.InitRealHumanData(chaControl);
 
-// Test start
-                        SkinnedMeshRenderer[] bodyRenderers = chaControl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
-                        // UnityEngine.Debug.Log($">> bodyRenderers {bodyRenderers.Length}");
+// // Test start
+//                         SkinnedMeshRenderer[] bodyRenderers = chaControl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
+//                         // UnityEngine.Debug.Log($">> bodyRenderers {bodyRenderers.Length}");
 
-                        foreach (SkinnedMeshRenderer render in bodyRenderers.ToList())
-                        {
+//                         foreach (SkinnedMeshRenderer render in bodyRenderers.ToList())
+//                         {
 
-                            var mesh = render.sharedMesh;      
-                            for(int idx=0; idx < mesh.blendShapeCount; idx++)
-                            {
-                                string name = mesh.GetBlendShapeName(idx);
-                                UnityEngine.Debug.Log($">> blendShape {name}, {idx} in body");   
-                            }
-                        }                    
-// Test end                            
+//                             var mesh = render.sharedMesh;      
+//                             for(int idx=0; idx < mesh.blendShapeCount; idx++)
+//                             {
+//                                 string name = mesh.GetBlendShapeName(idx);
+//                                 // UnityEngine.Debug.Log($">> blendShape {name}, {idx} in body");
+//                             }
+//                         }                    
+// // Test end                            
                     }
                 }
 

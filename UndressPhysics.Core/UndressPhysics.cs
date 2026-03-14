@@ -233,12 +233,14 @@ namespace UndressPhysics
             GUILayout.Label("Option");
             GUILayout.BeginHorizontal();
             // PullDown
-            GUILayout.Label(new GUIContent("F", "PullDown Force"), GUILayout.Width(20));
-            ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 1f, 10f);
+            GUILayout.Label(new GUIContent("Pull", "PullDown Force"), GUILayout.Width(80));
+            ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 1f, 20f);
             GUILayout.Label(ClothUndressForce.Value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.EndHorizontal();
 
             // Duration
-            GUILayout.Label(new GUIContent("D", "Undress Duration"), GUILayout.Width(20));
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Dudration", "Undress Duration"), GUILayout.Width(80));
             ClothUndressDuration.Value = GUILayout.HorizontalSlider(ClothUndressDuration.Value, 0.0f, 60.0f);
             GUILayout.Label(ClothUndressDuration.Value.ToString("0.00"), GUILayout.Width(40));
 
@@ -357,7 +359,7 @@ namespace UndressPhysics
             float bottomMaxDistance = 0f;
 
             float startRadius = undressData.IsTop ? 0.5f : 1.0f; // push down 용 collider 기본 크기 설정
-            float endRadius = undressData.IsTop ? 1.6f : 2.6f; // push down 용 collider 기본 크기 설정
+            float endRadius = undressData.IsTop ? 1.6f : 2.4f; // push down 용 collider 기본 크기 설정
             var pivotCollider = undressData.collider;
 
             float timer = 0f;
@@ -380,7 +382,7 @@ namespace UndressPhysics
                     bottomMaxDistance = 2.5f * ClothUndressForce.Value * 3.5f; 
                 } else
                 {
-                    topMaxDistance = 1.5f * ClothUndressForce.Value * 2f;
+                    topMaxDistance = 1.5f * ClothUndressForce.Value * 1.5f;
                     midMaxDistance = 3.5f * ClothUndressForce.Value * 3f;
                     bottomMaxDistance = 5.5f * ClothUndressForce.Value * 4f;
                 }

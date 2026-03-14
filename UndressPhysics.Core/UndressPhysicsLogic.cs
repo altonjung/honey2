@@ -40,7 +40,7 @@ namespace UndressPhysics
                     <CapsuleCollider boneName='cf_J_Spine03' radius='1.00' center='0.00, 0.00, 0.00' height='2.60' direction='0' />
                     <CapsuleCollider boneName='cf_J_Spine02' radius='0.90' center='0.00, 0.65, 0.30' height='3.20' direction='0' />
                     <CapsuleCollider boneName='cf_J_Kosi02' radius='1.30' center='0.00, 0.00, 0.00' height='3.00' direction='1' />
-                    <CapsuleCollider boneName='cf_J_Neck' radius='0.3' center='0.00, 0.00, 0.00' height='0.60' direction='1' />
+                    <CapsuleCollider boneName='cf_J_Neck' radius='0.3' center='0.00, 0.00, -0.15' height='0.60' direction='1' />
                 </cloth>
             </AI_ClothColliders>";
 
@@ -129,7 +129,7 @@ namespace UndressPhysics
                         <second boneName='cf_J_Foot02_R' radius='0.38' center='0.00, -0.32, 1.30' />
                     </SphereColliderPair>
                     
-                    <CapsuleCollider boneName='cf_J_Spine01' radius='0.60' center='0.00, 0.00, 0.00' height='1.40' direction='1' />
+                    <CapsuleCollider boneName='cf_J_Spine01' radius='0.50' center='0.00, 0.20, -0.15' height='1.00' direction='1' />
                     <CapsuleCollider boneName='cf_N_height' radius='60.00' center='0.00, -60.00, 0.00' height='1.00' direction='1' />
                 </cloth>
             </AI_ClothColliders>";

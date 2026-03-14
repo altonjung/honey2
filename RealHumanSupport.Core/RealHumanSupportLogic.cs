@@ -519,33 +519,33 @@ namespace RealHumanSupport
             return tex;
         }
 
-        internal static void SaveAsPNG(Texture tex, string path)
-        {
-            if (tex == null)
-            {
-                UnityEngine.Debug.LogError("Texture is null");
-                return;
-            }
+        // internal static void SaveAsPNG(Texture tex, string path)
+        // {
+        //     if (tex == null)
+        //     {
+        //         UnityEngine.Debug.LogError("Texture is null");
+        //         return;
+        //     }
 
-            Texture2D tex2D = null;
+        //     Texture2D tex2D = null;
 
-            if (tex is Texture2D t2d)
-            {
-                tex2D = t2d;
-            }
-            else if (tex is RenderTexture rt)
-            {
-                tex2D = RenderTextureToTexture2D(rt);
-            }
-            else
-            {
-                UnityEngine.Debug.LogError($"Unsupported texture type: {tex.GetType()}");
-                return;
-            }
+        //     if (tex is Texture2D t2d)
+        //     {
+        //         tex2D = t2d;
+        //     }
+        //     else if (tex is RenderTexture rt)
+        //     {
+        //         tex2D = RenderTextureToTexture2D(rt);
+        //     }
+        //     else
+        //     {
+        //         UnityEngine.Debug.LogError($"Unsupported texture type: {tex.GetType()}");
+        //         return;
+        //     }
 
-            byte[] bytes = tex2D.EncodeToPNG();
-            File.WriteAllBytes(path, bytes);
-        }
+        //     byte[] bytes = tex2D.EncodeToPNG();
+        //     File.WriteAllBytes(path, bytes);
+        // }
 
 
         internal static Texture2D MakeWritableTexture(Texture texture)
@@ -634,24 +634,24 @@ namespace RealHumanSupport
 
         #region Private Methods
 
-        internal static void DeleteExtraDynamicBoneCollider(GameObject pivotObj)
-        {            
-            Transform[] children = pivotObj.GetComponentsInChildren<Transform>(true);
+        // internal static void DeleteExtraDynamicBoneCollider(GameObject pivotObj)
+        // {            
+        //     Transform[] children = pivotObj.GetComponentsInChildren<Transform>(true);
 
-            for (int i = 0; i < children.Length; i++)
-            {
-                Transform t = children[i];
+        //     for (int i = 0; i < children.Length; i++)
+        //     {
+        //         Transform t = children[i];
 
-                // 자기 자신은 제외
-                if (t == pivotObj.transform)
-                    continue;
+        //         // 자기 자신은 제외
+        //         if (t == pivotObj.transform)
+        //             continue;
 
-                if (t.name.Contains("_DBC_DebugSphere")  || t.name.Contains("_DBC_CapEndA") || t.name.Contains("_DBC_CapEndB") || t.name.Contains("_DBC_CapBody"))
-                {
-                    UnityEngine.Object.Destroy(t.gameObject);
-                }
-            }            
-        }
+        //         if (t.name.Contains("_DBC_DebugSphere")  || t.name.Contains("_DBC_CapEndA") || t.name.Contains("_DBC_CapEndB") || t.name.Contains("_DBC_CapBody"))
+        //         {
+        //             UnityEngine.Object.Destroy(t.gameObject);
+        //         }
+        //     }            
+        // }
 
         internal static DynamicBoneCollider AddExtraDynamicBoneCollider(
             Transform target,
