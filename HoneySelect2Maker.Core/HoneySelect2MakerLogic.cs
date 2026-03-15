@@ -26,6 +26,8 @@ using ADV.Commands.Object;
 using IllusionUtility.GetUtility;
 using KKAPI.Studio;
 using KKAPI.Maker;
+using System.Text;
+
 #endif
 
 #if AISHOUJO || HONEYSELECT2
@@ -133,7 +135,7 @@ namespace HoneySelect2Maker
             Action callback = null)
         {
 
-            UnityEngine.Debug.Log($">> PlaySceneVideo {path} | loop {loop} | audio {audio} | sortingOrder {sortingOrder} | {DateTime.Now:HH:mm:ss.fff}");
+            //UnityEngine.Debug.Log($">> PlaySceneVideo {path} | loop {loop} | audio {audio} | sortingOrder {sortingOrder} | {DateTime.Now:HH:mm:ss.fff}");
 
             EnsureOverlayCanvas(sortingOrder);
 
@@ -205,7 +207,7 @@ namespace HoneySelect2Maker
 
         internal static void OnVideoCompleted(UnityEngine.Video.VideoPlayer vp)
         {
-            UnityEngine.Debug.Log($">> OnVideoCompleted() | isLoop {vp.isLooping}| {Time.realtimeSinceStartup:F3}");
+            //UnityEngine.Debug.Log($">> OnVideoCompleted() | isLoop {vp.isLooping}| {Time.realtimeSinceStartup:F3}");
 
             if (vp.isLooping)
                 return;
@@ -325,6 +327,56 @@ namespace HoneySelect2Maker
         {
             HoneySelect2Maker._self._sceneVideoPlayer.Stop();
             HoneySelect2Maker._sceneCanvas.enabled = false;
-        }     
+        }
+
+        internal static void UnlockAchivementAll()
+        {
+			Manager.Game instance = Singleton<Manager.Game>.Instance;
+			SaveData saveData = instance.saveData;
+
+            for (int i = 0; i < saveData.achievement.Count; i++)
+            {
+                SaveData.SetAchievementAchieve(i);
+            }
+        }
+
+        internal static List<string> FindAllHeroinPathsInRoomList()
+        {
+            List<string> result = new List<string>();
+
+            Manager.Game instance = Singleton<Manager.Game>.Instance;
+            SaveData saveData = instance.saveData;
+
+            UnityEngine.Debug.Log($">> saveData.selectGroup {saveData.selectGroup} | {DateTime.Now:HH:mm:ss.fff}");
+
+            foreach (List<string> list in saveData.roomList)
+            {
+                List<string> list2 = new List<string>(list);
+
+                for (int j = 0; j < list2.Count; j++)
+                {
+
+                    StringBuilder stringBuilder = new StringBuilder(UserData.Path + "chara/female/");
+                    stringBuilder.Append(list2[j]).Append(".png");
+                    // StringBuilder stringBuilder = new StringBuilder(list2[j]);
+                    UnityEngine.Debug.Log($" >>>> {stringBuilder.ToString()} in FindAllCharsInRoomList");
+                    // 이름 추출 후 리스트에 추가
+                    result.Add(stringBuilder.ToString());
+                }
+            }
+
+            return result;
+        }
+
+        internal static void LoadHeroin(string pngPath)
+        {
+            Manager.Game instance = Singleton<Manager.Game>.Instance;
+            ChaFileControl chaFileControl = new ChaFileControl();
+            chaFileControl.LoadCharaFile(pngPath, 1, false, true);
+            ChaControl chaControl = Singleton<Manager.Character>.Instance.CreateChara(1, Manager.Scene.commonSpace, 0, chaFileControl);
+            chaControl.ChangeNowCoordinate(false, true);
+            chaControl.releaseCustomInputTexture = false;
+            chaControl.Load(false);
+        }
     }
 }

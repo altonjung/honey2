@@ -40,6 +40,16 @@ using Illusion.Extensions;
 using AIChara;
 #endif
 
+/*
+    해야 할 일:
+        - advance scene 처리
+        - hscene 처리 
+            -> hscene 각 행위별 처리
+        - sleeping scene 처리
+            -> sleeping 시 event 제공
+        - achivement 별 event 제공
+        - 자신만의 캐릭터 별 event 제공
+*/
 namespace HoneySelect2Maker
 {
 
@@ -112,6 +122,9 @@ namespace HoneySelect2Maker
         internal bool _isAbleTitleVideo;
        
         internal List<Canvas> _disabledCanvasCache = new List<Canvas>();
+
+        internal HashSet<string> _playingHeroinNames = new HashSet<string>();
+
         private static string _assemblyLocation;
         internal static bool _reEntryHarmony = false;
 
@@ -254,6 +267,8 @@ namespace HoneySelect2Maker
         {
             private static bool Prefix(HS2.HomeScene __instance)
             {
+                Logic.FindAllHeroinPathsInRoomList();
+
                 // UnityEngine.Debug.Log($">> Start in HomeScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");    
                 if (_reEntryHarmony)
                 {
@@ -357,8 +372,6 @@ namespace HoneySelect2Maker
 					// 	instance.tableDesireCharas.Add(item, this.eventNos[item2]);
 					// }
 				}
-
-            UnityEngine.Debug.Log($">> saveData.selectGroup {saveData.selectGroup} | {DateTime.Now:HH:mm:ss.fff}");
             
             // int num = SaveData.FindInRoomListIndex(Path.GetFileNameWithoutExtension(instance.heroineList[0].chaFile.charaFileName));
             //  UnityEngine.Debug.Log($">> num {num} | {DateTime.Now:HH:mm:ss.fff}");
@@ -369,13 +382,14 @@ namespace HoneySelect2Maker
             {
                 foreach (Actor.Heroine heroin in lm.heroines) {
                     if (heroin != null) {
-                    string heroinName = heroin.chaFile.parameter.fullname;
-                    UnityEngine.Debug.Log($">> heroine name {heroinName} in LobbyScene | {DateTime.Now:HH:mm:ss.fff}");
+                        string heroinName = heroin.chaFile.parameter.fullname;
+                        UnityEngine.Debug.Log($">> heroine name {heroinName} in LobbyScene | {DateTime.Now:HH:mm:ss.fff}");
+                        _self._playingHeroinNames.Add(heroinName);
                     }
                 }
             }
-// Test 영역
 
+// Test 영역
             string currentSceneName = SceneManager.GetActiveScene().name;
             // UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitLobbySceneCall | {Time.realtimeSinceStartup:F3}");
 

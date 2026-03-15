@@ -378,11 +378,15 @@ namespace RealHumanSupport
                                     RealHumanData realHumanData = controller.GetRealData();
 
                                     if (realHumanData != null)
-                                    {
+                                    {   
+                                        if (realHumanData.fk_head_bone == null)
+                                            continue;
+
                                         if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
                                             realHumanData = RealHumanSupportController.GetMaterials(ociChar.GetChaControl(), realHumanData);
 
                                         if (
+                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q != realHumanData.prev_fk_head_rot) ||
                                             (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q != realHumanData.prev_fk_left_foot_rot) ||
                                             (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q != realHumanData.prev_fk_right_foot_rot) ||
                                             (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q != realHumanData.prev_fk_left_knee_rot) ||
@@ -391,7 +395,6 @@ namespace RealHumanSupport
                                             (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_thigh_bone)._q != realHumanData.prev_fk_right_thigh_rot) ||
                                             (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine01_bone)._q != realHumanData.prev_fk_spine01_rot) ||
                                             (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine02_bone)._q != realHumanData.prev_fk_spine02_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q != realHumanData.prev_fk_head_rot) ||
                                             (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_shoulder_bone)._q != realHumanData.prev_fk_left_shoulder_rot) ||
                                             (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q != realHumanData.prev_fk_right_shoulder_rot)
                                         )
@@ -487,7 +490,7 @@ namespace RealHumanSupport
                     var controller = __instance.GetComponent<RealHumanSupportController>();
                     if (controller != null)
                     {
-                        controller.SetPregnancyRoundness(__instance, controller.GetRealData(), 0.0001f);
+                        controller.SetPregnancyRoundness(0.0001f);
                     }
                 }
             }
@@ -505,7 +508,7 @@ namespace RealHumanSupport
                     if (controller != null)
                     {
 #if FEATURE_TEARDROP_SUPPORT
-                        controller.SetTearDropRate(__instance, controller.GetRealData(), value);
+                        controller.SetTearDropRate(value);
 #endif
                      }
                 }

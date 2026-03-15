@@ -57,11 +57,10 @@ namespace RealHumanSupport
 
         internal static void SupportBodyBumpEffect(ChaControl chaCtrl, RealHumanData realHumanData)
         {
+            if (chaCtrl.sex == 0)
+                return;
             // UnityEngine.Debug.Log($">> SupportBodybumpEffect {RealHumanSupport._self._ociCharMgmt.Count}, {realHumanData.m_skin_head}, {realHumanData.m_skin_body}");                        
             if (!RealHumanSupport.BodyBlendingActive.Value)
-                return;
-
-            if (chaCtrl.sex == 0)
                 return;
 
             if (realHumanData.m_skin_body == null)
@@ -1011,7 +1010,7 @@ namespace RealHumanSupport
             }
         }        
 
-        internal void SetTearDropRate(ChaControl chaCtrl, RealHumanData realHumanData, float tearDropRate) {                    
+        internal void SetTearDropRate(float tearDropRate) {                    
 
             if (realHumanData != null)
                 realHumanData.tearDropRate = tearDropRate;
@@ -1044,272 +1043,327 @@ namespace RealHumanSupport
             }        
         }
 
-        internal void SetPregnancyRoundness(ChaControl chaCtrl, RealHumanData realHumanData, float roundNess) {
+        internal void SetPregnancyRoundness(float roundNess) {
             if (realHumanData != null && realHumanData.pregnancyController != null)
                 realHumanData.pregnancyController.infConfig.inflationRoundness += roundNess;        
         }
 
 #if FEATURE_STRAPON_SUPPORT
-        private static void SupportExtraDeviceRigidBody(CharContrl chaCtrl, RealHumanData realHumanData) {
-            string childName = "RHTriggerRigidBody"; // 자식 이름
+        // 남성에게만 부여
+        internal void SetRigidBodyOnDan()
+        {
+            UnityEngine.Debug.Log($">> SetRigidBodyOnDan {realHumanData}");
 
-            Transform danObject = chaCtrl.objBodyBone.transform.FindLoop("cm_J_dan_top");            
-            Transform existingChild = danObject.Find(childName);
+            if (realHumanData != null)
+            {
+                string bone_prefix_str = "cf_";
+                if (realHumanData.charControl.sex == 0)
+                    bone_prefix_str = "cm_";
 
-            if (existingChild != null)
-            {             
-                return;
+                Transform danObject = realHumanData.charControl.objBodyBone.transform.FindLoop(bone_prefix_str + "J_dan_top");
+
+                if (danObject != null)
+                {
+                    string childName = "RGDanRigidBody";
+                    Transform existingChild = danObject.Find(childName);
+
+                    GameObject childObj;
+
+                    if (existingChild == null)
+                    {
+                        childObj = new GameObject(childName);
+                        childObj.transform.SetParent(danObject, false);
+                        childObj.transform.localPosition = Vector3.zero;
+                    }
+                    else
+                    {
+                        childObj = existingChild.gameObject;
+                    }
+
+                    // Rigidbody
+                    Rigidbody rb = childObj.GetComponent<Rigidbody>();
+                    if (rb == null)
+                    {
+                        rb = childObj.AddComponent<Rigidbody>();
+                        rb.isKinematic = true;
+                        rb.useGravity = false;
+                    }
+
+                    // Collider (남자 충돌용)
+                    CapsuleCollider capsule = childObj.GetComponent<CapsuleCollider>();
+                    if (capsule == null)
+                    {
+                        capsule = childObj.AddComponent<CapsuleCollider>();
+                        capsule.radius = 0.2f;      // 필요에 맞게 조절
+                        capsule.height = 0.8f;
+                        capsule.direction = 0;
+                        capsule.center = Vector3.zero;
+                        capsule.isTrigger = false;  // 실제 collider
+                    }
+
+                    UnityEngine.Debug.Log($">> created rigidBody + collider on {bone_prefix_str}J_dan_top");
+                }
+                else
+                {
+                    UnityEngine.Debug.Log(">> dan_top not found");
+                }
             }
+        }
 
-            // 1. Rigidbody 추가
-            Rigidbody rb = capsuleObj.AddComponent<Rigidbody>();
-            rb.isKinematic = true; // 물리 반응 없이 Trigger 이벤트만 받음            
+        // 여성에게만 부여
+        internal void SetCollisionOnOnKosi()
+        {
+            UnityEngine.Debug.Log($">> SetCollisionOnOnKosi {realHumanData}");
 
-            // 2. 부모 연결
-            rb.transform.SetParent(danObject, false);             
-            rb.transform.localPosition = Vector3.zero;
-        }        
+            if (realHumanData != null && realHumanData.charControl.sex == 1)
+            {
+                string bone_prefix_str = "cf_";
+                string childName = "RGTriggerCollision";
 
-        private static void SupportExtraDeviceCollision(CharContrl chaCtrl, RealHumanData realHumanData) {
-            string bone_prefix_str = "cf_";
-            if(chaCtrl.sex == 0)
-                bone_prefix_str = "cm_";
+                Transform kosiObject = realHumanData.charControl.objBodyBone.transform.FindLoop(bone_prefix_str + "J_Kokan");
 
-            string childName = "RHTriggerCapsuleObj"; // 자식 이름
-            Transform kosi1Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Kosi01");            
-            Transform existingChild = kosi1Object.Find(childName);
+                if (kosiObject != null)
+                {
+                    Transform existingChild = kosiObject.Find(childName);
+                    GameObject childObj;
 
-            if (existingChild != null)
-            {             
-                return;
+                    if (existingChild == null)
+                    {
+                        childObj = new GameObject(childName);
+                        childObj.transform.SetParent(kosiObject, false);
+                        childObj.transform.localPosition = Vector3.zero;
+                    }
+                    else
+                    {
+                        childObj = existingChild.gameObject;
+                    }
+
+                    SphereCollider sphereCollider = childObj.GetComponent<SphereCollider>();
+                    if (sphereCollider == null)
+                    {
+                        sphereCollider = childObj.AddComponent<SphereCollider>();
+                        sphereCollider.isTrigger = true;
+                        sphereCollider.radius = 0.3f;
+                        sphereCollider.center = new Vector3(0f, 0.2f, 0f);
+                    }
+
+                    if (childObj.GetComponent<CapsuleTrigger>() == null)
+                    {
+                        childObj.AddComponent<CapsuleTrigger>();
+                    }
+
+                    UnityEngine.Debug.Log(">> created sphere trigger on J_Kokan");
+                }
+                else
+                {
+                    UnityEngine.Debug.Log(">> J_Kokan not found");
+                }
             }
-
-            // 1. Capsule GameObject 생성
-            GameObject capsuleObj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-
-            // 2. Capsule Collider 가져오기
-            CapsuleCollider capsuleCollider = capsuleObj.GetComponent<CapsuleCollider>();
-            capsuleCollider.isTrigger = true; // Trigger 모드 활성화
-
-            // 3. CapsuleTrigger 스크립트 추가
-            capsuleObj.AddComponent<CapsuleTrigger>();
-
-            // 4. 부모 연결
-            capsuleObj.transform.SetParent(kosi1Object, false);         
-            capsuleObj.transform.localPosition = Vector3.zero; 
         }
 #endif
         internal void SupportExtraDynamicBones(ChaControl chaCtrl, RealHumanData realHumanData)
         {
+            if (chaCtrl.sex == 0)
+                return;
+
             string bone_prefix_str = "cf_";
             if(chaCtrl.sex == 0)
                 bone_prefix_str = "cm_";
 
-            if (chaCtrl.sex == 1)
+            //boob/butt에 gravity 자동 부여
+            realHumanData.leftBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastL);
+            realHumanData.rightBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastR);
+            realHumanData.leftButtCheek = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipL);
+            realHumanData.rightButtCheek = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipR);
+
+            realHumanData.leftBoob.ReflectSpeed = 0.5f;
+            realHumanData.leftBoob.Gravity = new Vector3(0, -0.005f, 0);
+            realHumanData.leftBoob.Force = new Vector3(0, -0.01f, 0);
+            realHumanData.leftBoob.HeavyLoopMaxCount = 5;
+
+            realHumanData.rightBoob.ReflectSpeed = 0.5f;
+            realHumanData.rightBoob.Gravity = new Vector3(0, -0.005f, 0);
+            realHumanData.rightBoob.Force = new Vector3(0, -0.01f, 0);
+            realHumanData.rightBoob.HeavyLoopMaxCount = 5;
+
+            realHumanData.leftButtCheek.Gravity = new Vector3(0, -0.005f, 0);
+            realHumanData.leftButtCheek.Force = new Vector3(0, -0.01f, 0);
+            realHumanData.leftButtCheek.HeavyLoopMaxCount = 4;
+
+            realHumanData.rightButtCheek.Gravity = new Vector3(0, -0.005f, 0);
+            realHumanData.rightButtCheek.Force = new Vector3(0, -0.01f, 0);
+            realHumanData.rightButtCheek.HeavyLoopMaxCount = 4;
+
+            // boob/butt/hair dynamicbone에 body&leg&arm&finger collider 연결
+            DynamicBoneCollider[] existingDynamicBoneColliders = chaCtrl.transform.FindLoop(bone_prefix_str+"J_Root").GetComponentsInChildren<DynamicBoneCollider>(true);
+            List<DynamicBoneCollider> extraBoobColliders = new List<DynamicBoneCollider>();
+
+            Transform handLObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_L");
+            Transform handRObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_R");
+
+            Transform fingerThumb2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb02_L");
+            Transform fingerThumb3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb03_L");
+
+            Transform fingerIdx2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_L");
+            Transform fingerIdx3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index03_L");
+            
+            Transform fingerMiddle2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_L");
+            Transform fingerMiddle3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_L");
+            
+            // Transform fingerRing2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring02_L");
+            // Transform fingerRing3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring03_L");
+
+            Transform fingerThumb2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb02_R");
+            Transform fingerThumb3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb03_R");
+
+            Transform fingerIdx2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_R");
+            Transform fingerIdx3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index03_R");
+
+            Transform fingerMiddle2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_R");
+            Transform fingerMiddle3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_R");
+            
+            // Transform fingerRing2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring02_R");
+            // Transform fingerRing3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring03_R");
+
+            List<DynamicBoneCollider> extraHandsColliders = new List<DynamicBoneCollider>();
+
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(handLObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(handRObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
+
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2LObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.07f, Vector2.zero));
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3LObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, Vector2.zero));
+
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+        
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.07f, Vector2.zero));
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, Vector2.zero));
+
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+        
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+            
+            extraBoobColliders.AddRange(extraHandsColliders);
+            
+            foreach (DynamicBoneCollider collider in existingDynamicBoneColliders)
             {
-                //boob/butt에 gravity 자동 부여
-                realHumanData.leftBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastL);
-                realHumanData.rightBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastR);
-                realHumanData.leftButtCheek = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipL);
-                realHumanData.rightButtCheek = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipR);
-
-                realHumanData.leftBoob.ReflectSpeed = 0.5f;
-                realHumanData.leftBoob.Gravity = new Vector3(0, -0.005f, 0);
-                realHumanData.leftBoob.Force = new Vector3(0, -0.01f, 0);
-                realHumanData.leftBoob.HeavyLoopMaxCount = 5;
-
-                realHumanData.rightBoob.ReflectSpeed = 0.5f;
-                realHumanData.rightBoob.Gravity = new Vector3(0, -0.005f, 0);
-                realHumanData.rightBoob.Force = new Vector3(0, -0.01f, 0);
-                realHumanData.rightBoob.HeavyLoopMaxCount = 5;
-
-                realHumanData.leftButtCheek.Gravity = new Vector3(0, -0.005f, 0);
-                realHumanData.leftButtCheek.Force = new Vector3(0, -0.01f, 0);
-                realHumanData.leftButtCheek.HeavyLoopMaxCount = 4;
-
-                realHumanData.rightButtCheek.Gravity = new Vector3(0, -0.005f, 0);
-                realHumanData.rightButtCheek.Force = new Vector3(0, -0.01f, 0);
-                realHumanData.rightButtCheek.HeavyLoopMaxCount = 4;
-
-                // boob/butt/hair dynamicbone에 body&leg&arm&finger collider 연결
-                DynamicBoneCollider[] existingDynamicBoneColliders = chaCtrl.transform.FindLoop(bone_prefix_str+"J_Root").GetComponentsInChildren<DynamicBoneCollider>(true);
-                List<DynamicBoneCollider> extraBoobColliders = new List<DynamicBoneCollider>();
-
-                Transform handLObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_L");
-                Transform handRObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_R");
-
-                Transform fingerThumb2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb02_L");
-                Transform fingerThumb3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb03_L");
-
-                Transform fingerIdx2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_L");
-                Transform fingerIdx3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index03_L");
-                
-                Transform fingerMiddle2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_L");
-                Transform fingerMiddle3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_L");
-                
-                // Transform fingerRing2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring02_L");
-                // Transform fingerRing3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring03_L");
-
-                Transform fingerThumb2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb02_R");
-                Transform fingerThumb3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb03_R");
-
-                Transform fingerIdx2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_R");
-                Transform fingerIdx3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index03_R");
-
-                Transform fingerMiddle2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_R");
-                Transform fingerMiddle3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_R");
-                
-                // Transform fingerRing2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring02_R");
-                // Transform fingerRing3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring03_R");
-
-                List<DynamicBoneCollider> extraHandsColliders = new List<DynamicBoneCollider>();
-
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(handLObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(handRObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
-
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2LObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.07f, Vector2.zero));
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3LObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, Vector2.zero));
-
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
-
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
-          
-                // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-                // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
-
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.07f, Vector2.zero));
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, Vector2.zero));
-
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
-
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-                extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
-         
-                // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-                // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
-                
-                extraBoobColliders.AddRange(extraHandsColliders);
-                
-                foreach (DynamicBoneCollider collider in existingDynamicBoneColliders)
+                if (collider.name.Contains("Leg") || collider.name.Contains("Arm"))
                 {
-                    if (collider.name.Contains("Leg") || collider.name.Contains("Arm"))
-                    {
-                        extraBoobColliders.Add(collider);
-                    }
+                    extraBoobColliders.Add(collider);
                 }
-                
-                foreach (var collider in extraBoobColliders)
+            }
+            
+            foreach (var collider in extraBoobColliders)
+            {
+                if (collider == null)
+                    continue;
+
+                if (!realHumanData.leftBoob.Colliders.Contains(collider))
                 {
-                    if (collider == null)
-                        continue;
-
-                    if (!realHumanData.leftBoob.Colliders.Contains(collider))
-                    {
-                        realHumanData.leftBoob.Colliders.Add(collider);
-                    }
+                    realHumanData.leftBoob.Colliders.Add(collider);
                 }
+            }
 
-                foreach (var collider in extraBoobColliders) 
+            foreach (var collider in extraBoobColliders) 
+            {
+                if (collider == null)
+                    continue;
+
+                if (!realHumanData.rightBoob.Colliders.Contains(collider))
+                {
+                    realHumanData.rightBoob.Colliders.Add(collider);
+                }
+            }
+
+            foreach (var collider in extraBoobColliders){
+                if (collider == null)
+                    continue;
+
+                if (!realHumanData.leftButtCheek.Colliders.Contains(collider))
+                {
+                    realHumanData.leftButtCheek.Colliders.Add(collider);
+                }                    
+            }
+
+            foreach (var collider in extraBoobColliders) {
+                if (collider == null)
+                    continue;
+
+                if (!realHumanData.rightButtCheek.Colliders.Contains(collider))
+                {
+                    realHumanData.rightButtCheek.Colliders.Add(collider);
+                }                    
+            }
+
+            // hair dynamic bone 연결 대상 finger collider 생성
+            List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();       
+
+            extraHairColliders.AddRange(extraHandsColliders);
+
+            // hair dynamic bone 연결 대상 shoulder collider 생성
+            Transform leftShouderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
+            Transform rightShouderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
+
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftShouderObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f , new Vector3(0.0f, -0.38f, -0.06f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightShouderObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f, new Vector3(0.0f, -0.38f, -0.06f)));
+
+            // hair dynamic bone 연결 대상 spine collider 생성
+            Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
+            Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine03");
+            
+            float spine2_radius = 0.9f;
+            float spine3_radius = 0.875f;
+
+            spine2_radius = spine2_radius * RealHumanSupport.ExtraColliderScale.Value;
+            spine3_radius = spine3_radius * RealHumanSupport.ExtraColliderScale.Value;
+
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.04f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 3.4f, Vector3.zero));
+
+            // hair dynamic bone 연결 대상 nipple collider 생성  
+            Transform leftNippleObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune02_L");
+            Transform rightNippleObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune02_R");
+
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftNippleObject, DynamicBoneColliderBase.Direction.X, 0.385f, 0.385f, new Vector3(0.0f, 0.02f, 0.02f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightNippleObject, DynamicBoneColliderBase.Direction.X, 0.385f, 0.385f, new Vector3(0.0f, 0.02f, 0.02f)));
+
+            // hair dynamic bone 연결 대상 골반 collider 생성
+            Transform kosi2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Kosi02");
+            float kosi2_radius = 1.17f;
+            
+            kosi2_radius = kosi2_radius * RealHumanSupport.ExtraColliderScale.Value;
+
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(kosi2Object, DynamicBoneColliderBase.Direction.X, kosi2_radius, kosi2_radius * 2.8f, new Vector3(0.0f, -0.05f, -0.05f)));
+
+            foreach (var bone in realHumanData.hairDynamicBones)
+            {
+                if (bone == null)
+                    continue;
+
+                foreach (var collider in extraHairColliders)
                 {
                     if (collider == null)
                         continue;
 
-                    if (!realHumanData.rightBoob.Colliders.Contains(collider))
+                    if (!bone.m_Colliders.Contains(collider))
                     {
-                        realHumanData.rightBoob.Colliders.Add(collider);
-                    }
-                }
-
-                foreach (var collider in extraBoobColliders){
-                    if (collider == null)
-                        continue;
-
-                    if (!realHumanData.leftButtCheek.Colliders.Contains(collider))
-                    {
-                        realHumanData.leftButtCheek.Colliders.Add(collider);
-                    }                    
-                }
-
-                foreach (var collider in extraBoobColliders) {
-                    if (collider == null)
-                        continue;
-
-                    if (!realHumanData.rightButtCheek.Colliders.Contains(collider))
-                    {
-                        realHumanData.rightButtCheek.Colliders.Add(collider);
-                    }                    
-                }
-#if FEATURE_FACE_BLENDSHAPE_SUPPORT
-                SetFaceBlendShapes();
-#endif
-#if FEATURE_BODY_BLENDSHAPE_SUPPORT
-                SetBodyBlendShapes();
-#endif
-
-#if FEATURE_TEARDROP_SUPPORT
-                SetTearDrops();
-#endif
-                SetHairDown(); 
-                // hair dynamic bone 연결 대상 finger collider 생성
-                List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();       
-
-                extraHairColliders.AddRange(extraHandsColliders);
-
-                // hair dynamic bone 연결 대상 shoulder collider 생성
-                Transform leftShouderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
-                Transform rightShouderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
-
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(leftShouderObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f , new Vector3(0.0f, -0.38f, -0.06f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(rightShouderObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f, new Vector3(0.0f, -0.38f, -0.06f)));
-
-                // hair dynamic bone 연결 대상 spine collider 생성
-                Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
-                Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine03");
-                
-                float spine2_radius = 0.9f;
-                float spine3_radius = 0.875f;
-
-                spine2_radius = spine2_radius * RealHumanSupport.ExtraColliderScale.Value;
-                spine3_radius = spine3_radius * RealHumanSupport.ExtraColliderScale.Value;
-
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.04f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 3.4f, Vector3.zero));
-
-                // hair dynamic bone 연결 대상 nipple collider 생성  
-                Transform leftNippleObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune02_L");
-                Transform rightNippleObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune02_R");
-
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(leftNippleObject, DynamicBoneColliderBase.Direction.X, 0.385f, 0.385f, new Vector3(0.0f, 0.02f, 0.02f)));
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(rightNippleObject, DynamicBoneColliderBase.Direction.X, 0.385f, 0.385f, new Vector3(0.0f, 0.02f, 0.02f)));
-
-                // hair dynamic bone 연결 대상 골반 collider 생성
-                Transform kosi2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Kosi02");
-                float kosi2_radius = 1.17f;
-                
-                kosi2_radius = kosi2_radius * RealHumanSupport.ExtraColliderScale.Value;
-
-                extraHairColliders.Add(AddExtraDynamicBoneCollider(kosi2Object, DynamicBoneColliderBase.Direction.X, kosi2_radius, kosi2_radius * 2.8f, new Vector3(0.0f, -0.05f, -0.05f)));
-
-                foreach (var bone in realHumanData.hairDynamicBones)
-                {
-                    if (bone == null)
-                        continue;
-
-                    foreach (var collider in extraHairColliders)
-                    {
-                        if (collider == null)
-                            continue;
-
-                        if (!bone.m_Colliders.Contains(collider))
-                        {
-                            bone.m_Colliders.Add(collider);
-                        }
+                        bone.m_Colliders.Add(collider);
                     }
                 }
             }
+
+            SetHairDown();
         }
 
         internal static PositionData GetBoneRotationFromTF(Transform t)
@@ -1569,21 +1623,19 @@ namespace RealHumanSupport
 
         internal RealHumanData InitRealHumanData(ChaControl chaCtrl)
         {
-            UnityEngine.Debug.Log($">> InitRealHumanData {chaCtrl}");
-
-            if (chaCtrl.sex == 0)
-                return null;
+            // UnityEngine.Debug.Log($">> InitRealHumanData {chaCtrl}");
 
             if (realHumanData == null)
             {
                 realHumanData = new RealHumanData();
+                realHumanData.charControl = chaCtrl;
 
+                if (chaCtrl.sex == 1)
                 {
                     status = 0;
                     realHumanData.head_areaBuffer = new ComputeBuffer(20, sizeof(float) * 6);
                     realHumanData.body_areaBuffer = new ComputeBuffer(30, sizeof(float) * 6);
 
-                    realHumanData.charControl = chaCtrl;
 #if FEATURE_TEARDROP_SUPPORT
                     realHumanData.tearDropRate = RealHumanSupport.TearDropLevel.Value;
 #endif
@@ -1739,9 +1791,13 @@ namespace RealHumanSupport
                 }
 
                 SupportExtraDynamicBones(chaCtrl, realHumanData);
+                SupportBlendShapes(chaCtrl, realHumanData);
+                SupportTearDrop(chaCtrl, realHumanData);
+                SupportStrapOn(chaCtrl, realHumanData);
                 SupportEyeFastBlinkEffect(chaCtrl, realHumanData);
                 SupportBodyBumpEffect(chaCtrl, realHumanData);
                 SupportFaceBumpEffect(chaCtrl, realHumanData);
+
                 status = 2;
                 realHumanData.coroutine = chaCtrl.StartCoroutine(CoroutineProcess(realHumanData));                   
             }
@@ -1780,10 +1836,38 @@ namespace RealHumanSupport
                 return false;
         }
 
-        internal static void SupportEyeFastBlinkEffect(ChaControl chaCtrl, RealHumanData realHumanData) {
+        internal void SupportBlendShapes(ChaControl chaCtrl, RealHumanData realHumanData)
+        {
+            if (chaCtrl.sex == 0)
+                return;
+#if FEATURE_FACE_BLENDSHAPE_SUPPORT
+                SetFaceBlendShapes();
+#endif
+ #if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                SetBodyBlendShapes();
+#endif
+        }
+        internal void SupportTearDrop(ChaControl chaCtrl, RealHumanData realHumanData) 
+        {
+            if (chaCtrl.sex == 0)
+                return;
+#if FEATURE_TEARDROP_SUPPORT
+            SetTearDrops();
+#endif
+        }
+
+        internal void SupportStrapOn(ChaControl chaCtrl, RealHumanData realHumanData) 
+        {
+#if FEATURE_STRAPON_SUPPORT
+            SetRigidBodyOnDan();
+            SetCollisionOnOnKosi();
+#endif
+        }
+
+        internal static void SupportEyeFastBlinkEffect(ChaControl chaCtrl, RealHumanData realHumanData) 
+        {
             if (chaCtrl.fbsCtrl != null)
                 chaCtrl.fbsCtrl.BlinkCtrl.BaseSpeed = 0.05f; // 작을수록 blink 속도가 높아짐..
-
         }
 
        internal IEnumerator CoroutineProcess(RealHumanData realHumanData)
@@ -2151,12 +2235,24 @@ namespace RealHumanSupport
     public class CapsuleTrigger : MonoBehaviour
     {
         void OnTriggerEnter(Collider other)
-        {            
+        {
+            if (other.attachedRigidbody == null)
+                return;
+
+            if (other.attachedRigidbody.name != "RGDanRigidBody")
+                return;
+
             UnityEngine.Debug.Log("Trigger Enter: " + other.name);
         }
 
         void OnTriggerStay(Collider other)
         {
+            if (other.attachedRigidbody == null)
+                return;
+
+            // if (other.attachedRigidbody.name != "RGDanRigidBody")
+            //     return;
+
             UnityEngine.Debug.Log("Trigger Stay: " + other.name);
         }
 
