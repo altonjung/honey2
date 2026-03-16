@@ -123,7 +123,7 @@ namespace HoneySelect2Maker
        
         internal List<Canvas> _disabledCanvasCache = new List<Canvas>();
 
-        internal HashSet<string> _playingHeroinNames = new HashSet<string>();
+        internal Dictionary<string, HeroinData> _playingHeroinNames = new Dictionary<string, HeroinData>();
 
         private static string _assemblyLocation;
         internal static bool _reEntryHarmony = false;
@@ -267,16 +267,14 @@ namespace HoneySelect2Maker
         {
             private static bool Prefix(HS2.HomeScene __instance)
             {
-                Logic.FindAllHeroinPathsInRoomList();
-
                 // UnityEngine.Debug.Log($">> Start in HomeScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");    
-                if (_reEntryHarmony)
-                {
-                    _reEntryHarmony = false;
-                    return true; // 원본 실행 허용
-                }
-
                 if (_self.IsAvailableVideo(_self._video_home_scene_folder)) {
+                    if (_reEntryHarmony)
+                    {
+                        _reEntryHarmony = false;
+                        return true; // 원본 실행 허용
+                    }
+
                     int value = UnityEngine.Random.Range(0, 10); // 70% 확률로 cut scene 발생
                     if (value <= 3)
                     {
@@ -321,21 +319,16 @@ namespace HoneySelect2Maker
         {
             private static bool Prefix(HS2.LobbyScene __instance)
             {
-                // UnityEngine.Debug.Log(Environment.StackTrace);
-                // UnityEngine.Debug.Log($">> Start in LobbyScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
-                if (_reEntryHarmony)
-                {
-                    _reEntryHarmony = false;
-                    return true; // 원본 실행 허용
-                }
 
                 if (_self.IsAvailableVideo(_self._video_lobby_scene_folder)) {
-                    //int value = UnityEngine.Random.Range(0, 10); // 80% 확률로 cut scene 발생
-                    //if (value <= 2)
-                    //{
-                    //    return true;
-                    //}
-                    
+                    // UnityEngine.Debug.Log(Environment.StackTrace);
+                    // UnityEngine.Debug.Log($">> Start in LobbyScene {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
+                    if (_reEntryHarmony)
+                    {
+                        _reEntryHarmony = false;
+                        return true; // 원본 실행 허용
+                    }
+
                     _self.StartCoroutine(WaitLobbySceneCall(__instance));
                     return false;
                 }
@@ -346,7 +339,6 @@ namespace HoneySelect2Maker
 
         private static IEnumerator WaitLobbySceneCall(HS2.LobbyScene __instance)
         {
-
 // Test 영역
             yield return new WaitUntil(() => Singleton<Manager.Character>.IsInstance());
 			yield return new WaitUntil(() => Singleton<Manager.Game>.IsInstance());
@@ -384,7 +376,10 @@ namespace HoneySelect2Maker
                     if (heroin != null) {
                         string heroinName = heroin.chaFile.parameter.fullname;
                         UnityEngine.Debug.Log($">> heroine name {heroinName} in LobbyScene | {DateTime.Now:HH:mm:ss.fff}");
-                        _self._playingHeroinNames.Add(heroinName);
+
+                        // 여기서 heroinKey 와 heroinData 추가
+                        HeroinData heroinData = new HeroinData();
+                        _self._playingHeroinNames[heroinName] = heroinData;
                     }
                 }
             }
@@ -461,14 +456,14 @@ namespace HoneySelect2Maker
         {
             private static bool Prefix(HS2.HomeUI __instance)
             {
-                // UnityEngine.Debug.Log($">> action CallConcierge | {DateTime.Now:HH:mm:ss.fff}");
-                if (_reEntryHarmony)
-                {
-                    _reEntryHarmony = false;
-                    return true; // 원본 실행 허용
-                }
-
+                // UnityEngine.Debug.Log($">> action CallConcierge | {DateTime.Now:HH:mm:ss.fff}");                
                 if (_self.IsAvailableVideo(_self._video_concierge_scene_folder)) {
+                    if (_reEntryHarmony)
+                    {
+                        _reEntryHarmony = false;
+                        return true; // 원본 실행 허용
+                    }
+
                     _self.StartCoroutine(WaitCallConcierge(__instance));
                     return false; // 원본 StartFade 실행 차단  
                 }
@@ -504,27 +499,23 @@ namespace HoneySelect2Maker
         {
             private static bool Prefix(ADV.ADVMainScene __instance)
             {
-
-                Manager.Game game = Singleton<Manager.Game>.Instance;
-
-                // UnityEngine.Debug.Log($">> Heroine cnt {game.heroineList.Count}");
-                // foreach (Actor.Heroine heroine in game.heroineList) {
-                //     UnityEngine.Debug.Log($">> ChangeCoodinate in HScene sex {heroine.chaFile.parameter.sex}, name {heroine.chaFile.parameter.fullname}");
-                // }
-
-                Scene scene = SceneManager.GetActiveScene();
                 // UnityEngine.Debug.Log($">> start in ADVMainScene {scene.name}, {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
+                Scene scene = SceneManager.GetActiveScene();
+
                 if (_reEntryHarmony)
                 {
                     _reEntryHarmony = false;
                     return true;
-                }
+                }            
 
                 string heroinName = "";
-                if (game.heroineList.Count > 0)
+                if (__instance.heroineList.Count > 0)
                 {
-                    heroinName = game.heroineList[0].chaFile.parameter.fullname;
+                    heroinName = __instance.heroineList[0].chaFile.parameter.fullname;
                 }
+
+                UnityEngine.Debug.Log($">> start in ADVMainScene {__instance.heroineList.Count}, {heroinName} | {DateTime.Now:HH:mm:ss.fff}");
+
                 _self.StartCoroutine(WaitAdvMainSceneCall(scene.name, __instance, heroinName));
                 return false;
             }
@@ -620,26 +611,26 @@ namespace HoneySelect2Maker
             private static void Postfix(Manager.HSceneManager __instance, ChaControl[] female)
             {
                 // UnityEngine.Debug.Log($">> SetFemaleState in HSceneManager | {DateTime.Now:HH:mm:ss.fff}");
-                foreach (ChaControl eachFemale in female)
-                {
-                    if (eachFemale != null)
-                    {
-                        // UnityEngine.Debug.Log($">> eachFemale {eachFemale.chaFile.parameter.fullname}");
-                    }
-                }
+                // foreach (ChaControl eachFemale in female)
+                // {
+                //     if (eachFemale != null)
+                //     {
+                //         // UnityEngine.Debug.Log($">> eachFemale {eachFemale.chaFile.parameter.fullname}");
+                //     }
+                // }
 
-				SaveData saveData = Singleton<Manager.Game>.Instance.saveData;
-                if (saveData != null) {
-                    UnityEngine.Debug.Log($">> instance.hero {saveData.hCount}");
-                }
+				// SaveData saveData = Singleton<Manager.Game>.Instance.saveData;
+                // if (saveData != null) {
+                //     UnityEngine.Debug.Log($">> instance.hero {saveData.hCount}");
+                // }
 
-                Manager.Game instance = Singleton<Manager.Game>.Instance; 
+                // Manager.Game instance = Singleton<Manager.Game>.Instance; 
 
-                if (instance != null)
-                {
-                    // Manager.Game.Instance.saveData 내에 player 정보 저장 
-                    UnityEngine.Debug.Log($">> instance.heroineList {instance.heroineList.Count}");
-                }
+                // if (instance != null)
+                // {
+                //     // Manager.Game.Instance.saveData 내에 player 정보 저장 
+                //     UnityEngine.Debug.Log($">> instance.heroineList {instance.heroineList.Count}");
+                // }
             }
         }
 

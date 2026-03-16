@@ -1518,22 +1518,35 @@ namespace RealHumanSupport
 
         internal static RealHumanData AllocateBumpMap(ChaControl charControl, RealHumanData realHumanData)
         {
-            Texture2D headOriginTexture = null;
-            Texture2D bodyOriginTexture = null;
+            // Cache original bump textures only once; reuse on re-init to avoid cumulative blending.
+            if (realHumanData.headOriginTexture == null)
+            {
+                Texture2D headOriginTexture = null;
+                if (realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_type) as Texture2D == null)
+                    headOriginTexture = ConvertToTexture2D(realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_type) as RenderTexture);
+                else
+                    headOriginTexture = realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_type) as Texture2D;
 
-            if (realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_type) as Texture2D == null)
-                headOriginTexture = ConvertToTexture2D(realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_type) as RenderTexture);
-            else 
-                headOriginTexture = realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_type) as Texture2D;
+                realHumanData.headOriginTexture = SetTextureSize(
+                    MakeWritableTexture(headOriginTexture),
+                    RealHumanSupport._self._faceExpressionFemaleBumpMap2.width,
+                    RealHumanSupport._self._faceExpressionFemaleBumpMap2.height);
+            }
 
-            if (realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_type) as Texture2D == null)
-                bodyOriginTexture = ConvertToTexture2D(realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_type) as RenderTexture);
-            else
-                bodyOriginTexture = realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_type) as Texture2D;
+            if (realHumanData.bodyOriginTexture == null)
+            {
+                Texture2D bodyOriginTexture = null;
+                if (realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_type) as Texture2D == null)
+                    bodyOriginTexture = ConvertToTexture2D(realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_type) as RenderTexture);
+                else
+                    bodyOriginTexture = realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_type) as Texture2D;
 
-            realHumanData.headOriginTexture = SetTextureSize(MakeWritableTexture(headOriginTexture), RealHumanSupport._self._faceExpressionFemaleBumpMap2.width, RealHumanSupport._self._faceExpressionFemaleBumpMap2.height);
-            realHumanData.bodyOriginTexture = SetTextureSize(MakeWritableTexture(bodyOriginTexture), RealHumanSupport._self._bodyStrongFemaleBumpMap2.width, RealHumanSupport._self._bodyStrongFemaleBumpMap2.height);
-    
+                realHumanData.bodyOriginTexture = SetTextureSize(
+                    MakeWritableTexture(bodyOriginTexture),
+                    RealHumanSupport._self._bodyStrongFemaleBumpMap2.width,
+                    RealHumanSupport._self._bodyStrongFemaleBumpMap2.height);
+            }
+
             return realHumanData;
         }
 

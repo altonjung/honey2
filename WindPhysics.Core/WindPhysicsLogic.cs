@@ -214,10 +214,8 @@ namespace WindPhysics
         {
             float time = Time.time;
 
-            // Scale by current wind energy once to avoid repeated multiplies in loops.
             windEffect *= factor;
 
-            // PERF: cache frequently used settings once per call.
             bool gravityUp = WindPhysics.Gravity.Value >= 0f;
             float gravity = WindPhysics.Gravity.Value;
             float windForce = WindPhysics.WindForce.Value;
@@ -233,7 +231,6 @@ namespace WindPhysics
             float clothStiffness = WindPhysics.ClothStiffness.Value;
             float clothForce = WindPhysics.ClotheForce.Value;
 
-            // PERF: evaluate waves once per update instead of per element.
             float windWave = Mathf.Max(Mathf.Sin(time * WindPhysics.WindAmplitude.Value), 0f);
             float upWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(windWave, 0f));
             float downWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(-windWave, 0f));
@@ -248,7 +245,6 @@ namespace WindPhysics
             Vector3 externalWind = baseWind * windForce * clothForce;
             float noise = (Mathf.PerlinNoise(time * 0.8f, 0f) - 0.5f) * 2f;
 
-            // Tuned multipliers for stronger lift and reduced downward pull.
             const float upBoost = 5.0f;
             const float downReduce = 0.15f;
 
@@ -261,22 +257,28 @@ namespace WindPhysics
             Vector3 clothRandomUp = randomWind * 400f * factor;
             Vector3 clothRandomDown = randomWind * 1600f * factor;
 
+            Transform headTr = windData.head_bone;
+
+            //--------------------------------
             // Hair
+            //--------------------------------
+
             var hairBones = windData.hairDynamicBones;
+
             for (int i = 0; i < hairBones.Count; i++)
             {
                 var hairBone = hairBones[i];
                 if (hairBone == null)
                     continue;
 
-                // Add subtle left/right spread based on head position.
                 Transform hairBoneRoot = hairBone.m_Root != null ? hairBone.m_Root : hairBone.transform;
-                Transform headTr = windData.head_bone;                
+
                 float sideSign = 0f;
+
                 if (headTr != null)
                 {
                     Vector3 toHairBoneRoot = hairBoneRoot.position - headTr.position;
-                    float side = Vector3.Dot(toHairBoneRoot, headTr.right); // head 기준 hairRoot 가 왼쪽인지/오른쪽인지 내적으로 판단
+                    float side = Vector3.Dot(toHairBoneRoot, headTr.right);
                     sideSign = Mathf.Sign(side);
                 }
 
@@ -284,14 +286,33 @@ namespace WindPhysics
                 Vector3 sideWind = headTr != null ? headTr.right * sideSign * sideAmount : Vector3.zero;
 
                 hairBone.m_Elasticity = hairElastic + UnityEngine.Random.Range(-0.2f, 0.2f);
-                hairBone.m_Force = hairFinalWind + sideWind;
-                hairBone.m_Gravity = new Vector3(0, gravityUp
-                ? UnityEngine.Random.Range(gravity, gravity + 0.02f)
-                : UnityEngine.Random.Range(gravity, gravity - 0.01f), 0f);
+
+                // ---- FORCE (world -> local)
+                Vector3 worldForce = hairFinalWind + sideWind;
+                hairBone.m_Force = headTr != null
+                    ? headTr.InverseTransformDirection(worldForce)
+                    : worldForce;
+
+                // ---- GRAVITY (world -> local)
+                Vector3 worldGravity = new Vector3(
+                    0,
+                    gravityUp
+                        ? UnityEngine.Random.Range(gravity, gravity + 0.02f)
+                        : UnityEngine.Random.Range(gravity, gravity - 0.01f),
+                    0f
+                );
+
+                hairBone.m_Gravity = headTr != null
+                    ? headTr.InverseTransformDirection(worldGravity)
+                    : worldGravity;
             }
 
+            //--------------------------------
             // Accessories
+            //--------------------------------
+
             var accessoryBones = windData.accesoriesDynamicBones;
+
             for (int i = 0; i < accessoryBones.Count; i++)
             {
                 var bone = accessoryBones[i];
@@ -299,15 +320,34 @@ namespace WindPhysics
                     continue;
 
                 bone.m_Elasticity = accessoriesElastic + UnityEngine.Random.Range(-0.2f, 0.2f);
-                // bone.m_Stiffness = accessoriesStiffness;
-                bone.m_Force = accessoriesFinalWind;
-                bone.m_Gravity = new Vector3(0f, gravityUp
-                ? UnityEngine.Random.Range(gravity, gravity + 0.03f)
-                : UnityEngine.Random.Range(gravity, gravity - 0.03f), 0f);
+
+                // FORCE
+                Vector3 worldForce = accessoriesFinalWind;
+
+                bone.m_Force = headTr != null
+                    ? headTr.InverseTransformDirection(worldForce)
+                    : worldForce;
+
+                // GRAVITY
+                Vector3 worldGravity = new Vector3(
+                    0f,
+                    gravityUp
+                        ? UnityEngine.Random.Range(gravity, gravity + 0.03f)
+                        : UnityEngine.Random.Range(gravity, gravity - 0.03f),
+                    0f
+                );
+
+                bone.m_Gravity = headTr != null
+                    ? headTr.InverseTransformDirection(worldGravity)
+                    : worldGravity;
             }
 
+            //--------------------------------
             // Clothes
+            //--------------------------------
+
             var clothes = windData.clothes;
+
             for (int i = 0; i < clothes.Count; i++)
             {
                 var cloth = clothes[i];
@@ -330,7 +370,6 @@ namespace WindPhysics
                     cloth.randomAcceleration = clothRandomDown;
                 }
 
-                // PERF: use cached values and avoid repeated property access.
                 cloth.damping = clothDamping;
                 cloth.stiffnessFrequency = clothStiffness;
             }

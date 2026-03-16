@@ -355,7 +355,6 @@ namespace HoneySelect2Maker
 
                 for (int j = 0; j < list2.Count; j++)
                 {
-
                     StringBuilder stringBuilder = new StringBuilder(UserData.Path + "chara/female/");
                     stringBuilder.Append(list2[j]).Append(".png");
                     // StringBuilder stringBuilder = new StringBuilder(list2[j]);
@@ -378,5 +377,12 @@ namespace HoneySelect2Maker
             chaControl.releaseCustomInputTexture = false;
             chaControl.Load(false);
         }
+    }
+
+    class HeroinData
+    {
+        public int favorite;
+        public int age;
+        public int encounterCnt;
     }
 }
