@@ -1,0 +1,5 @@
+C:\share\work\hs2\HSPlugins-main\JointCorrectionSlider.HS2\obj\Release\JointCorrectionSlider.HS2.csproj.AssemblyReference.cache
+C:\share\work\hs2\HSPlugins-main\JointCorrectionSlider.HS2\obj\Release\JointCorrectionSlider.HS2.csproj.CoreCompileInputs.cache
+C:\share\work\hs2\HSPlugins-main\bin\HS2\JointCorrectionSlider.dll
+C:\share\work\hs2\HSPlugins-main\JointCorrectionSlider.HS2\obj\Release\JointCor.6E124C84.Up2Date
+C:\share\work\hs2\HSPlugins-main\JointCorrectionSlider.HS2\obj\Release\JointCorrectionSlider.dll
