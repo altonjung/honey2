@@ -253,6 +253,12 @@ namespace JointCorrectionSlider
                 _prevRightArm = RightArmConfig.Value;
                 SetScriptInfo(_currentOCIChar, 1, RightArmConfig.Value);
             }
+            if (BothArmConfig.Value != _prevBothArm)
+            {
+                _prevBothArm = BothArmConfig.Value;
+                SetScriptInfo(_currentOCIChar, 0, BothArmConfig.Value);
+                SetScriptInfo(_currentOCIChar, 1, BothArmConfig.Value);
+            }
             if (LeftLegConfig.Value != _prevLeftLeg)
             {
                 _prevLeftLeg = LeftLegConfig.Value;
@@ -265,6 +271,21 @@ namespace JointCorrectionSlider
                 SetScriptInfo(_currentOCIChar, 3, RightLegConfig.Value);
                 SetScriptInfo(_currentOCIChar, 7, RightLegConfig.Value);
             }
+            if (BothLegConfig.Value != _prevBothLeg)
+            {
+                _prevBothLeg = BothLegConfig.Value;
+                SetScriptInfo(_currentOCIChar, 2, LeftLegConfig.Value);
+                SetScriptInfo(_currentOCIChar, 6, LeftLegConfig.Value);
+                SetScriptInfo(_currentOCIChar, 3, BothLegConfig.Value);
+                SetScriptInfo(_currentOCIChar, 7, BothLegConfig.Value);
+            }
+            if (CrouchConfig.Value != _prevCrouch)
+            {
+                _prevCrouch = CrouchConfig.Value;
+                SetScriptInfo(_currentOCIChar, 6, CrouchConfig.Value);
+                SetScriptInfo(_currentOCIChar, 7, CrouchConfig.Value);
+            }
+            
             // category = 0  armup L
             // category = 1  armup R
             // category = 2  Knee L
@@ -356,6 +377,7 @@ namespace JointCorrectionSlider
             GUILayout.Label(BothLegConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
+            draw_seperate();  
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("LeftAnkle", "LeftAnkle"), GUILayout.Width(80));
             LeftAnkleConfig.Value = GUILayout.HorizontalSlider(LeftAnkleConfig.Value, -1.0f, 1.0f);
@@ -395,7 +417,7 @@ namespace JointCorrectionSlider
         private void draw_seperate()
         {
             GUILayout.Space(5);
-            Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.5f));
+            Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.3f));
             GUI.Box(rect, GUIContent.none);
             GUILayout.Space(10);
         }
