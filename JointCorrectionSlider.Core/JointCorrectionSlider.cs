@@ -217,47 +217,25 @@ namespace JointCorrectionSlider
             if (_currentOCIChar == null)
                 return;
 
-            // if (LeftLegConfig.Value != _prevLeftLeg)
-            // {
-            //     _prevLeftLeg = LeftLegConfig.Value;
-            //     if (_currentOCIChar != null)
-            //     {
-            //         foreach (Expression.ScriptInfo scriptInfo in _currentOCIChar.charInfo.expression.info)
-            //         {
-            //             float strength = LeftLegConfig.Value;
-
-            //             scriptInfo.correct.charmRate = strength;
-            //             scriptInfo.correct.valRXMin = strength;
-            //             scriptInfo.correct.valRXMax = strength;
-            //             scriptInfo.correct.valRYMin = strength;
-            //             scriptInfo.correct.valRYMax = strength;
-            //             scriptInfo.correct.valRZMin = strength;
-            //             scriptInfo.correct.valRZMax = strength;
-
-            //             // scriptInfo.correct.Update();
-            //             scriptInfo.enable = true; 
-            //             UnityEngine.Debug.Log($">> scriptInfo correctName  {scriptInfo.categoryNo}, {scriptInfo.index}, {scriptInfo.correct.correctName}, {scriptInfo.enableCorrect}");
-            //             // UnityEngine.Debug.Log($">> scriptInfo {scriptInfo.correct.charmRate}");
-            //         }
-
-                    
-            //     }
-            // }
             if (LeftArmConfig.Value != _prevLeftArm)
             {
                 _prevLeftArm = LeftArmConfig.Value;
                 SetScriptInfo(_currentOCIChar, 0, LeftArmConfig.Value);
+                SetScriptInfo(_currentOCIChar, 4, LeftArmConfig.Value);
             }
             if (RightArmConfig.Value != _prevRightArm)
             {
                 _prevRightArm = RightArmConfig.Value;
                 SetScriptInfo(_currentOCIChar, 1, RightArmConfig.Value);
+                SetScriptInfo(_currentOCIChar, 5, RightArmConfig.Value);
             }
             if (BothArmConfig.Value != _prevBothArm)
             {
                 _prevBothArm = BothArmConfig.Value;
                 SetScriptInfo(_currentOCIChar, 0, BothArmConfig.Value);
+                SetScriptInfo(_currentOCIChar, 4, BothArmConfig.Value);
                 SetScriptInfo(_currentOCIChar, 1, BothArmConfig.Value);
+                SetScriptInfo(_currentOCIChar, 5, BothArmConfig.Value);
             }
             if (LeftLegConfig.Value != _prevLeftLeg)
             {
@@ -274,8 +252,8 @@ namespace JointCorrectionSlider
             if (BothLegConfig.Value != _prevBothLeg)
             {
                 _prevBothLeg = BothLegConfig.Value;
-                SetScriptInfo(_currentOCIChar, 2, LeftLegConfig.Value);
-                SetScriptInfo(_currentOCIChar, 6, LeftLegConfig.Value);
+                SetScriptInfo(_currentOCIChar, 2, BothLegConfig.Value);
+                SetScriptInfo(_currentOCIChar, 6, BothLegConfig.Value);
                 SetScriptInfo(_currentOCIChar, 3, BothLegConfig.Value);
                 SetScriptInfo(_currentOCIChar, 7, BothLegConfig.Value);
             }
