@@ -261,18 +261,16 @@ namespace RealHumanSupport
 
        private void WindowFunc(int id)
         {
-
             var studio = Studio.Studio.Instance;
 
-            // ⭐ UI 조작 중이면 Studio 입력 막기
-            if (Event.current.type == EventType.MouseDown ||
-                Event.current.type == EventType.MouseDrag)
+            bool guiUsingMouse = GUIUtility.hotControl != 0;
+            bool mouseInWindow = _windowRect.Contains(Event.current.mousePosition);
+
+            if (guiUsingMouse || mouseInWindow)
             {
                 studio.cameraCtrl.noCtrlCondition = () => true;
             }
-
-            // ⭐ 마우스 떼면 해제
-            if (Event.current.type == EventType.MouseUp)
+            else
             {
                 studio.cameraCtrl.noCtrlCondition = null;
             }
