@@ -11,7 +11,9 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2Maker.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2MakerLogic.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2MakerSceneCtr.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2MakerActionCtr.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2MakerChatCtr.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />

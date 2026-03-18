@@ -54,14 +54,24 @@ using KKAPI.Chara;
 
     1) 각 캐릭터에 RealGirlSupport 로직 자동 추가
     2) 각 pose 에 따른 얼굴 | 다리 | 몸  dynamic-bumpmap 지원
-    3) belly inflation, teadrop 지원    
-*/
-/*
+    3) belly inflation, teadrop 지원
+    4) FEATURE_FACE_BLENDSHAPE_SUPPORT (wink) 당분간 off
+    5) FEATURE_BODY_BLENDSHAPE_SUPPORT (목적 불분명) 당분간 off
+
+        blend shape 기능 활용
+
+        GP 7.7 혹은 그 이상 (최신 GP 계열 지원)
+        >> blendShape GP.Basic Shape Legs Pull BothSide, 20 in body
+        >> blendShape GP.Siri open Buttcheeks1, 221 in body
+        >> blendShape GP.Siri open Buttcheeks2, 222 in body
+
+
     남은작업
 
-    1) pose 시 관절별 어색한 영역 보정 기능 추가
-    2) 팔 영역 dynamic-bumpmap 지원
-    3) ingame 지원
+    1) DAN bone 활용 지원
+    2) FK 모드 및 animation 모드 지원
+    3) FEATURE_BODY_BLENDSHAPE_SUPPORT 기능 활용
+    4) 팔 영역 dynamic-bumpmap 지원
 */
 
 namespace RealHumanSupport
@@ -142,13 +152,27 @@ namespace RealHumanSupport
 
         private bool winkReleased = false;
 
-        private int prevMouthType = 0;
+        private GUIStyle _richLabel;
+        private float _nextLateSampleTime = 0f;
+
+        private GUIStyle RichLabel
+        {
+            get
+            {
+                if (_richLabel == null)
+                {
+                    _richLabel = new GUIStyle(GUI.skin.label);
+                    _richLabel.richText = true;
+                }
+                return _richLabel;
+            }
+        }
 
         // Config
-
-
         #region Accessors
         internal static ConfigEntry<KeyboardShortcut> ConfigWinkShortcut { get; private set; }
+
+        internal static ConfigEntry<bool> AnimActive { get; private set; }
 
         internal static ConfigEntry<bool> TearDropActive { get; private set; }
 
@@ -177,9 +201,9 @@ namespace RealHumanSupport
         {
             base.Awake();
             string support_type = "Studio";
-#if FEATURE_INGAME_SUPPORT            
-            support_type = "Studio/InGame";
-#endif
+
+            AnimActive = Config.Bind(support_type, "Animation", true, new ConfigDescription("Enable/Disable"));
+
             EyeShakeActive = Config.Bind(support_type, "Eye Shaking", true, new ConfigDescription("Enable/Disable"));
 
             BreathActive = Config.Bind(support_type, "Bumping Belly", true, new ConfigDescription("Enable/Disable"));
@@ -232,7 +256,14 @@ namespace RealHumanSupport
         }
 #endif
 
-       
+        private void InitConfig()
+        {
+            TearDropLevel.Value = (float)TearDropLevel.DefaultValue;
+            BreathInterval.Value = (float)BreathInterval.DefaultValue;
+            BreathStrong.Value = (float)BreathStrong.DefaultValue;
+            ExtraColliderScale.Value = (float)ExtraColliderScale.DefaultValue;                       
+        }
+
         protected override void Update()
         {
             if (_loaded == false)
@@ -250,6 +281,65 @@ namespace RealHumanSupport
             }        
         }
 
+        // 
+        protected override void LateUpdate()
+        {
+            if (_loaded == false)
+                return;
+
+            if (AnimActive.Value == false)
+                return;
+
+            if (Time.unscaledTime < _nextLateSampleTime)
+                return;
+
+            _nextLateSampleTime = Time.unscaledTime + 0.1f; // 0.1 mean 10fps
+
+            if (Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes == null ||
+                Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() == 0)
+                return;
+
+            TreeNodeObject _node = Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Last();
+            if (_node == null)
+                return;
+
+            ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+            OCIChar ociChar = objectCtrlInfo as OCIChar;
+            if (ociChar == null)
+                return;
+
+            ChaControl chaControl = ociChar.GetChaControl();
+            var controller = chaControl.GetComponent<RealHumanSupportController>();
+            if (controller == null)
+                return;
+
+            RealHumanData realHumanData = controller.GetRealData();
+            if (realHumanData == null || realHumanData.fk_head_bone == null)
+                return;
+
+            if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
+                realHumanData = RealHumanSupportController.GetMaterials(ociChar.GetChaControl(), realHumanData);
+
+            const float ROT_EPS_ANIM = 0.2f;
+
+            if (
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q, realHumanData.prev_fk_head_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q, realHumanData.prev_fk_left_foot_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q, realHumanData.prev_fk_right_foot_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q, realHumanData.prev_fk_left_knee_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_knee_bone)._q, realHumanData.prev_fk_right_knee_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_thigh_bone)._q, realHumanData.prev_fk_left_thigh_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_thigh_bone)._q, realHumanData.prev_fk_right_thigh_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine01_bone)._q, realHumanData.prev_fk_spine01_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine02_bone)._q, realHumanData.prev_fk_spine02_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_shoulder_bone)._q, realHumanData.prev_fk_left_shoulder_rot, ROT_EPS_ANIM) ||
+                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q, realHumanData.prev_fk_right_shoulder_rot, ROT_EPS_ANIM)
+            )
+            {
+                RealHumanSupportController.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
+            }
+        }
+
        protected override void OnGUI()
         {
             if (_ShowUI == false)
@@ -262,7 +352,9 @@ namespace RealHumanSupport
        private void WindowFunc(int id)
         {
             var studio = Studio.Studio.Instance;
-
+    		// 항상 기본값 복구
+    		studio.cameraCtrl.noCtrlCondition = null;
+	
             bool guiUsingMouse = GUIUtility.hotControl != 0;
             bool mouseInWindow = _windowRect.Contains(Event.current.mousePosition);
 
@@ -276,40 +368,56 @@ namespace RealHumanSupport
             }
 
             // ================= UI =================
-// Global
-            GUILayout.Label("Breath");
-            GUILayout.BeginHorizontal();
+///////////////////
+            GUILayout.Label("<color=yellow>Breath</color>", RichLabel);
 
-            GUILayout.Label(new GUIContent("S", "Strong"), GUILayout.Width(30));
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
             BreathStrong.Value = GUILayout.HorizontalSlider(BreathStrong.Value, 0.1f, 1.0f);
             GUILayout.Label(BreathStrong.Value.ToString("0.00"), GUILayout.Width(30));
 
-            GUILayout.Label(new GUIContent("I", "Interval"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("Interval", "Interval"), GUILayout.Width(60));
             BreathInterval.Value = GUILayout.HorizontalSlider(BreathInterval.Value, 1.0f, 5.0f);
             GUILayout.Label(BreathInterval.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
-// Global
-            GUILayout.Label("Tear");
-            GUILayout.BeginHorizontal();
+///////////////////
+            GUILayout.Label("<color=yellow>Tear</color>", RichLabel);
 
-            GUILayout.Label(new GUIContent("S", "Strong"), GUILayout.Width(30));
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
             TearDropLevel.Value = GUILayout.HorizontalSlider(TearDropLevel.Value, 0.1f, 1.0f);
             GUILayout.Label(TearDropLevel.Value.ToString("0.00"), GUILayout.Width(30));
-
             GUILayout.EndHorizontal(); 
-// Global                      
-            GUILayout.Label("Extra Collider");
-            GUILayout.BeginHorizontal();
 
-            GUILayout.Label(new GUIContent("S", "Scale"), GUILayout.Width(30));
+///////////////////            
+            GUILayout.Label("<color=red>Extra Collider</color>", RichLabel);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Scale", "Scale"), GUILayout.Width(60));
             ExtraColliderScale.Value = GUILayout.HorizontalSlider(ExtraColliderScale.Value, 0.1f, 10.0f);
             GUILayout.Label(ExtraColliderScale.Value.ToString("0.00"), GUILayout.Width(30));
-
             GUILayout.EndHorizontal(); 
 
-            if (GUILayout.Button("Close"))
-                _ShowUI = false;
+            if (TearDropActive.Value)
+                if (GUILayout.Button("Tear(D)"))
+                {
+                    TearDropActive.Value = false;
+                }
+            else 
+                if (GUILayout.Button("Tear(A)"))
+                {
+                    TearDropActive.Value = true;
+                }
+
+            if (GUILayout.Button("Default")) {
+                InitConfig();
+			}
+
+            if (GUILayout.Button("Close")) {
+                Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+				_ShowUI = false;
+			}
 
             // ⭐ 툴팁 직접 그리기
             if (!string.IsNullOrEmpty(GUI.tooltip))
@@ -350,6 +458,11 @@ namespace RealHumanSupport
         {
         }
 
+        private static bool RotChanged(Quaternion current, Quaternion prev, float epsilonDeg)
+        {
+            return Quaternion.Angle(current, prev) > epsilonDeg;
+        }
+
         IEnumerator CheckRotationRoutine()
         {
             bool isReleased = false;
@@ -359,12 +472,13 @@ namespace RealHumanSupport
                 if (_loaded && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() > 0)
                 {
                     TreeNodeObject _node = Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Last();
+                    
                     if (_node != null)
                     {
                         ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
                         OCIChar ociChar = objectCtrlInfo as OCIChar;
 
-                        if (ociChar != null)
+                        if (ociChar != null && ociChar.oiCharInfo.enableFK) // FK 활성화 되었을때 동작
                         {
                             ChaControl chaControl = ociChar.GetChaControl();
                             var controller = chaControl.GetComponent<RealHumanSupportController>();
@@ -383,25 +497,27 @@ namespace RealHumanSupport
                                         if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
                                             realHumanData = RealHumanSupportController.GetMaterials(ociChar.GetChaControl(), realHumanData);
 
+                                        const float ROT_EPS = 0.1f;
+
                                         if (
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q != realHumanData.prev_fk_head_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q != realHumanData.prev_fk_left_foot_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q != realHumanData.prev_fk_right_foot_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q != realHumanData.prev_fk_left_knee_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_knee_bone)._q != realHumanData.prev_fk_right_knee_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_thigh_bone)._q != realHumanData.prev_fk_left_thigh_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_thigh_bone)._q != realHumanData.prev_fk_right_thigh_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine01_bone)._q != realHumanData.prev_fk_spine01_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine02_bone)._q != realHumanData.prev_fk_spine02_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_shoulder_bone)._q != realHumanData.prev_fk_left_shoulder_rot) ||
-                                            (RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q != realHumanData.prev_fk_right_shoulder_rot)
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q, realHumanData.prev_fk_head_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q, realHumanData.prev_fk_left_foot_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q, realHumanData.prev_fk_right_foot_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q, realHumanData.prev_fk_left_knee_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_knee_bone)._q, realHumanData.prev_fk_right_knee_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_thigh_bone)._q, realHumanData.prev_fk_left_thigh_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_thigh_bone)._q, realHumanData.prev_fk_right_thigh_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine01_bone)._q, realHumanData.prev_fk_spine01_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine02_bone)._q, realHumanData.prev_fk_spine02_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_shoulder_bone)._q, realHumanData.prev_fk_left_shoulder_rot, ROT_EPS) ||
+                                            RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q, realHumanData.prev_fk_right_shoulder_rot, ROT_EPS)
                                         )
                                         {
                                             RealHumanSupportController.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
                                         }
                                     }
                                 }
-                            }                       
+                            } 
                         }                        
                     }
                 }
@@ -561,7 +677,7 @@ namespace RealHumanSupport
                                if (realHumanData != null) {
                                     if (_self._winkState == WinkState.Idle)
                                     {
-                                        _self.prevMouthType = chaControl.GetMouthPtn();
+                                        realHumanData.originMouthType = chaControl.GetMouthPtn();
                                         chaControl.ChangeMouthPtn(1, true);   
                                         _self._winkState = WinkState.Playing;
                                         _self._winkTime = 0f;
@@ -590,7 +706,7 @@ namespace RealHumanSupport
                                             _self._winkState = WinkState.Idle;
                                             _self._winkTime = 0f;
 
-                                            chaControl.ChangeMouthPtn(_self.prevMouthType, true);
+                                            chaControl.ChangeMouthPtn(realHumanData.originMouthType, true);
                                             _self.winkReleased = false;                            
                                         }                                    
 
@@ -662,115 +778,6 @@ namespace RealHumanSupport
                 }
             }
         }      
-#endif
-
-        // In Game Mode
-#if FEATURE_INGAME_SUPPORT
-        [HarmonyPatch(typeof(ADV.CharaData), "MotionPlay")]
-        private static class CharaData_MotionPlay_Patches
-        {
-            private static bool Prefix(ADV.CharaData __instance, ADV.Commands.Base.Motion.Data motion, bool isCrossFade)
-            {
-                // UnityEngine.Debug.Log($">> MotionPlay {__instance.chaCtrl}");
-
-                if (__instance.chaCtrl != null) {
-                        
-                    if (!_self._ociCharMgmt.TryGetValue(__instance.chaCtrl.GetHashCode(), out var realHumanData))
-                    {
-                        RealHumanData realHumanData2 = new RealHumanData();
-                        realHumanData2 = RealHumanSupportController.InitRealHumanData(__instance.chaCtrl, realHumanData2);
-
-                        if (realHumanData2 != null)
-                        {
-                            realHumanData2.coroutine = __instance.chaCtrl.StartCoroutine(_self.RoutineForInGame(realHumanData2));
-                            _self._ociCharMgmt.Add(__instance.chaCtrl.GetHashCode(), realHumanData2);
-                            __instance.chaCtrl.StartCoroutine(_self.ExecuteAfterFrame(__instance.chaCtrl, realHumanData2));                    
-                        }            
-                    }
-                }
-
-                return true;
-            }
-        }
-
-        // 캐릭터 구성 시 마다
-        [HarmonyPatch(typeof(Manager.HSceneManager), "SetFemaleState", typeof(ChaControl[]))]
-        private static class HSceneManager_SetFemaleState_Patches
-        {
-            private static void Postfix(Manager.HSceneManager __instance, ChaControl[] female)
-            {
-
-                foreach (var kvp in _self._ociCharMgmt)
-                {
-                    var key = kvp.Key;
-                    RealHumanData value = kvp.Value;
-                    value.c_m_eye.Clear();
-                    if (value != null && value.charControl != null && value.coroutine != null)
-                        value.charControl.StopCoroutine(value.coroutine);
-                }
-
-                _self._ociCharMgmt.Clear(); 
-
-                // player
-                if (__instance.player != null) {
-                    RealHumanData realHumanData2 = new RealHumanData();
-                    realHumanData2 = RealHumanSupportController.InitRealHumanData(__instance.player, realHumanData2);
-
-                    if (realHumanData2 != null)
-                    {
-                        realHumanData2.coroutine = __instance.player.StartCoroutine(_self.RoutineForInGame(realHumanData2));
-                        _self._ociCharMgmt.Add(__instance.player.GetHashCode(), realHumanData2);
-                        __instance.player.StartCoroutine(_self.ExecuteAfterFrame(__instance.player, realHumanData2));
-                    }
-                }
-
-                // heroine
-                foreach (ChaControl chaCtrl in female)
-                {
-                    if (chaCtrl != null) {
-                        RealHumanData realHumanData2 = new RealHumanData();
-                        realHumanData2 = RealHumanSupportController.InitRealHumanData(chaCtrl, realHumanData2);
-
-                        if (realHumanData2 != null)
-                        {
-                            realHumanData2.coroutine = chaCtrl.StartCoroutine(_self.RoutineForInGame(realHumanData2));
-                            _self._ociCharMgmt.Add(chaCtrl.GetHashCode(), realHumanData2);
-                            chaCtrl.StartCoroutine(_self.ExecuteAfterFrame(chaCtrl, realHumanData2));
-                        }
-                    }
-                }
-            }
-        }    
-
-        [HarmonyPatch(typeof(AIChara.ChaControl), "OnDestroy")]
-        private static class ChaControl_OnDestroy_Patches
-        {
-            private static void Postfix(AIChara.ChaControl __instance)
-            {
-                if (!StudioAPI.InsideStudio) {
-
-                    List<int> deletedHashCode = new List<int>();
-                    foreach (var kvp in _self._ociCharMgmt)
-                    {
-                        var key = kvp.Key;
-                        RealHumanData value = kvp.Value;
-                        value.c_m_eye.Clear();
-                        if (value != null && value.charControl.GetHashCode() == __instance.GetHashCode())
-                        {
-                            if (value.charControl != null && value.coroutine != null) {
-                                value.charControl.StopCoroutine(value.coroutine);                       
-                                deletedHashCode.Add(__instance.GetHashCode());
-                            }     
-                        }
-                    }                    
-
-                    foreach (int hashCode in deletedHashCode)
-                    {
-                        _self._ociCharMgmt.Remove(hashCode);
-                    }
-                }
-            }
-        }
 #endif
 
 #endregion

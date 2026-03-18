@@ -36,7 +36,7 @@ using AIChara;
 
 namespace HoneySelect2Maker
 {
-    public class Logic
+    public class SceneController
     {
         internal static List<string> GetVideoFiles(string folderPath, string pattern = null)
         {
@@ -355,7 +355,6 @@ namespace HoneySelect2Maker
 
                 for (int j = 0; j < list2.Count; j++)
                 {
-
                     StringBuilder stringBuilder = new StringBuilder(UserData.Path + "chara/female/");
                     stringBuilder.Append(list2[j]).Append(".png");
                     // StringBuilder stringBuilder = new StringBuilder(list2[j]);
@@ -367,16 +366,12 @@ namespace HoneySelect2Maker
 
             return result;
         }
+    }
 
-        internal static void LoadHeroin(string pngPath)
-        {
-            Manager.Game instance = Singleton<Manager.Game>.Instance;
-            ChaFileControl chaFileControl = new ChaFileControl();
-            chaFileControl.LoadCharaFile(pngPath, 1, false, true);
-            ChaControl chaControl = Singleton<Manager.Character>.Instance.CreateChara(1, Manager.Scene.commonSpace, 0, chaFileControl);
-            chaControl.ChangeNowCoordinate(false, true);
-            chaControl.releaseCustomInputTexture = false;
-            chaControl.Load(false);
-        }
+    class HeroinData
+    {
+        public int favorite;
+        public int age;
+        public int encounterCnt;
     }
 }

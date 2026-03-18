@@ -31,14 +31,6 @@ using KKAPI.Chara;
 using AIChara;
 #endif
 
-// 고개를 숙이거나, 다리를 벌릴때, blendshape 기능 활용
-/*
-    GP 7.7 혹은 그 이상 (최신 GP 계열 지원)
-    >> blendShape GP.Basic Shape Legs Pull BothSide, 20 in body
-    >> blendShape GP.Siri open Buttcheeks1, 221 in body
-    >> blendShape GP.Siri open Buttcheeks2, 222 in body
-*/
-
 namespace RealHumanSupport
 {
     public class RealHumanSupportController: CharaCustomFunctionController
@@ -59,7 +51,7 @@ namespace RealHumanSupport
         {
             if (chaCtrl.sex == 0)
                 return;
-            // UnityEngine.Debug.Log($">> SupportBodybumpEffect {RealHumanSupport._self._ociCharMgmt.Count}, {realHumanData.m_skin_head}, {realHumanData.m_skin_body}");                        
+
             if (!RealHumanSupport.BodyBlendingActive.Value)
                 return;
 
@@ -116,7 +108,8 @@ namespace RealHumanSupport
                 float bumpscale = 0.0f;
                 float angle = 0.0f;
 
-                if (ociChar.oiCharInfo.enableFK) {
+                // if (ociChar.oiCharInfo.enableFK) 
+                {
             // 머리 (목하고 반대)
                     angle = Math.Abs(fk_head._frontback);
                     if (fk_head._frontback > 3.0f) // 뒤쪽으로 숙임
@@ -560,7 +553,6 @@ namespace RealHumanSupport
                 height,
                 24,
                 RenderTextureFormat.ARGB32
-                // RenderTextureReadWrite.Linear
             );
 
             RenderTexture prev = RenderTexture.active;
@@ -853,7 +845,6 @@ namespace RealHumanSupport
                 DestroyIfExists(capBodyName);
             }
 #endif
-
             return dbc;
         }
 
@@ -1019,6 +1010,31 @@ namespace RealHumanSupport
 
         internal void SetHairDown() {
 
+            if (realHumanData != null && realHumanData.head_bone != null)
+            {
+                foreach (DynamicBone bone in realHumanData.hairDynamicBones)
+                {
+                    if (bone == null)
+                        continue;
+
+                    Transform hairTip;
+                    if (!realHumanData.hairTipCache.TryGetValue(bone, out hairTip))
+                        continue;
+
+                    // Ground direction (world down) -> convert to local.
+                    Vector3 worldGravity = Vector3.down * 0.015f;
+                    bone.m_Gravity = realHumanData.root_bone.InverseTransformDirection(worldGravity);
+                    bone.m_Force = Vector3.zero;
+                    bone.m_Damping    = 0.13f;
+                    bone.m_Elasticity = 0.05f;
+                    bone.m_Stiffness  = 0.13f;
+                }
+            }        
+        }
+
+        // Chain direction (root -> tip) gravity.
+        internal void SetHairDownV2() {
+
             if (realHumanData != null && realHumanData.root_bone != null)
             {
                 foreach (DynamicBone bone in realHumanData.hairDynamicBones)
@@ -1030,12 +1046,10 @@ namespace RealHumanSupport
                     if (!realHumanData.hairTipCache.TryGetValue(bone, out hairTip))
                         continue;
 
-                    Vector3 dirToRoot =
-                        (realHumanData.root_bone.position - hairTip.position).normalized;
-
-                    bone.m_Gravity = dirToRoot * 0.015f; // 디버그용
+                    Vector3 dirFromRoot = (hairTip.position - realHumanData.head_bone.position).normalized;
+                    Vector3 worldGravity = dirFromRoot * 0.015f;
+                    bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
                     bone.m_Force = Vector3.zero;
-
                     bone.m_Damping    = 0.13f;
                     bone.m_Elasticity = 0.05f;
                     bone.m_Stiffness  = 0.13f;
@@ -2179,7 +2193,6 @@ namespace RealHumanSupport
         public OCIChar.BoneInfo  fk_right_foot_bone;
         public OCIChar.BoneInfo  fk_left_foot_bone;
 
-
         // Belly 효과
         public PregnancyPlusCharaController pregnancyController;
 
@@ -2208,6 +2221,8 @@ namespace RealHumanSupport
 
         public int eye_wink_idx_in_head_of_mouthctrl;
         public int eye_wink_idx_in_namida_of_mouthctrl;
+
+        public int originMouthType;        
 #endif
 
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
@@ -2224,7 +2239,6 @@ namespace RealHumanSupport
         public int pubis_left_bent_idx_in_body;
         public int pubis_right_bent_idx_in_body;
 #endif
-
         public RealHumanData()
         {
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT

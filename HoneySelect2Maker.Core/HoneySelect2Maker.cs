@@ -41,14 +41,19 @@ using AIChara;
 #endif
 
 /*
-    해야 할 일:
-        - advance scene 처리
-        - hscene 처리 
-            -> hscene 각 행위별 처리
+    해야 할 일:        
+        - hscene 처리
+            -> 각 행위별 처리
         - sleeping scene 처리
-            -> sleeping 시 event 제공
-        - achivement 별 event 제공
-        - 자신만의 캐릭터 별 event 제공
+            -> sleeping 시 scene event 제공
+        - 자신만의 캐릭터 별 scene event 제공
+        - home scene/advance scene 처리
+            -> AI chat 기능 연동        
+        - AI chat 기능 제공
+            -> action controller 기능을 통해 chat action 수행 제공
+                => 인사, 화내기, 좋아하기, 싫어하기, 춤추기, 대화 종료, Achivement 획득
+        - AI chat 대화창 개발
+            -> 사용자 대화창 개발....
 */
 namespace HoneySelect2Maker
 {
@@ -158,7 +163,7 @@ namespace HoneySelect2Maker
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
 
             // title
-            if (Logic.GetVideoFiles(_self._video_title_scene_folder).Count > 0)
+            if (SceneController.GetVideoFiles(_self._video_title_scene_folder).Count > 0)
             {
                 _isAbleTitleVideo = true;
             }
@@ -212,7 +217,7 @@ namespace HoneySelect2Maker
 
         private bool IsAvailableVideo(string path)
         {
-            if (Logic.GetVideoFiles(path).Count > 0)
+            if (SceneController.GetVideoFiles(path).Count > 0)
             {
                 return true;
             }
@@ -230,7 +235,7 @@ namespace HoneySelect2Maker
                 // UnityEngine.Debug.Log($">> Start in Title | {DateTime.Now:HH:mm:ss.fff}");
 
                 if (_self.IsAvailableVideo(_self._video_title_scene_folder)) {
-                    //Logic.PlayVideo(_self._video_title_scene_folder);
+                    //SceneController.PlayVideo(_self._video_title_scene_folder);
                     //_self.StartCoroutine(WaitTitleScene());
                     _self.StartCoroutine(PlayTitleVideos());
                 }
@@ -240,7 +245,7 @@ namespace HoneySelect2Maker
         {
             // 첫 번째 영상
             yield return new WaitForEndOfFrame();
-            Logic.PlayVideoRandom(_self._video_title_scene_folder, false, -100);
+            SceneController.PlayVideoRandom(_self._video_title_scene_folder, false, -100);
             yield return new WaitUntil(() => _videoFinished);
 
             string currentSceneName = SceneManager.GetActiveScene().name;
@@ -249,7 +254,7 @@ namespace HoneySelect2Maker
             {
                 // 두 번째 영상
                 yield return new WaitForEndOfFrame();
-                Logic.PlayVideo(_self._video_title_scene_loop_path, true, false, -100);
+                SceneController.PlayVideo(_self._video_title_scene_loop_path, true, false, -100);
                 yield return new WaitUntil(() => _videoFinished);  
             }
             // 필요하면 계속 추가 가능
@@ -295,7 +300,7 @@ namespace HoneySelect2Maker
             // UnityEngine.Debug.Log($">>currentSceneName {currentSceneName} in WaitHomeSceneCall | {Time.realtimeSinceStartup:F3}");
 
             yield return new WaitForEndOfFrame();
-            Logic.PlayVideoRandom(_self._video_home_scene_folder, true);
+            SceneController.PlayVideoRandom(_self._video_home_scene_folder, true);
             yield return new WaitUntil(() => _videoFinished);
 
             UnityEngine.Debug.Log($">> WaitHomeSceneCall videoFinished | {Time.realtimeSinceStartup:F3}");
@@ -389,7 +394,7 @@ namespace HoneySelect2Maker
             // UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitLobbySceneCall | {Time.realtimeSinceStartup:F3}");
 
             yield return new WaitForEndOfFrame();
-            Logic.PlayVideoRandom(_self._video_lobby_scene_folder, true);
+            SceneController.PlayVideoRandom(_self._video_lobby_scene_folder, true);
             yield return new WaitUntil(() => _videoFinished);
 
             // 🔥 원 함수 실행
@@ -434,7 +439,7 @@ namespace HoneySelect2Maker
         //     // UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitFurRoomSceneCall | {Camera.main} | {Time.realtimeSinceStartup:F3}");
 
         //     yield return new WaitForEndOfFrame();
-        //     Logic.PlayVideo(_self._video_furroom_scene_path, false);
+        //     SceneController.PlayVideo(_self._video_furroom_scene_path, false);
         //     yield return new WaitUntil(() => _videoFinished);
 
         //     // 🔥 원 함수 실행
@@ -479,7 +484,7 @@ namespace HoneySelect2Maker
             // UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} in WaitCallConcierge |{Time.realtimeSinceStartup:F3}");
 
             yield return new WaitForEndOfFrame();
-            Logic.PlayVideoRandom(_self._video_concierge_scene_folder, true);
+            SceneController.PlayVideoRandom(_self._video_concierge_scene_folder, true);
             yield return new WaitUntil(() => _videoFinished);
 
             // 🔥 원 함수 실행
@@ -536,7 +541,7 @@ namespace HoneySelect2Maker
                     UnityEngine.Debug.Log($">> Advance MyRoom with Sleep");
                     if (_self.IsAvailableVideo(_self._video_home_sleep_scene_folder)) {  
                         // sleep
-                        Logic.PlayVideoRandom(_self._video_home_sleep_scene_folder, true);
+                        SceneController.PlayVideoRandom(_self._video_home_sleep_scene_folder, true);
                         yield return new WaitUntil(() => _videoFinished);
                         method_name = "Start";
                     }
@@ -549,7 +554,7 @@ namespace HoneySelect2Maker
             } else if  (sceneName.Equals("Japanese")) { 
                 if (_self.IsAvailableVideo(_self._video_adv_japaneses_scene_folder)) { 
 
-                    Logic.PlayVideoRandom(_self._video_adv_japaneses_scene_folder, true);
+                    SceneController.PlayVideoRandom(_self._video_adv_japaneses_scene_folder, true);
                     yield return new WaitUntil(() => _videoFinished);
                 }
             } else if  (sceneName.Equals("TortureRoom")) { 
@@ -561,7 +566,7 @@ namespace HoneySelect2Maker
             } else if  (sceneName.Equals("Lobby")) { 
                 if (_self.IsAvailableVideo(_self._video_adv_lobby_scene_folder)) { 
 
-                    Logic.PlayVideoRandom(_self._video_adv_lobby_scene_folder, true);
+                    SceneController.PlayVideoRandom(_self._video_adv_lobby_scene_folder, true);
                     yield return new WaitUntil(() => _videoFinished);
                 }
             } else if  (sceneName.Equals("SuiteRoom")) { 
@@ -731,7 +736,7 @@ namespace HoneySelect2Maker
                     _self._sceneVideoPlayer.Pause();
                 }
 
-                Logic.StopSceneVideo();
+                SceneController.StopSceneVideo();
             }
         }
         
@@ -793,7 +798,7 @@ namespace HoneySelect2Maker
                     _self._sceneVideoPlayer.Pause();
                 }
 
-                Logic.StopSceneVideo();
+                SceneController.StopSceneVideo();
             }
         }
 
@@ -810,7 +815,7 @@ namespace HoneySelect2Maker
                     _self._sceneVideoPlayer.Pause();
                 }
 
-                Logic.StopSceneVideo();
+                SceneController.StopSceneVideo();
             }
         }
 
