@@ -281,64 +281,64 @@ namespace RealHumanSupport
             }        
         }
 
-        // 
-        protected override void LateUpdate()
-        {
-            if (_loaded == false)
-                return;
+        // // 
+        // protected override void LateUpdate()
+        // {
+        //     if (_loaded == false)
+        //         return;
 
-            if (AnimActive.Value == false)
-                return;
+        //     if (AnimActive.Value == false)
+        //         return;
 
-            if (Time.unscaledTime < _nextLateSampleTime)
-                return;
+        //     if (Time.unscaledTime < _nextLateSampleTime)
+        //         return;
 
-            _nextLateSampleTime = Time.unscaledTime + 0.1f; // 0.1 mean 10fps
+        //     _nextLateSampleTime = Time.unscaledTime + 0.1f; // 0.1 mean 10fps
 
-            if (Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes == null ||
-                Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() == 0)
-                return;
+        //     if (Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes == null ||
+        //         Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() == 0)
+        //         return;
 
-            TreeNodeObject _node = Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Last();
-            if (_node == null)
-                return;
+        //     TreeNodeObject _node = Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Last();
+        //     if (_node == null)
+        //         return;
 
-            ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-            OCIChar ociChar = objectCtrlInfo as OCIChar;
-            if (ociChar == null)
-                return;
+        //     ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+        //     OCIChar ociChar = objectCtrlInfo as OCIChar;
+        //     if (ociChar == null)
+        //         return;
 
-            ChaControl chaControl = ociChar.GetChaControl();
-            var controller = chaControl.GetComponent<RealHumanSupportController>();
-            if (controller == null)
-                return;
+        //     ChaControl chaControl = ociChar.GetChaControl();
+        //     var controller = chaControl.GetComponent<RealHumanSupportController>();
+        //     if (controller == null)
+        //         return;
 
-            RealHumanData realHumanData = controller.GetRealData();
-            if (realHumanData == null || realHumanData.fk_head_bone == null)
-                return;
+        //     RealHumanData realHumanData = controller.GetRealData();
+        //     if (realHumanData == null || realHumanData.fk_head_bone == null)
+        //         return;
 
-            if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
-                realHumanData = RealHumanSupportController.GetMaterials(ociChar.GetChaControl(), realHumanData);
+        //     if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
+        //         realHumanData = RealHumanSupportController.GetMaterials(ociChar.GetChaControl(), realHumanData);
 
-            const float ROT_EPS_ANIM = 0.2f;
+        //     const float ROT_EPS_ANIM = 0.2f;
 
-            if (
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q, realHumanData.prev_fk_head_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q, realHumanData.prev_fk_left_foot_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q, realHumanData.prev_fk_right_foot_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q, realHumanData.prev_fk_left_knee_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_knee_bone)._q, realHumanData.prev_fk_right_knee_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_thigh_bone)._q, realHumanData.prev_fk_left_thigh_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_thigh_bone)._q, realHumanData.prev_fk_right_thigh_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine01_bone)._q, realHumanData.prev_fk_spine01_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine02_bone)._q, realHumanData.prev_fk_spine02_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_shoulder_bone)._q, realHumanData.prev_fk_left_shoulder_rot, ROT_EPS_ANIM) ||
-                RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q, realHumanData.prev_fk_right_shoulder_rot, ROT_EPS_ANIM)
-            )
-            {
-                RealHumanSupportController.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
-            }
-        }
+        //     if (
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q, realHumanData.prev_fk_head_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q, realHumanData.prev_fk_left_foot_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q, realHumanData.prev_fk_right_foot_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q, realHumanData.prev_fk_left_knee_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_knee_bone)._q, realHumanData.prev_fk_right_knee_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_thigh_bone)._q, realHumanData.prev_fk_left_thigh_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_thigh_bone)._q, realHumanData.prev_fk_right_thigh_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine01_bone)._q, realHumanData.prev_fk_spine01_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine02_bone)._q, realHumanData.prev_fk_spine02_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_shoulder_bone)._q, realHumanData.prev_fk_left_shoulder_rot, ROT_EPS_ANIM) ||
+        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q, realHumanData.prev_fk_right_shoulder_rot, ROT_EPS_ANIM)
+        //     )
+        //     {
+        //         RealHumanSupportController.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
+        //     }
+        // }
 
        protected override void OnGUI()
         {
