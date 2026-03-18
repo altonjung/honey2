@@ -213,7 +213,10 @@ namespace UndressPhysics
         private void WindowFunc(int id)
         {
             var studio = Studio.Studio.Instance;
-
+  
+			// 항상 기본값 복구
+    		studio.cameraCtrl.noCtrlCondition = null;
+			
             bool guiUsingMouse = GUIUtility.hotControl != 0;
             bool mouseInWindow = _windowRect.Contains(Event.current.mousePosition);
 
@@ -268,8 +271,10 @@ namespace UndressPhysics
                 InitConfig();   
             }
 
-            if (GUILayout.Button("Close"))
-                _ShowUI = false;
+            if (GUILayout.Button("Close")) {
+                 Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+				_ShowUI = false;
+			}
             GUILayout.EndHorizontal();
             
             // ⭐ 툴팁 직접 그리기

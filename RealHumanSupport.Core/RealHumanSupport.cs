@@ -418,7 +418,6 @@ namespace RealHumanSupport
                 Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
 				_ShowUI = false;
 			}
-
             // ⭐ 툴팁 직접 그리기
             if (!string.IsNullOrEmpty(GUI.tooltip))
             {
