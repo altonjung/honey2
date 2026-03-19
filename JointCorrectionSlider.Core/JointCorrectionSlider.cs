@@ -47,8 +47,13 @@ using KKAPI.Studio;
 using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 using KKAPI.Chara;
+using static CharaUtils.Expression;
 
 /*
+    확인해야 할 내용
+     - charmRate 값 실시간 변경
+     - orderRate 값 실시간 변경
+
     jointCorrection 관련 코드 조사
         - OCIChar.ChaInfo.Expression 내 8개 사용되는듯
         - Expression 내 아래 LateUpdate() 함수를 통해 각 Expression 항목 업데이트
@@ -79,12 +84,24 @@ using KKAPI.Chara;
         // category = 4  armLow L 
         // category = 5  armLow R 
         // category = 6  legup L, siri
-        // category = 7  legup R, siri    
-    
-        확인해야 할 내용
-        - Expression 내 public void SetCharaTransform(Transform trf) 호출 부분 확인 필요
-        - Expression 내 public void Initialize() 호출 부분 확인 필요
-        - Expression 내 public bool LoadSettingSub(List<string> slist) 호출 부분 확인 필요  <- 여기에 shoulder 부분 추가 되면 될듯..
+        // category = 7  legup R, siri
+
+    - correctJoint 속성 설명
+    > trfReference: 기준이 되는 회전값(원본/입력)
+    > trfCorrect: 수정/가공된 회전값을 적용할 대상
+    > Euler 모드 (CalcType.Euler)
+        trfCorrect.localRotation, trfReference.localRotation을 오일러 각도로 변환합니다.
+        useRX/RY/RZ가 켜진 축만 계산합니다.
+        각 축에서:
+        reference 축 값의 절대값을 0~90도로 클램프
+        그 값을 0~1로 정규화하여 val*Min/Max 범위를 lerp
+        그 결과를 reference 축 값에 곱해서 correct 축 값 생성
+
+    > Quaternion 모드 (CalcType.Quaternion)
+        trfCorrect.localRotation을 시작점으로 두고,
+        useRX/RY/RZ 축에 대해:
+        trfReference.localRotation의 해당 쿼터니언 컴포넌트에 (valMin + valMax) * 0.5를 곱해 덮어씀
+        (이 모드는 Euler처럼 각도를 변환하지 않고 단순 스케일링에 가깝습니다)
 */
 
 namespace JointCorrectionSlider
@@ -141,7 +158,7 @@ namespace JointCorrectionSlider
 		
         private const int _uniqueId = ('J' << 24) | ('T' << 16) | ('C' << 8) | 'S';
 
-        private Rect _windowRect = new Rect(140, 10, 400, 10);
+        private Rect _windowRect = new Rect(140, 10, 300, 10);
     
         private float _prevLeftShoulder = 0f;
         private float _prevRightShoulder = 0f; 
@@ -153,9 +170,8 @@ namespace JointCorrectionSlider
         private float _prevLeftArmDn = 0f;
         private float _prevRightArmDn = 0f;
         private float _prevBothArm = 0f;
-        private float _prevLeftAnkle = 0f;
-        private float _prevRightAnkle = 0f;
         private float _prevCrouch = 0f;
+        private int   _created_charControl_sex = 0;
 
         private GUIStyle _richLabel;
 
@@ -177,9 +193,12 @@ namespace JointCorrectionSlider
         // Config
 
         #region Accessors
-#if FEATURE_SHOULDER_CORRECTION
+#if FEATURE_EXTRABONES_CORRECTION
         internal static ConfigEntry<float> LeftShoulderConfig { get; private set; }
         internal static ConfigEntry<float> RightShoulderConfig { get; private set; }
+
+        internal static ConfigEntry<float> LeftMuneConfig { get; private set; }
+        internal static ConfigEntry<float> RightMuneConfig { get; private set; }        
 #endif
         internal static ConfigEntry<float> LeftLegConfig { get; private set; }
 
@@ -199,9 +218,20 @@ namespace JointCorrectionSlider
 
         internal static ConfigEntry<float> CrouchConfig { get; private set; }
 
-        internal static ConfigEntry<float> LeftAnkleConfig { get; private set; }
+        // internal static ConfigEntry<float> LeftAnkleConfig { get; private set; }
+        // internal static ConfigEntry<float> RightAnkleConfig { get; private set; }
+#if FEATURE_DEBUG
+        // internal static ConfigEntry<float> CharmRateConfig  { get; private set; }
 
-        internal static ConfigEntry<float> RightAnkleConfig { get; private set; }
+        // internal static ConfigEntry<int> RoTOrderConfig  { get; private set; }
+
+        internal static ConfigEntry<bool> RXConfig  { get; private set; }
+
+        internal static ConfigEntry<bool> RYConfig  { get; private set; }
+
+        internal static ConfigEntry<bool> RZConfig  { get; private set; }
+#endif
+
         #endregion
 
 
@@ -210,9 +240,12 @@ namespace JointCorrectionSlider
         {
             base.Awake();
             string support_type = "Studio";
-#if FEATURE_SHOULDER_CORRECTION
+#if FEATURE_EXTRABONES_CORRECTION
             LeftShoulderConfig = Config.Bind(support_type, "Left Shoulder", 0.0f, new ConfigDescription("Left Shoulder", new AcceptableValueRange<float>(-1.0f, 1.0f)));
             RightShoulderConfig = Config.Bind(support_type, "Right Shoulder", 0.0f, new ConfigDescription("Right Shoulder", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+
+            LeftMuneConfig = Config.Bind(support_type, "Left Mune", 0.0f, new ConfigDescription("Left Mune", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            RightMuneConfig = Config.Bind(support_type, "Right Mune", 0.0f, new ConfigDescription("Right Mune", new AcceptableValueRange<float>(-1.0f, 1.0f)));
 #endif
             LeftLegConfig = Config.Bind(support_type, "Left Leg", 0.0f, new ConfigDescription("Left Leg", new AcceptableValueRange<float>(-1.0f, 1.0f)));
             RightLegConfig = Config.Bind(support_type, "Right Leg", 0.0f, new ConfigDescription("Right Leg", new AcceptableValueRange<float>(-1.0f, 1.0f)));
@@ -226,9 +259,15 @@ namespace JointCorrectionSlider
 
             CrouchConfig = Config.Bind(support_type, "Crouch", 0.0f, new ConfigDescription("Crouch", new AcceptableValueRange<float>(-1.0f, 1.0f)));
 
-            LeftAnkleConfig = Config.Bind(support_type, "Left Ankle", 0.0f, new ConfigDescription("Left Ankle", new AcceptableValueRange<float>(-1.0f, 1.0f)));
-            RightAnkleConfig = Config.Bind(support_type, "Right Ankle", 0.0f, new ConfigDescription("Right Ankle", new AcceptableValueRange<float>(-1.0f, 1.0f)));
-
+            // LeftAnkleConfig = Config.Bind(support_type, "Left Ankle", 0.0f, new ConfigDescription("Left Ankle", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            // RightAnkleConfig = Config.Bind(support_type, "Right Ankle", 0.0f, new ConfigDescription("Right Ankle", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+#if FEATURE_DEBUG
+            CharmRateConfig = Config.Bind("Debug", "CharmRate", 0.0f, new ConfigDescription("CharmRate", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            RoTOrderConfig = Config.Bind("Debug", "RoTOrder", 0, new ConfigDescription("RoTOrder", new AcceptableValueRange<int>(0, 5)));
+            RXConfig = Config.Bind("Debug", "Toggle RXConfig", true, "");
+            RYConfig = Config.Bind("Debug", "Toggle RYConfig", true, "");
+            RZConfig = Config.Bind("Debug", "Toggle RZConfig", true, "");
+#endif
             _self = this;
 
             Logger = base.Logger;
@@ -268,8 +307,14 @@ namespace JointCorrectionSlider
             foreach (Expression.ScriptInfo scriptInfo in ociChar.charInfo.expression.info)
             {   
                 if (scriptInfo.categoryNo == categoryId) {
-                    // scriptInfo.correct.charmRate = value;
-                    
+#if FEATURE_DEBUG
+                    scriptInfo.correct.useRX = RXConfig.Value;
+                    scriptInfo.correct.useRY = RYConfig.Value;
+                    scriptInfo.correct.useRZ = RZConfig.Value;
+                    // scriptInfo.correct.charmRate = CharmRateConfig.Value;
+                    // scriptInfo.correct.rotOrder = (Correct.RotationOrder)RoTOrderConfig.Value;
+#endif
+
                     if(scriptInfo.correct.useRX)
                     {
                         scriptInfo.correct.valRXMin = value;
@@ -295,7 +340,7 @@ namespace JointCorrectionSlider
         {
             if (_currentOCIChar == null)
                 return;
-#if FEATURE_SHOULDER_CORRECTION
+#if FEATURE_EXTRABONES_CORRECTION
             if (LeftShoulderConfig.Value != _prevLeftShoulder)
             {
                 _prevLeftShoulder = LeftShoulderConfig.Value;
@@ -305,6 +350,17 @@ namespace JointCorrectionSlider
             {
                 _prevRightShoulder = RightShoulderConfig.Value;
                 SetScriptInfo(_currentOCIChar, 9, RightShoulderConfig.Value);
+            }
+
+            if (LeftShoulderConfig.Value != _prevLeftShoulder)
+            {
+                _prevLeftShoulder = LeftShoulderConfig.Value;
+                SetScriptInfo(_currentOCIChar, 10, LeftShoulderConfig.Value);
+            }
+            if (RightShoulderConfig.Value != _prevRightShoulder)
+            {
+                _prevRightShoulder = RightShoulderConfig.Value;
+                SetScriptInfo(_currentOCIChar, 11, RightShoulderConfig.Value);
             } 
 #endif
             if (LeftArmUpperConfig.Value != _prevLeftArmUp)
@@ -365,9 +421,12 @@ namespace JointCorrectionSlider
 
         private void InitConfig()
         {
-#if FEATURE_SHOULDER_CORRECTION
+#if FEATURE_EXTRABONES_CORRECTION
             LeftShoulderConfig.Value = (float)LeftShoulderConfig.DefaultValue;
             RightShoulderConfig.Value = (float)RightShoulderConfig.DefaultValue;
+            
+            LeftMuneConfig.Value = (float)LeftMuneConfig.DefaultValue;
+            RightMuneConfig.Value = (float)RightMuneConfig.DefaultValue;             
 #endif
             LeftLegConfig.Value = (float)LeftLegConfig.DefaultValue;
             RightLegConfig.Value = (float)RightLegConfig.DefaultValue;
@@ -379,10 +438,18 @@ namespace JointCorrectionSlider
             RightArmLowerConfig.Value = (float)RightArmLowerConfig.DefaultValue;
             BothArmConfig.Value = (float)BothArmConfig.DefaultValue;
 
-            LeftAnkleConfig.Value = (float)LeftAnkleConfig.DefaultValue;
-            RightAnkleConfig.Value = (float)RightAnkleConfig.DefaultValue;
+            // LeftAnkleConfig.Value = (float)LeftAnkleConfig.DefaultValue;
+            // RightAnkleConfig.Value = (float)RightAnkleConfig.DefaultValue;
 
             CrouchConfig.Value = (float)CrouchConfig.DefaultValue;
+
+#if FEATURE_DEBUG
+            // CharmRateConfig.Value = (float)CharmRateConfig.DefaultValue;
+            // RoTOrderConfig.Value = (int)RoTOrderConfig.DefaultValue;
+            RXConfig.Value = (bool)RXConfig.DefaultValue;
+            RYConfig.Value = (bool)RYConfig.DefaultValue;
+            RZConfig.Value = (bool)RZConfig.DefaultValue;
+#endif            
         }
 
         protected override void OnGUI()
@@ -410,19 +477,32 @@ namespace JointCorrectionSlider
             }
 
             // ================= UI =================
-#if FEATURE_SHOULDER_CORRECTION
-            GUILayout.Label("<color=yellow>Shoulder</color>", RichLabel);
+#if FEATURE_EXTRABONES_CORRECTION
+            GUILayout.Label("<color=yellow>Shoulder1</color>", RichLabel);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("LeftShoulder", "LeftArm"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("LeftShoulder", "LeftShoulder"), GUILayout.Width(80));
             LeftShoulderConfig.Value = GUILayout.HorizontalSlider(LeftShoulderConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(LeftShoulderConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("LeftShoulder", "LeftArm"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("RightShoulder", "RightShoulder"), GUILayout.Width(80));
             RightShoulderConfig.Value = GUILayout.HorizontalSlider(RightShoulderConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(RightShoulderConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
+
+            GUILayout.Label("<color=yellow>Breast</color>", RichLabel);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("LeftBreast", "LeftBreast"), GUILayout.Width(80));
+            LeftMuneConfig.Value = GUILayout.HorizontalSlider(LeftMuneConfig.Value, -1.0f, 1.0f);
+            GUILayout.Label(LeftMuneConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("RightBreast", "RightBreast"), GUILayout.Width(80));
+            RightMuneConfig.Value = GUILayout.HorizontalSlider(RightMuneConfig.Value, -1.0f, 1.0f);
+            GUILayout.Label(RightMuneConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.EndHorizontal();            
 #endif
             // Top
             GUILayout.Label("<color=yellow>Arm-Upper</color>", RichLabel);
@@ -483,19 +563,19 @@ namespace JointCorrectionSlider
             GUILayout.Label(CrouchConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
-            // Ankle
-            GUILayout.Label("<color=yellow>Ankle</color>", RichLabel);            
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("LeftAnkle", "LeftAnkle"), GUILayout.Width(80));
-            LeftAnkleConfig.Value = GUILayout.HorizontalSlider(LeftAnkleConfig.Value, -1.0f, 1.0f);
-            GUILayout.Label(LeftAnkleConfig.Value.ToString("0.00"), GUILayout.Width(30));
-            GUILayout.EndHorizontal();
+            // // Ankle
+            // GUILayout.Label("<color=yellow>Ankle</color>", RichLabel);            
+            // GUILayout.BeginHorizontal();
+            // GUILayout.Label(new GUIContent("LeftAnkle", "LeftAnkle"), GUILayout.Width(80));
+            // LeftAnkleConfig.Value = GUILayout.HorizontalSlider(LeftAnkleConfig.Value, -1.0f, 1.0f);
+            // GUILayout.Label(LeftAnkleConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            // GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("RightAnkle", "RightAnkle"), GUILayout.Width(80));
-            RightAnkleConfig.Value = GUILayout.HorizontalSlider(RightAnkleConfig.Value, -1.0f, 1.0f);
-            GUILayout.Label(RightAnkleConfig.Value.ToString("0.00"), GUILayout.Width(30));
-            GUILayout.EndHorizontal();
+            // GUILayout.BeginHorizontal();
+            // GUILayout.Label(new GUIContent("RightAnkle", "RightAnkle"), GUILayout.Width(80));
+            // RightAnkleConfig.Value = GUILayout.HorizontalSlider(RightAnkleConfig.Value, -1.0f, 1.0f);
+            // GUILayout.Label(RightAnkleConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            // GUILayout.EndHorizontal();
 
             draw_seperate();  
             if (GUILayout.Button("Default"))
@@ -565,16 +645,75 @@ namespace JointCorrectionSlider
             }
         }
 
-#if FEATURE_SHOULDER_CORRECTION
+#if FEATURE_EXTRABONES_CORRECTION
+       [HarmonyPatch(typeof(ChaControl), "InitializeExpression", typeof(int), typeof(bool))]
+        private static class ChaControl_InitializeExpression_Patches
+        {
+            private static bool Prefix(ChaControl __instance, int sex, bool _enable, ref bool __result)
+            {
+                // UnityEngine.Debug.Log(Environment.StackTrace);
+
+                _self._created_charControl_sex = sex;
+                string text = "list/expression.unity3d";
+                string text2 = (sex == 0) ? "cm_expression" : "cf_expression";
+                if (!global::AssetBundleCheck.IsFile(text, text2))
+                {
+                    __result = false;
+                }
+                __instance.expression = __instance.objRoot.AddComponent<Expression>();
+                __instance.expression.LoadSetting(text, text2);
+                int[] array = new int[]
+                {
+                    0,
+                    0,
+                    4,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    1,
+                    5,
+                    1,
+                    1,
+                    1,
+                    1,
+                    6,
+                    6,
+                    6,
+                    2,
+                    2,
+                    6,
+                    7,
+                    7,
+                    7,
+                    3,
+                    3,
+                    7,
+                    8,
+                    9
+                };
+                for (int i = 0; i < __instance.expression.info.Length; i++)
+                {
+                    __instance.expression.info[i].categoryNo = array[i];
+                }
+                __instance.expression.SetCharaTransform(__instance.objRoot.transform);
+                __instance.expression.Initialize();
+                __instance.expression.enable = _enable;
+                __result = true;
+
+                return false;
+            }
+        }
+
         [HarmonyPatch(typeof(CharaUtils.Expression), nameof(Expression.LoadSettingSub), typeof(List<string>))]
         internal static class Expression_LoadSettingSub_Patches
         {
             private static bool Prefix(Expression __instance, List<string> slist, ref bool __result)
             {
-                // UnityEngine.Debug.Log(Environment.StackTrace);
-
-                // 아래는 총 28개
-                var _slist = new List<string>
+                // UnityEngine.Debug.Log(Environment.StackTrace);                
+                string prefix = _self._created_charControl_sex == 0 ? "cm_" : "cf_";        
+                var rawList = new List<string>
                 {
                 "28\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0",
                 "0\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_ArmUp01_dam_L\tcf_J_ArmUp00_L\tEuler\tYZX\t0.5\t○\t-0.66\t-0.66\t×\t0\t0\t×\t0\t0",
@@ -603,9 +742,13 @@ namespace JointCorrectionSlider
                 "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_LegKnee_dam_R\tcf_J_LegLow01_R\tEuler\tZYX\t0\t○\t0.5\t0.5\t×\t0\t0\t×\t0\t0",
                 "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_LegKnee_back_R\tcf_J_LegLow01_R\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
                 "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_SiriDam_R\tcf_J_LegUp00_R\tEuler\tYZX\t0\t○\t0.5\t0.5\t○\t0.2\t0.2\t○\t0.25\t0.25",
-                "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_L\tcf_J_Shoulder02_s_L\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t×\t0\t0",
-                "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_R\tcf_J_Shoulder02_s_R\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t×\t0\t0",
+                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_L\tcf_J_Shoulder_L\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t×\t0\t0",
+                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_R\tcf_J_Shoulder_R\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t×\t0\t0",             
                 };
+
+                var _slist = rawList
+                    .Select(line => line.Replace("cf_", prefix))
+                    .ToList();
 
                 if (_slist.Count == 0)
                 {
@@ -699,64 +842,6 @@ namespace JointCorrectionSlider
 
                 // UnityEngine.Debug.Log(Environment.StackTrace);
                 // 필요하면 결과 변경 가능
-                __result = true;
-
-                return false;
-            }
-        }
-
-        [HarmonyPatch(typeof(ChaControl), "InitializeExpression", typeof(int), typeof(bool))]
-        private static class ChaControl_InitializeExpression_Patches
-        {
-            private static bool Prefix(ChaControl __instance, int sex, bool _enable, ref bool __result)
-            {
-                // UnityEngine.Debug.Log(Environment.StackTrace);
-                string text = "list/expression.unity3d";
-                string text2 = (sex == 0) ? "cm_expression" : "cf_expression";
-                if (!global::AssetBundleCheck.IsFile(text, text2))
-                {
-                    __result = false;
-                }
-                __instance.expression = __instance.objRoot.AddComponent<Expression>();
-                __instance.expression.LoadSetting(text, text2);
-                int[] array = new int[]
-                {
-                    0,
-                    0,
-                    4,
-                    0,
-                    0,
-                    0,
-                    0,
-                    1,
-                    1,
-                    5,
-                    1,
-                    1,
-                    1,
-                    1,
-                    6,
-                    6,
-                    6,
-                    2,
-                    2,
-                    6,
-                    7,
-                    7,
-                    7,
-                    3,
-                    3,
-                    7,
-                    8,
-                    9
-                };
-                for (int i = 0; i < __instance.expression.info.Length; i++)
-                {
-                    __instance.expression.info[i].categoryNo = array[i];
-                }
-                __instance.expression.SetCharaTransform(__instance.objRoot.transform);
-                __instance.expression.Initialize();
-                __instance.expression.enable = _enable;
                 __result = true;
 
                 return false;
