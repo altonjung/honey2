@@ -84,6 +84,12 @@ namespace RealHumanSupport
                 PositionData fk_left_shoulder= GetRelativeBoneAngle(realHumanData.fk_neck_bone, realHumanData.fk_left_shoulder_bone);
                 PositionData fk_right_shoulder= GetRelativeBoneAngle(realHumanData.fk_neck_bone, realHumanData.fk_right_shoulder_bone);
 
+                PositionData fk_left_armup= GetRelativeBoneAngle(realHumanData.fk_left_shoulder_bone, realHumanData.fk_left_armup_bone);
+                PositionData fk_right_armup= GetRelativeBoneAngle(realHumanData.fk_right_shoulder_bone, realHumanData.fk_right_armup_bone);
+
+                PositionData fk_left_armdown= GetRelativeBoneAngle(realHumanData.fk_left_armup_bone, realHumanData.fk_left_armdown_bone);
+                PositionData fk_right_armdown= GetRelativeBoneAngle(realHumanData.fk_right_armup_bone, realHumanData.fk_right_armdown_bone);
+                
                 float left_shin_bs = 0.0f;
                 float left_calf_bs = 0.0f;
                 float left_butt_bs = 0.0f;
@@ -102,8 +108,14 @@ namespace RealHumanSupport
                 float right_ribs_bs = 0.0f;
                 float right_neck_bs = 0.0f;
 
-                float spine_bs = 0.0f;            
+                float spine_bs = 0.0f;       
                 float neck_bs = 0.0f;
+
+                float left_armup_bs = 0.0f;
+                float left_armdown_bs = 0.0f;
+
+                float right_armup_bs = 0.0f;
+                float right_armdown_bs = 0.0f;
 
                 float bumpscale = 0.0f;
                 float angle = 0.0f;
@@ -227,10 +239,10 @@ namespace RealHumanSupport
                     }
 
             // 무릎 왼쪽
-                    // 허벅지 기준 무릅이 뒷방향으로 굽힘
-                    angle = Math.Abs(fk_left_knee._frontback);                        
+                    // 허벅지 기준 무릅이 뒷방향으로 굽힘                     
                     if (fk_left_knee._frontback > 5) 
                     {  // 뒷쪽
+                        angle = Math.Abs(fk_left_knee._frontback);                    
                         bumpscale = Math.Min(Remap(angle, 5.0f, 90.0f, 0.1f, 1.0f), 1.0f);
                         left_butt_bs += bumpscale * 0.3f;     
                         left_thigh_bk_bs += bumpscale * 0.3f;
@@ -243,10 +255,10 @@ namespace RealHumanSupport
                     }
 
             // 무릎 오른쪽
-                    // 허벅지 기준 무릅이 뒷방향으로 굽힘
-                    angle = Math.Abs(fk_right_knee._frontback);    
+                    // 허벅지 기준 무릅이 뒷방향으로 굽힘 
                     if (fk_right_knee._frontback > 5)
                     {  // 뒷쪽
+                        angle = Math.Abs(fk_right_knee._frontback);                    
                         bumpscale = Math.Min(Remap(angle, 5.0f, 90.0f, 0.1f, 1.0f), 1.0f);
                         right_butt_bs += bumpscale * 0.3f;
                         right_thigh_bk_bs += bumpscale * 0.3f;
@@ -258,10 +270,10 @@ namespace RealHumanSupport
                         }
                     }
             // 발목
-                    // 왼쪽 무릅 기준 발목이 뒷방향으로 굽힘
-                    angle = Math.Abs(fk_left_foot._frontback);                                                
+                    // 왼쪽 무릅 기준 발목이 뒷방향으로 굽힘                                           
                     if (fk_left_foot._frontback > 5)
                     {   // 뒷쪽
+                        angle = Math.Abs(fk_left_foot._frontback);                    
                         bumpscale = Math.Min(Remap(angle, 5.0f, 70.0f, 0.1f, 1f), 1f);
                         left_shin_bs += bumpscale * 0.2f;
                         left_thigh_bk_bs += bumpscale * 0.3f;
@@ -271,9 +283,9 @@ namespace RealHumanSupport
                     }
 
                     // 오른쪽 무릅 기준 발목이 뒷방향으로 굽힘
-                    angle = Math.Abs(fk_right_foot._frontback);                        
                     if (fk_right_foot._frontback > 5)
                     {   // 뒷쪽
+                        angle = Math.Abs(fk_right_foot._frontback);
                         bumpscale = Math.Min(Remap(angle, 5.0f, 70.0f, 0.1f, 1f), 1f);
                         right_shin_bs += bumpscale * 0.2f;
                         right_thigh_bk_bs += bumpscale * 0.3f;
@@ -281,6 +293,45 @@ namespace RealHumanSupport
                         // TODO
                         // 발목 강조
                     }
+
+            // 팔         
+                    // 왼쪽 어깨 앞쪽으로 굽힘
+                    if (fk_left_armup._frontback > 5)
+                    {   // 뒷쪽
+                        angle = Math.Abs(fk_left_armup._frontback);
+                        bumpscale = Math.Min(Remap(angle, 5.0f, 90.0f, 0.1f, 1f), 1f);
+                        left_armup_bs += bumpscale * 0.8f;
+                    }
+
+                    // 오른쪽 어깨 앞쪽으로 굽힘
+                    if (fk_right_armup._frontback > 5)
+                    {   // 뒷쪽
+                        angle = Math.Abs(fk_right_armup._frontback);
+                        bumpscale = Math.Min(Remap(angle, 5.0f, 90.0f, 0.1f, 1f), 1f);
+                        right_armup_bs += bumpscale * 0.8f;
+                    }
+
+
+                    // 왼쪽 팔 앞쪽으로 굽힘
+                    if (fk_left_armdown._frontback > 5)
+                    {   // 뒷쪽
+                        angle = Math.Abs(fk_left_armdown._frontback);
+                        bumpscale = Math.Min(Remap(angle, 5.0f, 90.0f, 0.1f, 1f), 1f);
+                        left_armdown_bs += bumpscale * 0.6f;
+                    }
+
+                    // 오른쪽 팔 앞쪽으로 굽힘
+                    if (fk_right_armdown._frontback > 5)
+                    {   // 뒷쪽
+                        angle = Math.Abs(fk_right_armdown._frontback);
+                        bumpscale = Math.Min(Remap(angle, 5.0f, 90.0f, 0.1f, 1f), 1f);
+                        right_armdown_bs += bumpscale * 0.6f;
+                    }
+
+                    UnityEngine.Debug.Log($">> fk_left_armdown._frontback {fk_left_armdown._frontback} in body"); 
+                    UnityEngine.Debug.Log($">> fk_right_armdown._frontback {fk_right_armdown._frontback} in body"); 
+                    UnityEngine.Debug.Log($">> fk_left_armup._frontback {fk_left_armup._frontback} in body"); 
+                    UnityEngine.Debug.Log($">> fk_right_armup._frontback {fk_right_armup._frontback} in body"); 
                 }
                 
             // 목
@@ -373,7 +424,11 @@ namespace RealHumanSupport
                 realHumanData.prev_fk_spine02_rot = fk_spine02._q;
                 realHumanData.prev_fk_head_rot = fk_head._q;
                 realHumanData.prev_fk_left_shoulder_rot = fk_left_shoulder._q;
-                realHumanData.prev_fk_right_shoulder_rot = fk_right_shoulder._q;
+                realHumanData.prev_fk_right_shoulder_rot = fk_right_shoulder._q;                                
+                realHumanData.prev_fk_right_armup_rot = fk_right_armup._q;
+                realHumanData.prev_fk_left_armup_rot = fk_left_armup._q;
+                realHumanData.prev_fk_right_armdown_rot = fk_right_armdown._q;
+                realHumanData.prev_fk_left_armdown_rot = fk_left_armdown._q;
            
                 if (origin_texture != null)
                 {
@@ -1224,9 +1279,6 @@ namespace RealHumanSupport
             Transform fingerMiddle2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_L");
             Transform fingerMiddle3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_L");
             
-            // Transform fingerRing2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring02_L");
-            // Transform fingerRing3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring03_L");
-
             Transform fingerThumb2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb02_R");
             Transform fingerThumb3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb03_R");
 
@@ -1236,9 +1288,6 @@ namespace RealHumanSupport
             Transform fingerMiddle2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_R");
             Transform fingerMiddle3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_R");
             
-            // Transform fingerRing2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring02_R");
-            // Transform fingerRing3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Ring03_R");
-
             List<DynamicBoneCollider> extraHandsColliders = new List<DynamicBoneCollider>();
 
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(handLObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
@@ -1252,10 +1301,7 @@ namespace RealHumanSupport
 
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
-        
-            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
-
+                    
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.07f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, Vector2.zero));
 
@@ -1264,9 +1310,6 @@ namespace RealHumanSupport
 
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
-        
-            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerRing3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
             
             extraBoobColliders.AddRange(extraHandsColliders);
             
@@ -1326,11 +1369,11 @@ namespace RealHumanSupport
             extraHairColliders.AddRange(extraHandsColliders);
 
             // hair dynamic bone 연결 대상 shoulder collider 생성
-            Transform leftShouderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
-            Transform rightShouderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
+            Transform leftArmUpObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
+            Transform rightArmUpObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftShouderObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f , new Vector3(0.0f, -0.38f, -0.06f)));
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightShouderObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f, new Vector3(0.0f, -0.38f, -0.06f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftArmUpObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f , new Vector3(0.0f, -0.38f, -0.06f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightArmUpObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f, new Vector3(0.0f, -0.38f, -0.06f)));
 
             // hair dynamic bone 연결 대상 spine collider 생성
             Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
@@ -1763,6 +1806,22 @@ namespace RealHumanSupport
                                     {
                                         realHumanData.fk_right_shoulder_bone = bone;
                                     }
+                                    else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_L"))
+                                    {
+                                        realHumanData.fk_left_armup_bone = bone;
+                                    }
+                                    else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_R"))
+                                    {
+                                        realHumanData.fk_right_armup_bone = bone;
+                                    }
+                                    else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_L"))
+                                    {
+                                        realHumanData.fk_left_armdown_bone = bone;
+                                    }
+                                    else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_R"))
+                                    {
+                                        realHumanData.fk_right_armdown_bone = bone;
+                                    }                                                                        
                                     else if (bone.guideObject.transformTarget.name.Contains("_J_LegUp00_L"))
                                     {
                                         realHumanData.fk_left_thigh_bone = bone;
@@ -2171,6 +2230,10 @@ namespace RealHumanSupport
         public Quaternion  prev_fk_neck_rot;
         public Quaternion  prev_fk_right_shoulder_rot;
         public Quaternion  prev_fk_left_shoulder_rot;
+        public Quaternion  prev_fk_right_armup_rot;
+        public Quaternion  prev_fk_left_armup_rot;
+        public Quaternion  prev_fk_right_armdown_rot;
+        public Quaternion  prev_fk_left_armdown_rot;        
         public Quaternion  prev_fk_right_thigh_rot;
         public Quaternion  prev_fk_left_thigh_rot;
         public Quaternion  prev_fk_right_knee_rot;        
@@ -2178,7 +2241,6 @@ namespace RealHumanSupport
         public Quaternion  prev_fk_right_foot_rot;
         public Quaternion  prev_fk_left_foot_rot;
 
-        // Extra collider 지원
         public OCIChar.BoneInfo fk_hip_bone;
         public OCIChar.BoneInfo fk_spine01_bone;
         public OCIChar.BoneInfo fk_spine02_bone;
@@ -2186,6 +2248,10 @@ namespace RealHumanSupport
         public OCIChar.BoneInfo fk_neck_bone;
         public OCIChar.BoneInfo fk_left_shoulder_bone;
         public OCIChar.BoneInfo fk_right_shoulder_bone;
+        public OCIChar.BoneInfo fk_left_armup_bone;
+        public OCIChar.BoneInfo fk_right_armup_bone;
+        public OCIChar.BoneInfo fk_left_armdown_bone;
+        public OCIChar.BoneInfo fk_right_armdown_bone;
         public OCIChar.BoneInfo fk_left_thigh_bone;
         public OCIChar.BoneInfo fk_right_thigh_bone;
         public OCIChar.BoneInfo fk_left_knee_bone;

@@ -172,7 +172,7 @@ namespace RealHumanSupport
         #region Accessors
         internal static ConfigEntry<KeyboardShortcut> ConfigWinkShortcut { get; private set; }
 
-        internal static ConfigEntry<bool> AnimActive { get; private set; }
+        // internal static ConfigEntry<bool> AnimActive { get; private set; }
 
         internal static ConfigEntry<bool> TearDropActive { get; private set; }
 
@@ -202,7 +202,7 @@ namespace RealHumanSupport
             base.Awake();
             string support_type = "Studio";
 
-            AnimActive = Config.Bind(support_type, "Animation", true, new ConfigDescription("Enable/Disable"));
+            // AnimActive = Config.Bind(support_type, "Animation", true, new ConfigDescription("Enable/Disable"));
 
             EyeShakeActive = Config.Bind(support_type, "Eye Shaking", true, new ConfigDescription("Enable/Disable"));
 
@@ -281,7 +281,6 @@ namespace RealHumanSupport
             }        
         }
 
-        // // 
         // protected override void LateUpdate()
         // {
         //     if (_loaded == false)
@@ -391,7 +390,7 @@ namespace RealHumanSupport
             GUILayout.EndHorizontal(); 
 
 ///////////////////            
-            GUILayout.Label("<color=red>Extra Collider</color>", RichLabel);
+            GUILayout.Label("<color=red>Ext Collider</color>", RichLabel);
 
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Scale", "Scale"), GUILayout.Width(60));

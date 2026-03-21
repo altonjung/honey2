@@ -160,18 +160,46 @@ namespace JointCorrectionSlider
 
         private Rect _windowRect = new Rect(140, 10, 300, 10);
     
-        private float _prevLeftShoulder = 0f;
-        private float _prevRightShoulder = 0f; 
+        private float _prevLeftShoulder1 = 0f;
+        private float _prevRightShoulder1 = 0f; 
+        private float _prevLeftShoulder2 = 0f;
+        private float _prevRightShoulder2 = 0f; 
+        private float _prevLeftKneeScale = 0f;
+        private float _prevRightKneeScale = 0f;             
+        private float _prevLeftKnee = 0f;
+        private float _prevRightKnee = 0f;         
         private float _prevLeftLeg = 0f;
         private float _prevRightLeg = 0f;
-        private float _prevBothLeg = 0f;
+        // private float _prevBothLeg = 0f;
         private float _prevLeftArmUp = 0f;
         private float _prevRightArmUp = 0f;
         private float _prevLeftArmDn = 0f;
         private float _prevRightArmDn = 0f;
-        private float _prevBothArm = 0f;
-        private float _prevCrouch = 0f;
-        private int   _created_charControl_sex = 0;
+        // private float _prevBothArm = 0f;
+
+        private int   _creating_char_sex = 0;
+
+        // shoulder
+        private Transform _shoulder02_s_L;
+        private Transform _shoulder02_s_R;
+
+        private UnityEngine.Vector3 _shoulder02BasePosL;
+        private UnityEngine.Vector3 _shoulder02BasePosR;
+        private UnityEngine.Vector3 _shoulder02BaseScaleL;
+        private UnityEngine.Vector3 _shoulder02BaseScaleR;
+        private bool _shoulder02BaseSetL;
+        private bool _shoulder02BaseSetR;
+
+        // knee
+        private Transform _legKnee_dam_L;
+        private Transform _legKnee_dam_R;
+
+        private UnityEngine.Vector3 _legKneeBasePosL;
+        private UnityEngine.Vector3 _legKneeBasePosR;
+        private UnityEngine.Vector3 _legKneeBaseScaleL;
+        private UnityEngine.Vector3 _legKneeBaseScaleR;
+        private bool _legKneeBaseSetL;
+        private bool _legKneeBaseSetR;
 
         private GUIStyle _richLabel;
 
@@ -193,18 +221,17 @@ namespace JointCorrectionSlider
         // Config
 
         #region Accessors
-#if FEATURE_EXTRABONES_CORRECTION
-        internal static ConfigEntry<float> LeftShoulderConfig { get; private set; }
-        internal static ConfigEntry<float> RightShoulderConfig { get; private set; }
+#if FEATURE_SHOULDER_CORRECTION
+        internal static ConfigEntry<float> LeftShoulder1Config { get; private set; }
+        internal static ConfigEntry<float> RightShoulder1Config { get; private set; }
 
-        internal static ConfigEntry<float> LeftMuneConfig { get; private set; }
-        internal static ConfigEntry<float> RightMuneConfig { get; private set; }        
+        internal static ConfigEntry<float> LeftShoulder2Config { get; private set; }
+        internal static ConfigEntry<float> RightShoulder2Config { get; private set; }
 #endif
-        internal static ConfigEntry<float> LeftLegConfig { get; private set; }
-
-        internal static ConfigEntry<float> RightLegConfig { get; private set; }
-
-        internal static ConfigEntry<float> BothLegConfig { get; private set; }
+#if FEATURE_KNEE_CORRECTION
+        internal static ConfigEntry<float> LeftKneeScaleConfig { get; private set; }
+        internal static ConfigEntry<float> RightKneeScaleConfig { get; private set; }    
+#endif
 
         internal static ConfigEntry<float> LeftArmUpperConfig { get; private set; }
 
@@ -214,9 +241,16 @@ namespace JointCorrectionSlider
 
         internal static ConfigEntry<float> RightArmLowerConfig { get; private set; }
 
-        internal static ConfigEntry<float> BothArmConfig { get; private set; }
+        // internal static ConfigEntry<float> BothArmConfig { get; private set; }
 
-        internal static ConfigEntry<float> CrouchConfig { get; private set; }
+        internal static ConfigEntry<float> LeftKneeConfig { get; private set; }
+        internal static ConfigEntry<float> RightKneeConfig { get; private set; }
+
+        internal static ConfigEntry<float> LeftLegConfig { get; private set; }
+
+        internal static ConfigEntry<float> RightLegConfig { get; private set; }
+
+        // internal static ConfigEntry<float> BothLegConfig { get; private set; }
 
         // internal static ConfigEntry<float> LeftAnkleConfig { get; private set; }
         // internal static ConfigEntry<float> RightAnkleConfig { get; private set; }
@@ -239,31 +273,33 @@ namespace JointCorrectionSlider
         protected override void Awake()
         {
             base.Awake();
-            string support_type = "Studio";
-#if FEATURE_EXTRABONES_CORRECTION
-            LeftShoulderConfig = Config.Bind(support_type, "Left Shoulder", 0.0f, new ConfigDescription("Left Shoulder", new AcceptableValueRange<float>(-1.0f, 1.0f)));
-            RightShoulderConfig = Config.Bind(support_type, "Right Shoulder", 0.0f, new ConfigDescription("Right Shoulder", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            string support_type = "Joint";
+#if FEATURE_SHOULDER_CORRECTION
+            LeftShoulder1Config = Config.Bind(support_type, "Left Shoulder1", 0.0f, new ConfigDescription("Shoulder Rotation", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            RightShoulder1Config = Config.Bind(support_type, "Right Shoulder1", 0.0f, new ConfigDescription("Shoulder Rotation", new AcceptableValueRange<float>(-1.0f, 1.0f)));
 
-            LeftMuneConfig = Config.Bind(support_type, "Left Mune", 0.0f, new ConfigDescription("Left Mune", new AcceptableValueRange<float>(-1.0f, 1.0f)));
-            RightMuneConfig = Config.Bind(support_type, "Right Mune", 0.0f, new ConfigDescription("Right Mune", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            LeftShoulder2Config = Config.Bind(support_type, "Left Shoulder2", 0.0f, new ConfigDescription("Shoulder Scale", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            RightShoulder2Config = Config.Bind(support_type, "Right Shoulder2", 0.0f, new ConfigDescription("Shoulder Scale", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+#endif
+#if FEATURE_KNEE_CORRECTION
+            LeftKneeScaleConfig = Config.Bind(support_type, "Left Knee_S", 0.0f, new ConfigDescription("Knee Scale", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            RightKneeScaleConfig = Config.Bind(support_type, "Right Knee_S", 0.0f, new ConfigDescription("Knee Scale", new AcceptableValueRange<float>(-1.0f, 1.0f)));
 #endif
             LeftLegConfig = Config.Bind(support_type, "Left Leg", 0.0f, new ConfigDescription("Left Leg", new AcceptableValueRange<float>(-1.0f, 1.0f)));
             RightLegConfig = Config.Bind(support_type, "Right Leg", 0.0f, new ConfigDescription("Right Leg", new AcceptableValueRange<float>(-1.0f, 1.0f)));
-            BothLegConfig = Config.Bind(support_type, "Both Leg", 0.0f, new ConfigDescription("Both Leg", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            // BothLegConfig = Config.Bind(support_type, "Both Leg", 0.0f, new ConfigDescription("Both Leg", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+
+            LeftKneeConfig = Config.Bind(support_type, "Left Knee", 0.0f, new ConfigDescription("Knee", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            RightKneeConfig = Config.Bind(support_type, "Right Knee", 0.0f, new ConfigDescription("Knee", new AcceptableValueRange<float>(-1.0f, 1.0f)));
 
             LeftArmUpperConfig = Config.Bind(support_type, "Left Arm Upper", 0.0f, new ConfigDescription("Left Arm Upper", new AcceptableValueRange<float>(-1.0f, 1.0f)));
             RightArmUpperConfig = Config.Bind(support_type, "Right Arm Upper", 0.0f, new ConfigDescription("Right Arm Upper", new AcceptableValueRange<float>(-1.0f, 1.0f)));
             LeftArmLowerConfig = Config.Bind(support_type, "Left Arm Lower", 0.0f, new ConfigDescription("Left Arm Lower", new AcceptableValueRange<float>(-1.0f, 1.0f)));
             RightArmLowerConfig = Config.Bind(support_type, "Right Arm Lower", 0.0f, new ConfigDescription("Right Arm Lower", new AcceptableValueRange<float>(-1.0f, 1.0f)));
-            BothArmConfig = Config.Bind(support_type, "Both Arm", 0.0f, new ConfigDescription("Both Arm", new AcceptableValueRange<float>(-1.0f, 1.0f)));
-
-            CrouchConfig = Config.Bind(support_type, "Crouch", 0.0f, new ConfigDescription("Crouch", new AcceptableValueRange<float>(-1.0f, 1.0f)));
-
-            // LeftAnkleConfig = Config.Bind(support_type, "Left Ankle", 0.0f, new ConfigDescription("Left Ankle", new AcceptableValueRange<float>(-1.0f, 1.0f)));
-            // RightAnkleConfig = Config.Bind(support_type, "Right Ankle", 0.0f, new ConfigDescription("Right Ankle", new AcceptableValueRange<float>(-1.0f, 1.0f)));
+            // BothArmConfig = Config.Bind(support_type, "Both Arm", 0.0f, new ConfigDescription("Both Arm", new AcceptableValueRange<float>(-1.0f, 1.0f)));
 #if FEATURE_DEBUG
-            CharmRateConfig = Config.Bind("Debug", "CharmRate", 0.0f, new ConfigDescription("CharmRate", new AcceptableValueRange<float>(0.0f, 1.0f)));
-            RoTOrderConfig = Config.Bind("Debug", "RoTOrder", 0, new ConfigDescription("RoTOrder", new AcceptableValueRange<int>(0, 5)));
+            //CharmRateConfig = Config.Bind("Debug", "CharmRate", 0.0f, new ConfigDescription("CharmRate", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            //RoTOrderConfig = Config.Bind("Debug", "RoTOrder", 0, new ConfigDescription("RoTOrder", new AcceptableValueRange<int>(0, 5)));
             RXConfig = Config.Bind("Debug", "Toggle RXConfig", true, "");
             RYConfig = Config.Bind("Debug", "Toggle RYConfig", true, "");
             RZConfig = Config.Bind("Debug", "Toggle RZConfig", true, "");
@@ -296,17 +332,13 @@ namespace JointCorrectionSlider
         }
 #endif
 
-        protected override void Update()
-        {
-            if (_loaded == false)
-                return;
-        }
-
         private void SetScriptInfo(OCIChar ociChar, int categoryId, float value)
         {
             foreach (Expression.ScriptInfo scriptInfo in ociChar.charInfo.expression.info)
             {   
                 if (scriptInfo.categoryNo == categoryId) {
+                    //scriptInfo.enableCorrect = true;
+                    scriptInfo.enable = true;
 #if FEATURE_DEBUG
                     scriptInfo.correct.useRX = RXConfig.Value;
                     scriptInfo.correct.useRY = RYConfig.Value;
@@ -336,33 +368,46 @@ namespace JointCorrectionSlider
             } 
         }
 
-        protected override void LateUpdate()
+        protected override void Update()
         {
+            if (_loaded == false)
+                return;
+
             if (_currentOCIChar == null)
                 return;
-#if FEATURE_EXTRABONES_CORRECTION
-            if (LeftShoulderConfig.Value != _prevLeftShoulder)
+#if FEATURE_SHOULDER_CORRECTION
+            if (LeftShoulder1Config.Value != _prevLeftShoulder1)
             {
-                _prevLeftShoulder = LeftShoulderConfig.Value;
-                SetScriptInfo(_currentOCIChar, 8, LeftShoulderConfig.Value);
+                _prevLeftShoulder1 = LeftShoulder1Config.Value;
+                SetScriptInfo(_currentOCIChar, 8, LeftShoulder1Config.Value);
             }
-            if (RightShoulderConfig.Value != _prevRightShoulder)
+            if (RightShoulder1Config.Value != _prevRightShoulder1)
             {
-                _prevRightShoulder = RightShoulderConfig.Value;
-                SetScriptInfo(_currentOCIChar, 9, RightShoulderConfig.Value);
+                _prevRightShoulder1 = RightShoulder1Config.Value;
+                SetScriptInfo(_currentOCIChar, 9, RightShoulder1Config.Value);
             }
 
-            if (LeftShoulderConfig.Value != _prevLeftShoulder)
+            if (LeftShoulder2Config.Value != _prevLeftShoulder2)
             {
-                _prevLeftShoulder = LeftShoulderConfig.Value;
-                SetScriptInfo(_currentOCIChar, 10, LeftShoulderConfig.Value);
+                _prevLeftShoulder2 = LeftShoulder2Config.Value;
             }
-            if (RightShoulderConfig.Value != _prevRightShoulder)
+            if (RightShoulder2Config.Value != _prevRightShoulder2)
             {
-                _prevRightShoulder = RightShoulderConfig.Value;
-                SetScriptInfo(_currentOCIChar, 11, RightShoulderConfig.Value);
+                _prevRightShoulder2 = RightShoulder2Config.Value;
             } 
 #endif
+#if FEATURE_KNEE_CORRECTION
+            if (LeftKneeScaleConfig.Value != _prevLeftKneeScale)
+            {
+                _prevLeftKneeScale = LeftKneeScaleConfig.Value;
+            }
+            if (RightKneeScaleConfig.Value != _prevRightKneeScale)
+            {
+                _prevRightKneeScale = RightKneeScaleConfig.Value;
+            }            
+#endif
+         
+// arm
             if (LeftArmUpperConfig.Value != _prevLeftArmUp)
             {
                 _prevLeftArmUp = LeftArmUpperConfig.Value;
@@ -383,65 +428,90 @@ namespace JointCorrectionSlider
                 _prevRightArmDn = RightArmLowerConfig.Value;
                 SetScriptInfo(_currentOCIChar, 5, RightArmLowerConfig.Value);
             }
-            if (BothArmConfig.Value != _prevBothArm)
-            {
-                _prevBothArm = BothArmConfig.Value;
-                SetScriptInfo(_currentOCIChar, 0, BothArmConfig.Value);
-                SetScriptInfo(_currentOCIChar, 4, BothArmConfig.Value);
-                SetScriptInfo(_currentOCIChar, 1, BothArmConfig.Value);
-                SetScriptInfo(_currentOCIChar, 5, BothArmConfig.Value);
-            }
+            // if (BothArmConfig.Value != _prevBothArm)
+            // {
+            //     _prevBothArm = BothArmConfig.Value;
+            //     SetScriptInfo(_currentOCIChar, 0, BothArmConfig.Value);
+            //     SetScriptInfo(_currentOCIChar, 4, BothArmConfig.Value);
+            //     SetScriptInfo(_currentOCIChar, 1, BothArmConfig.Value);
+            //     SetScriptInfo(_currentOCIChar, 5, BothArmConfig.Value);
+            // }
+// leg            
             if (LeftLegConfig.Value != _prevLeftLeg)
             {
                 _prevLeftLeg = LeftLegConfig.Value;
-                SetScriptInfo(_currentOCIChar, 2, LeftLegConfig.Value);
+                // SetScriptInfo(_currentOCIChar, 2, LeftLegConfig.Value);
                 SetScriptInfo(_currentOCIChar, 6, LeftLegConfig.Value);
             }
             if (RightLegConfig.Value != _prevRightLeg)
             {
                 _prevRightLeg = RightLegConfig.Value;
-                SetScriptInfo(_currentOCIChar, 3, RightLegConfig.Value);
+                // SetScriptInfo(_currentOCIChar, 3, RightLegConfig.Value);
                 SetScriptInfo(_currentOCIChar, 7, RightLegConfig.Value);
             }
-            if (BothLegConfig.Value != _prevBothLeg)
+            // if (BothLegConfig.Value != _prevBothLeg)
+            // {
+            //     _prevBothLeg = BothLegConfig.Value;
+            //     SetScriptInfo(_currentOCIChar, 2, BothLegConfig.Value);
+            //     SetScriptInfo(_currentOCIChar, 6, BothLegConfig.Value);
+            //     SetScriptInfo(_currentOCIChar, 3, BothLegConfig.Value);
+            //     SetScriptInfo(_currentOCIChar, 7, BothLegConfig.Value);
+            // }
+            if (LeftKneeConfig.Value != _prevLeftKnee)
             {
-                _prevBothLeg = BothLegConfig.Value;
-                SetScriptInfo(_currentOCIChar, 2, BothLegConfig.Value);
-                SetScriptInfo(_currentOCIChar, 6, BothLegConfig.Value);
-                SetScriptInfo(_currentOCIChar, 3, BothLegConfig.Value);
-                SetScriptInfo(_currentOCIChar, 7, BothLegConfig.Value);
+                _prevLeftKnee = LeftKneeConfig.Value;
+                SetScriptInfo(_currentOCIChar, 2, LeftKneeConfig.Value);
             }
-            if (CrouchConfig.Value != _prevCrouch)
+            if (RightKneeConfig.Value != _prevRightKnee)
             {
-                _prevCrouch = CrouchConfig.Value;
-                SetScriptInfo(_currentOCIChar, 6, CrouchConfig.Value);
-                SetScriptInfo(_currentOCIChar, 7, CrouchConfig.Value);
+                _prevRightKnee = RightKneeConfig.Value;
+                SetScriptInfo(_currentOCIChar, 3, RightKneeConfig.Value);
             }
+        }
+
+        protected override void LateUpdate()
+        {
+#if FEATURE_SHOULDER_CORRECTION
+            if (_shoulder02_s_L != null)
+                ApplyBoneTransform(_shoulder02_s_L, LeftShoulder2Config.Value, TargetDirection.X_POS, ref _shoulder02BaseSetL, ref _shoulder02BasePosL, ref _shoulder02BaseScaleL);
+
+            if (_shoulder02_s_R != null)
+                ApplyBoneTransform(_shoulder02_s_R, RightShoulder2Config.Value, TargetDirection.X_POS, ref _shoulder02BaseSetR, ref _shoulder02BasePosR, ref _shoulder02BaseScaleR);
+#endif
+#if FEATURE_KNEE_CORRECTION
+           if (_legKnee_dam_L != null)
+                ApplyBoneTransform(_legKnee_dam_L, LeftKneeScaleConfig.Value, TargetDirection.Y_POS, ref _legKneeBaseSetL, ref _legKneeBasePosL, ref _legKneeBaseScaleL);
+
+            if (_legKnee_dam_R != null)
+                ApplyBoneTransform(_legKnee_dam_R, RightKneeScaleConfig.Value, TargetDirection.Y_POS, ref _legKneeBaseSetR, ref _legKneeBasePosR, ref _legKneeBaseScaleR);        
+#endif
         }
 
         private void InitConfig()
         {
-#if FEATURE_EXTRABONES_CORRECTION
-            LeftShoulderConfig.Value = (float)LeftShoulderConfig.DefaultValue;
-            RightShoulderConfig.Value = (float)RightShoulderConfig.DefaultValue;
-            
-            LeftMuneConfig.Value = (float)LeftMuneConfig.DefaultValue;
-            RightMuneConfig.Value = (float)RightMuneConfig.DefaultValue;             
+#if FEATURE_SHOULDER_CORRECTION
+            LeftShoulder1Config.Value = (float)LeftShoulder1Config.DefaultValue;
+            RightShoulder1Config.Value = (float)RightShoulder1Config.DefaultValue;
+
+            LeftShoulder2Config.Value = (float)LeftShoulder2Config.DefaultValue;
+            RightShoulder2Config.Value = (float)RightShoulder2Config.DefaultValue;
 #endif
+#if FEATURE_KNEE_CORRECTION
+            LeftKneeScaleConfig.Value = (float)LeftKneeScaleConfig.DefaultValue;
+            RightKneeScaleConfig.Value = (float)RightKneeScaleConfig.DefaultValue;
+#endif
+            LeftKneeConfig.Value = (float)LeftKneeConfig.DefaultValue;
+            RightKneeConfig.Value = (float)RightKneeConfig.DefaultValue;
+
             LeftLegConfig.Value = (float)LeftLegConfig.DefaultValue;
             RightLegConfig.Value = (float)RightLegConfig.DefaultValue;
-            BothLegConfig.Value = (float)BothLegConfig.DefaultValue;
+            // BothLegConfig.Value = (float)BothLegConfig.DefaultValue;
 
             LeftArmUpperConfig.Value = (float)LeftArmUpperConfig.DefaultValue;            
             RightArmUpperConfig.Value = (float)RightArmUpperConfig.DefaultValue;
             LeftArmLowerConfig.Value = (float)LeftArmLowerConfig.DefaultValue;            
             RightArmLowerConfig.Value = (float)RightArmLowerConfig.DefaultValue;
-            BothArmConfig.Value = (float)BothArmConfig.DefaultValue;
-
-            // LeftAnkleConfig.Value = (float)LeftAnkleConfig.DefaultValue;
-            // RightAnkleConfig.Value = (float)RightAnkleConfig.DefaultValue;
-
-            CrouchConfig.Value = (float)CrouchConfig.DefaultValue;
+            // BothArmConfig.Value = (float)BothArmConfig.DefaultValue;
 
 #if FEATURE_DEBUG
             // CharmRateConfig.Value = (float)CharmRateConfig.DefaultValue;
@@ -449,7 +519,7 @@ namespace JointCorrectionSlider
             RXConfig.Value = (bool)RXConfig.DefaultValue;
             RYConfig.Value = (bool)RYConfig.DefaultValue;
             RZConfig.Value = (bool)RZConfig.DefaultValue;
-#endif            
+#endif
         }
 
         protected override void OnGUI()
@@ -477,104 +547,108 @@ namespace JointCorrectionSlider
             }
 
             // ================= UI =================
-#if FEATURE_EXTRABONES_CORRECTION
-            GUILayout.Label("<color=yellow>Shoulder1</color>", RichLabel);
+#if FEATURE_SHOULDER_CORRECTION
+            GUILayout.Label("<color=blue>Shoulder</color>", RichLabel);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("LeftShoulder", "LeftShoulder"), GUILayout.Width(80));
-            LeftShoulderConfig.Value = GUILayout.HorizontalSlider(LeftShoulderConfig.Value, -1.0f, 1.0f);
-            GUILayout.Label(LeftShoulderConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("Shoulder(L)", "LeftShoulder"), GUILayout.Width(80));
+            LeftShoulder1Config.Value = GUILayout.HorizontalSlider(LeftShoulder1Config.Value, -1.0f, 1.0f);
+            GUILayout.Label(LeftShoulder1Config.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("RightShoulder", "RightShoulder"), GUILayout.Width(80));
-            RightShoulderConfig.Value = GUILayout.HorizontalSlider(RightShoulderConfig.Value, -1.0f, 1.0f);
-            GUILayout.Label(RightShoulderConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("Shoulder(R)", "RightShoulder"), GUILayout.Width(80));
+            RightShoulder1Config.Value = GUILayout.HorizontalSlider(RightShoulder1Config.Value, -1.0f, 1.0f);
+            GUILayout.Label(RightShoulder1Config.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
-            GUILayout.Label("<color=yellow>Breast</color>", RichLabel);
+            GUILayout.Label("<color=blue>Shoulder(R)</color>", RichLabel);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("LeftBreast", "LeftBreast"), GUILayout.Width(80));
-            LeftMuneConfig.Value = GUILayout.HorizontalSlider(LeftMuneConfig.Value, -1.0f, 1.0f);
-            GUILayout.Label(LeftMuneConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("Shoulder(L)(r)", "Rotated LeftShoulder"), GUILayout.Width(80));
+            LeftShoulder2Config.Value = GUILayout.HorizontalSlider(LeftShoulder2Config.Value, -1.0f, 1.0f);
+            GUILayout.Label(LeftShoulder2Config.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("RightBreast", "RightBreast"), GUILayout.Width(80));
-            RightMuneConfig.Value = GUILayout.HorizontalSlider(RightMuneConfig.Value, -1.0f, 1.0f);
-            GUILayout.Label(RightMuneConfig.Value.ToString("0.00"), GUILayout.Width(30));
-            GUILayout.EndHorizontal();            
+            GUILayout.Label(new GUIContent("Shoulder(R)(r)", "Rotated RightShoulder"), GUILayout.Width(80));
+            RightShoulder2Config.Value = GUILayout.HorizontalSlider(RightShoulder2Config.Value, -1.0f, 1.0f);
+            GUILayout.Label(RightShoulder2Config.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.EndHorizontal();
 #endif
             // Top
-            GUILayout.Label("<color=yellow>Arm-Upper</color>", RichLabel);
+            GUILayout.Label("<color=blue>Arm</color>", RichLabel);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("LeftArm(Up)", "LeftArm"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("ArmTop(L)", "LeftArm"), GUILayout.Width(80));
             LeftArmUpperConfig.Value = GUILayout.HorizontalSlider(LeftArmUpperConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(LeftArmUpperConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
             
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("RightArm(Up)", "RightArm"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("ArmTop(R)", "RightArm"), GUILayout.Width(80));
             RightArmUpperConfig.Value = GUILayout.HorizontalSlider(RightArmUpperConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(RightArmUpperConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
-            GUILayout.Label("<color=yellow>Arm-Lower</color>", RichLabel);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("LeftArm(Dn)", "LeftArm"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("ArmBot(L)", "LeftArm"), GUILayout.Width(80));
             LeftArmLowerConfig.Value = GUILayout.HorizontalSlider(LeftArmLowerConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(LeftArmLowerConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
             
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("RightArm(Dn)", "RightArm"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("ArmBot(R)", "RightArm"), GUILayout.Width(80));
             RightArmLowerConfig.Value = GUILayout.HorizontalSlider(RightArmLowerConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(RightArmLowerConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
             
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("<color=green>BothArm</color>", "BothArm"), _richLabel, GUILayout.Width(80));
-            BothArmConfig.Value = GUILayout.HorizontalSlider(BothArmConfig.Value, -1.0f, 1.0f);
-            GUILayout.Label(BothArmConfig.Value.ToString("0.00"), GUILayout.Width(30));
-            GUILayout.EndHorizontal();
+            // GUILayout.BeginHorizontal();
+            // GUILayout.Label(new GUIContent("<color=grey>Arms</color>", "Both Arms"), _richLabel, GUILayout.Width(80));
+            // BothArmConfig.Value = GUILayout.HorizontalSlider(BothArmConfig.Value, -1.0f, 1.0f);
+            // GUILayout.Label(BothArmConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            // GUILayout.EndHorizontal();
 
             // Bottom
-            GUILayout.Label("<color=yellow>Bottom</color>", RichLabel);
+            GUILayout.Label("<color=blue>Leg</color>", RichLabel);            
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("LeftLeg", "LeftLeg"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("Leg(L)", "LeftLeg"), GUILayout.Width(80));
             LeftLegConfig.Value = GUILayout.HorizontalSlider(LeftLegConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(LeftLegConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
-            
+
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("RightLeg", "RightLeg"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("Leg(R)", "RightLeg"), GUILayout.Width(80));
             RightLegConfig.Value = GUILayout.HorizontalSlider(RightLegConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(RightLegConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();            
-            GUILayout.Label(new GUIContent("<color=green>BothLeg</color>", "BothLeg"), _richLabel, GUILayout.Width(80));
-            BothLegConfig.Value = GUILayout.HorizontalSlider(BothLegConfig.Value, -1.0f, 1.0f);
-            GUILayout.Label(BothLegConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label("<color=blue>Knee</color>", RichLabel);            
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Knee(L)", "LeftLeg"), GUILayout.Width(80));
+            LeftKneeConfig.Value = GUILayout.HorizontalSlider(LeftKneeConfig.Value, -1.0f, 1.0f);
+            GUILayout.Label(LeftKneeConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("<color=blue>Crouch</color>", "Crouch"), _richLabel, GUILayout.Width(80));
-            CrouchConfig.Value = GUILayout.HorizontalSlider(CrouchConfig.Value, -1.0f, 1.0f);
-            GUILayout.Label(CrouchConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.Label(new GUIContent("Knee(R)", "RightLeg"), GUILayout.Width(80));
+            RightKneeConfig.Value = GUILayout.HorizontalSlider(RightKneeConfig.Value, -1.0f, 1.0f);
+            GUILayout.Label(RightKneeConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
-            // // Ankle
-            // GUILayout.Label("<color=yellow>Ankle</color>", RichLabel);            
-            // GUILayout.BeginHorizontal();
-            // GUILayout.Label(new GUIContent("LeftAnkle", "LeftAnkle"), GUILayout.Width(80));
-            // LeftAnkleConfig.Value = GUILayout.HorizontalSlider(LeftAnkleConfig.Value, -1.0f, 1.0f);
-            // GUILayout.Label(LeftAnkleConfig.Value.ToString("0.00"), GUILayout.Width(30));
-            // GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Knee(L)(s)", "Scaled LeftLeg"), GUILayout.Width(80));
+            LeftKneeScaleConfig.Value = GUILayout.HorizontalSlider(LeftKneeScaleConfig.Value, -1.0f, 1.0f);
+            GUILayout.Label(LeftKneeScaleConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.EndHorizontal();
 
-            // GUILayout.BeginHorizontal();
-            // GUILayout.Label(new GUIContent("RightAnkle", "RightAnkle"), GUILayout.Width(80));
-            // RightAnkleConfig.Value = GUILayout.HorizontalSlider(RightAnkleConfig.Value, -1.0f, 1.0f);
-            // GUILayout.Label(RightAnkleConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Knee(R)(s)", "Scaled RightLeg"), GUILayout.Width(80));
+            RightKneeScaleConfig.Value = GUILayout.HorizontalSlider(RightKneeScaleConfig.Value, -1.0f, 1.0f);
+            GUILayout.Label(RightKneeScaleConfig.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.EndHorizontal();
+
+            // GUILayout.BeginHorizontal();            
+            // GUILayout.Label(new GUIContent("<color=grey>Legs</color>", "Both Legs"), _richLabel, GUILayout.Width(80));
+            // BothLegConfig.Value = GUILayout.HorizontalSlider(BothLegConfig.Value, -1.0f, 1.0f);
+            // GUILayout.Label(BothLegConfig.Value.ToString("0.00"), GUILayout.Width(30));
             // GUILayout.EndHorizontal();
 
             draw_seperate();  
@@ -613,7 +687,41 @@ namespace JointCorrectionSlider
         private void SceneInit()
         {
         }
-        #endregion
+#endregion
+
+#if FEATURE_SHOULDER_CORRECTION || FEATURE_KNEE_CORRECTION
+        private const float Shoulder02PosXRange = 1.0f;
+        private const float Shoulder02ScaleMin = 0.3f;
+        private const float Shoulder02ScaleMax = 1.7f;
+
+        private void ApplyBoneTransform(Transform tr, float value, TargetDirection direction, ref bool baseSet, ref UnityEngine.Vector3 basePos, ref UnityEngine.Vector3 baseScale)
+        {
+            if (!baseSet)
+            {
+                basePos = tr.localPosition;
+                baseScale = tr.localScale;
+                baseSet = true;
+            }
+
+            float t = Mathf.InverseLerp(-1.0f, 1.0f, value); // 0..1
+            float pos = Mathf.Lerp(-Shoulder02PosXRange, Shoulder02PosXRange, t);
+            float scale = Mathf.Lerp(Shoulder02ScaleMin, Shoulder02ScaleMax, t);
+
+            var newPos = basePos;
+            if (direction == TargetDirection.X_POS) {
+                newPos.x = basePos.x + pos;
+            }
+            else if (direction == TargetDirection.Y_POS) { 
+                newPos.y = basePos.y + pos;
+            }
+            else {
+                newPos.z = basePos.z + pos;
+            }
+
+            tr.localPosition = newPos;
+            tr.localScale = baseScale * scale;
+        }
+#endif
 
         #region Public Methods
         #endregion
@@ -634,18 +742,29 @@ namespace JointCorrectionSlider
                 if (ociChar != null)
                 {
                     _self._currentOCIChar = ociChar;
+                    ChaControl chaControl = ociChar.GetChaControl();
 
-                    foreach (Expression.ScriptInfo scriptInfo in ociChar.charInfo.expression.info)
-                    {
-                        UnityEngine.Debug.Log($"scriptInfo: {scriptInfo.categoryNo}");
-                    }
+                    string bone_prefix_str = "cf_";
+                    if (chaControl.sex == 0)
+                        bone_prefix_str = "cm_";
+
+                    _self._shoulder02_s_L = chaControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Shoulder02_s_L");
+                    _self._shoulder02_s_R = chaControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Shoulder02_s_R");
+                    _self._shoulder02BaseSetL = false;
+                    _self._shoulder02BaseSetR = false;
+
+
+                    _self._legKnee_dam_L = chaControl.objAnim.transform.FindLoop(bone_prefix_str + "J_LegKnee_dam_L");
+                    _self._legKnee_dam_R = chaControl.objAnim.transform.FindLoop(bone_prefix_str + "J_LegKnee_dam_R");
+                    _self._legKneeBaseSetL = false;
+                    _self._legKneeBaseSetR = false;                    
                 }
 
                 return true;
             }
         }
 
-#if FEATURE_EXTRABONES_CORRECTION
+#if FEATURE_SHOULDER_CORRECTION
        [HarmonyPatch(typeof(ChaControl), "InitializeExpression", typeof(int), typeof(bool))]
         private static class ChaControl_InitializeExpression_Patches
         {
@@ -653,7 +772,7 @@ namespace JointCorrectionSlider
             {
                 // UnityEngine.Debug.Log(Environment.StackTrace);
 
-                _self._created_charControl_sex = sex;
+                _self._creating_char_sex = sex;
                 string text = "list/expression.unity3d";
                 string text2 = (sex == 0) ? "cm_expression" : "cf_expression";
                 if (!global::AssetBundleCheck.IsFile(text, text2))
@@ -712,7 +831,7 @@ namespace JointCorrectionSlider
             private static bool Prefix(Expression __instance, List<string> slist, ref bool __result)
             {
                 // UnityEngine.Debug.Log(Environment.StackTrace);                
-                string prefix = _self._created_charControl_sex == 0 ? "cm_" : "cf_";        
+                string prefix = _self._creating_char_sex == 0 ? "cm_" : "cf_";        
                 var rawList = new List<string>
                 {
                 "28\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0",
@@ -742,8 +861,8 @@ namespace JointCorrectionSlider
                 "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_LegKnee_dam_R\tcf_J_LegLow01_R\tEuler\tZYX\t0\t○\t0.5\t0.5\t×\t0\t0\t×\t0\t0",
                 "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_LegKnee_back_R\tcf_J_LegLow01_R\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
                 "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_SiriDam_R\tcf_J_LegUp00_R\tEuler\tYZX\t0\t○\t0.5\t0.5\t○\t0.2\t0.2\t○\t0.25\t0.25",
-                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_L\tcf_J_Shoulder_L\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t×\t0\t0",
-                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_R\tcf_J_Shoulder_R\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t×\t0\t0",             
+                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_L\tcf_J_Shoulder_L\tEuler\tXZY\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
+                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_R\tcf_J_Shoulder_R\tEuler\tXZY\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",             
                 };
 
                 var _slist = rawList
@@ -840,8 +959,6 @@ namespace JointCorrectionSlider
                     }
                 }
 
-                // UnityEngine.Debug.Log(Environment.StackTrace);
-                // 필요하면 결과 변경 가능
                 __result = true;
 
                 return false;
@@ -849,6 +966,13 @@ namespace JointCorrectionSlider
         }
 #endif
         #endregion
+    }
+
+    enum TargetDirection
+    {
+        X_POS,
+        Y_POS,
+        Z_POS
     }
 #endregion
 }
