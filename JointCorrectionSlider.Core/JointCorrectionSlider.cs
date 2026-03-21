@@ -186,10 +186,11 @@ namespace JointCorrectionSlider
         private bool _shoulder02BaseSetL;
         private bool _shoulder02BaseSetR;
 
+#if FEATURE_KNEE_CORRECTION
         // knee
         private Transform _legKnee_dam_L;
         private Transform _legKnee_dam_R;
-
+#endif
 
         private UnityEngine.Vector3 _legKneeBasePosL;
         private UnityEngine.Vector3 _legKneeBasePosR;
@@ -520,13 +521,13 @@ namespace JointCorrectionSlider
 
             GUILayout.Label("<color=orange>Shoulder(p)</color>", RichLabel);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Shuder(L)(p)", "Positioned"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("Shuder(L)", "Positioned"), GUILayout.Width(60));
             LeftShoulder2Config.Value = GUILayout.HorizontalSlider(LeftShoulder2Config.Value, -1.0f, 1.0f);
             GUILayout.Label(LeftShoulder2Config.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Shuder(R)(p)", "Positioned"), GUILayout.Width(60));
+            GUILayout.Label(new GUIContent("Shuder(R)", "Positioned"), GUILayout.Width(60));
             RightShoulder2Config.Value = GUILayout.HorizontalSlider(RightShoulder2Config.Value, -1.0f, 1.0f);
             GUILayout.Label(RightShoulder2Config.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
@@ -584,19 +585,19 @@ namespace JointCorrectionSlider
             RightKneeConfig.Value = GUILayout.HorizontalSlider(RightKneeConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(RightKneeConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
-
+#if FEATURE_KNEE_CORRECTION
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Knee(L)(s)", "Scaled"), GUILayout.Width(60));
+            GUILayout.Label(new GUIContent("Knee(L)", "Scaled"), GUILayout.Width(60));
             LeftKneeScaleConfig.Value = GUILayout.HorizontalSlider(LeftKneeScaleConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(LeftKneeScaleConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Knee(R)(s)", "Scaled"), GUILayout.Width(60));
+            GUILayout.Label(new GUIContent("Knee(R)", "Scaled"), GUILayout.Width(60));
             RightKneeScaleConfig.Value = GUILayout.HorizontalSlider(RightKneeScaleConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(RightKneeScaleConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
-
+#endif
             draw_seperate();  
             if (GUILayout.Button("Default"))
                 InitConfig();
@@ -636,9 +637,9 @@ namespace JointCorrectionSlider
 #endregion
 
 #if FEATURE_SHOULDER_CORRECTION || FEATURE_KNEE_CORRECTION
-        private const float Shoulder02PosXRange = 1.0f;
-        private const float Shoulder02ScaleMin = 0.3f;
-        private const float Shoulder02ScaleMax = 1.7f;
+        private const float Shoulder02PosXRange = 0.5f;
+        private const float Shoulder02ScaleMin = 0.5f;
+        private const float Shoulder02ScaleMax = 1.5f;
 
         private void ApplyBoneTransform(Transform tr, float value, TargetDirection direction, ref bool baseSet, ref UnityEngine.Vector3 basePos, ref UnityEngine.Vector3 baseScale)
         {
@@ -699,11 +700,12 @@ namespace JointCorrectionSlider
                     _self._shoulder02BaseSetL = false;
                     _self._shoulder02BaseSetR = false;
 
-
+#if FEATURE_KNEE_CORRECTION
                     _self._legKnee_dam_L = chaControl.objAnim.transform.FindLoop(bone_prefix_str + "J_LegKnee_dam_L");
                     _self._legKnee_dam_R = chaControl.objAnim.transform.FindLoop(bone_prefix_str + "J_LegKnee_dam_R");
                     _self._legKneeBaseSetL = false;
                     _self._legKneeBaseSetR = false;
+#endif
                 }
 
                 return true;
