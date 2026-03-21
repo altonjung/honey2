@@ -50,7 +50,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.7.0";
+        public const string Version = "0.9.7.1";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -96,6 +96,21 @@ namespace WindPhysics
         internal Dictionary<int, ChaControl> _selectChaMgmt = new Dictionary<int, ChaControl>();
 
         private Coroutine _CheckWindMgmtCoroutine;    
+
+        private GUIStyle _richLabel;
+        
+        private GUIStyle RichLabel
+        {
+            get
+            {
+                if (_richLabel == null)
+                {
+                    _richLabel = new GUIStyle(GUI.skin.label);
+                    _richLabel.richText = true;
+                }
+                return _richLabel;
+            }
+        }      
 
         #endregion
 
@@ -226,13 +241,13 @@ namespace WindPhysics
                 return;
             
             if (StudioAPI.InsideStudio)
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Wind Physics" + Version);
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Wind Physics " + Version);
         }       
 
         private void draw_seperate()
         {
             GUILayout.Space(5);            
-            Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.5f));
+            Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.2f));
             GUI.Box(rect, GUIContent.none);
             GUILayout.Space(10);
         }
@@ -256,7 +271,7 @@ namespace WindPhysics
 
             // ================= UI =================
 // Global
-            GUILayout.Label("Global");
+            GUILayout.Label("<color=orange>Global</color>", RichLabel);
             // Gravity            
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
@@ -301,9 +316,8 @@ namespace WindPhysics
           
             draw_seperate();
 // Hair
-            GUILayout.Label("Hair");
-            GUILayout.BeginHorizontal();
-            
+            GUILayout.Label("<color=orange>Hair</color>", RichLabel);
+            GUILayout.BeginHorizontal();            
             GUILayout.Label(new GUIContent("E", "Elastic"), GUILayout.Width(20));
             HairElastic.Value = GUILayout.HorizontalSlider(HairElastic.Value, 0.0f, 1.0f);
             GUILayout.Label(HairElastic.Value.ToString("0.00"), GUILayout.Width(40));
@@ -315,9 +329,9 @@ namespace WindPhysics
             
             draw_seperate();            
 // Acc
-            GUILayout.Label("Accessory");
+            GUILayout.Label("<color=orange>Accessory</color>", RichLabel);;
             GUILayout.BeginHorizontal();
-            
+        
             GUILayout.Label(new GUIContent("D", "Elastic"), GUILayout.Width(20));
             AccesoriesElastic.Value = GUILayout.HorizontalSlider(AccesoriesElastic.Value, 0.0f, 1.0f);
             GUILayout.Label(AccesoriesElastic.Value.ToString("0.00"), GUILayout.Width(40));
@@ -329,9 +343,8 @@ namespace WindPhysics
 
             draw_seperate();
 // Cloth
-            GUILayout.Label("Cloth");
-            GUILayout.BeginHorizontal();
-            
+            GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
+            GUILayout.BeginHorizontal();        
             GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
             ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.0f, 1.0f);
             GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(40));

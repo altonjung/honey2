@@ -68,7 +68,7 @@ namespace UndressPhysics
     {
         #region Constants
         public const string Name = "UndressPhysics";
-        public const string Version = "0.9.1.0";
+        public const string Version = "0.9.1.1";
         public const string GUID = "com.alton.illusionplugins.UndressPhysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -118,6 +118,20 @@ namespace UndressPhysics
 
         private AnimationCurve UndressCurve;
 
+        private GUIStyle _richLabel;
+
+        private GUIStyle RichLabel
+        {
+            get
+            {
+                if (_richLabel == null)
+                {
+                    _richLabel = new GUIStyle(GUI.skin.label);
+                    _richLabel.richText = true;
+                }
+                return _richLabel;
+            }
+        }
 
         internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressAllShortcut { get; private set; }
         internal static ConfigEntry<float> ClothUndressForce { get; private set; }
@@ -207,7 +221,7 @@ namespace UndressPhysics
                 return;
             
             if (StudioAPI.InsideStudio) 
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Undress Physics" + Version);
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Undress Physics " + Version);
         }
 
         private void WindowFunc(int id)
@@ -231,7 +245,7 @@ namespace UndressPhysics
 
             // ================= UI =================
 // Global
-            GUILayout.Label("Option");
+            GUILayout.Label("<color=orange>Option</color>", RichLabel);
             GUILayout.BeginHorizontal();
             // PullDown
             GUILayout.Label(new GUIContent("Pull", "PullDown Force"), GUILayout.Width(80));
@@ -248,7 +262,7 @@ namespace UndressPhysics
             GUILayout.EndHorizontal();
 
 // Cloth
-            GUILayout.Label("Cloth");
+            GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
             GUILayout.BeginHorizontal();
    
             GUILayout.Label(new GUIContent("Stiffness", "Stiffness"), GUILayout.Width(80));

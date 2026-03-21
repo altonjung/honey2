@@ -94,7 +94,7 @@ namespace RealHumanSupport
     {
         #region Constants
         public const string Name = "RealGirlSupport";
-        public const string Version = "0.9.1.1";
+        public const string Version = "0.9.1.2";
         public const string GUID = "com.alton.illusionplugins.RealGirl";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -131,7 +131,7 @@ namespace RealHumanSupport
 		
         private const int _uniqueId = ('R' << 24) | ('E' << 16) | ('A' << 8) | 'G';
 
-        private Rect _windowRect = new Rect(140, 10, 400, 10);
+        private Rect _windowRect = new Rect(140, 10, 350, 10);
         
         private WinkState _winkState = WinkState.Idle;
         
@@ -152,8 +152,10 @@ namespace RealHumanSupport
 
         private bool winkReleased = false;
 
+        private Coroutine _CheckMgmtCoroutine;    
+
+        // private float _nextLateSampleTime = 0f;
         private GUIStyle _richLabel;
-        private float _nextLateSampleTime = 0f;
 
         private GUIStyle RichLabel
         {
@@ -218,7 +220,7 @@ namespace RealHumanSupport
 
             BreathStrong = Config.Bind("Breath", "Strong", 0.45f, new ConfigDescription("Breath Amplitude", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            ExtraColliderScale = Config.Bind("ExtraCollider", "Scale", 1.0f, new ConfigDescription("Extra collider Scale", new AcceptableValueRange<float>(0.1f, 10.0f)));
+            ExtraColliderScale = Config.Bind("ExtraCollider", "Scale", 1.0f, new ConfigDescription("Not Supported Yet", new AcceptableValueRange<float>(1.0f, 1.1f)));
 #if FEATURE_EXTRA_COLLIDER_DEBUG
             ExtraColliderDebug = Config.Bind("ExtraCollider", "Show", false, new ConfigDescription("Debug Enable/Disable"));
 #endif            
@@ -345,7 +347,7 @@ namespace RealHumanSupport
                 return;
 
             if (StudioAPI.InsideStudio)
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "RealHuman" + Version);
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "RealHuman " + Version);
         }
 
        private void WindowFunc(int id)
@@ -368,20 +370,22 @@ namespace RealHumanSupport
 
             // ================= UI =================
 ///////////////////
-            GUILayout.Label("<color=yellow>Breath</color>", RichLabel);
+            GUILayout.Label("<color=orange>Breath</color>", RichLabel);
 
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
             BreathStrong.Value = GUILayout.HorizontalSlider(BreathStrong.Value, 0.1f, 1.0f);
             GUILayout.Label(BreathStrong.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Interval", "Interval"), GUILayout.Width(60));
             BreathInterval.Value = GUILayout.HorizontalSlider(BreathInterval.Value, 1.0f, 5.0f);
             GUILayout.Label(BreathInterval.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
 ///////////////////
-            GUILayout.Label("<color=yellow>Tear</color>", RichLabel);
+            GUILayout.Label("<color=orange>Tear</color>", RichLabel);
 
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
@@ -390,13 +394,13 @@ namespace RealHumanSupport
             GUILayout.EndHorizontal(); 
 
 ///////////////////            
-            GUILayout.Label("<color=red>Ext Collider</color>", RichLabel);
+            // GUILayout.Label("<color=red>Extra Collider</color>", RichLabel);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Scale", "Scale"), GUILayout.Width(60));
-            ExtraColliderScale.Value = GUILayout.HorizontalSlider(ExtraColliderScale.Value, 0.1f, 10.0f);
-            GUILayout.Label(ExtraColliderScale.Value.ToString("0.00"), GUILayout.Width(30));
-            GUILayout.EndHorizontal(); 
+            // GUILayout.BeginHorizontal();
+            // GUILayout.Label(new GUIContent("Scale", "be careful"), GUILayout.Width(60));
+            // ExtraColliderScale.Value = GUILayout.HorizontalSlider(ExtraColliderScale.Value, 0.1f, 10.0f);
+            // GUILayout.Label(ExtraColliderScale.Value.ToString("0.00"), GUILayout.Width(30));
+            // GUILayout.EndHorizontal(); 
 
             if (TearDropActive.Value)
                 if (GUILayout.Button("Tear(D)"))
@@ -549,23 +553,7 @@ namespace RealHumanSupport
                     var controller = chaControl.GetComponent<RealHumanSupportController>();
                     if (controller != null)
                     {
-                        controller.InitRealHumanData(chaControl);
-
-// // Test start
-//                         SkinnedMeshRenderer[] bodyRenderers = chaControl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
-//                         // UnityEngine.Debug.Log($">> bodyRenderers {bodyRenderers.Length}");
-
-//                         foreach (SkinnedMeshRenderer render in bodyRenderers.ToList())
-//                         {
-
-//                             var mesh = render.sharedMesh;      
-//                             for(int idx=0; idx < mesh.blendShapeCount; idx++)
-//                             {
-//                                 string name = mesh.GetBlendShapeName(idx);
-//                                 // UnityEngine.Debug.Log($">> blendShape {name}, {idx} in body");
-//                             }
-//                         }                    
-// // Test end                            
+                        controller.InitRealHumanData(chaControl);                        
                     }
                 }
 

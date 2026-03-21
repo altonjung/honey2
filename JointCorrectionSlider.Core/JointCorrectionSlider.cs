@@ -548,7 +548,7 @@ namespace JointCorrectionSlider
 
             // ================= UI =================
 #if FEATURE_SHOULDER_CORRECTION
-            GUILayout.Label("<color=blue>Shoulder</color>", RichLabel);
+            GUILayout.Label("<color=orange>Shoulder</color>", RichLabel);
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Shoulder(L)", "LeftShoulder"), GUILayout.Width(80));
             LeftShoulder1Config.Value = GUILayout.HorizontalSlider(LeftShoulder1Config.Value, -1.0f, 1.0f);
@@ -561,21 +561,21 @@ namespace JointCorrectionSlider
             GUILayout.Label(RightShoulder1Config.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
-            GUILayout.Label("<color=blue>Shoulder(R)</color>", RichLabel);
+            GUILayout.Label("<color=orange>Shoulder(p)</color>", RichLabel);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Shoulder(L)(r)", "Rotated LeftShoulder"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("Shoulder(L)(p)", "Positioned LeftShoulder"), GUILayout.Width(80));
             LeftShoulder2Config.Value = GUILayout.HorizontalSlider(LeftShoulder2Config.Value, -1.0f, 1.0f);
             GUILayout.Label(LeftShoulder2Config.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Shoulder(R)(r)", "Rotated RightShoulder"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("Shoulder(R)(p)", "Positioned RightShoulder"), GUILayout.Width(80));
             RightShoulder2Config.Value = GUILayout.HorizontalSlider(RightShoulder2Config.Value, -1.0f, 1.0f);
             GUILayout.Label(RightShoulder2Config.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 #endif
             // Top
-            GUILayout.Label("<color=blue>Arm</color>", RichLabel);
+            GUILayout.Label("<color=orange>Arm</color>", RichLabel);
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("ArmTop(L)", "LeftArm"), GUILayout.Width(80));
             LeftArmUpperConfig.Value = GUILayout.HorizontalSlider(LeftArmUpperConfig.Value, -1.0f, 1.0f);
@@ -607,20 +607,20 @@ namespace JointCorrectionSlider
             // GUILayout.EndHorizontal();
 
             // Bottom
-            GUILayout.Label("<color=blue>Leg</color>", RichLabel);            
+            GUILayout.Label("<color=orange>Siri</color>", RichLabel);            
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Leg(L)", "LeftLeg"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("Siri(L)", "LeftSiri"), GUILayout.Width(80));
             LeftLegConfig.Value = GUILayout.HorizontalSlider(LeftLegConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(LeftLegConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Leg(R)", "RightLeg"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("Siri(R)", "RightSiri"), GUILayout.Width(80));
             RightLegConfig.Value = GUILayout.HorizontalSlider(RightLegConfig.Value, -1.0f, 1.0f);
             GUILayout.Label(RightLegConfig.Value.ToString("0.00"), GUILayout.Width(30));
             GUILayout.EndHorizontal();
 
-            GUILayout.Label("<color=blue>Knee</color>", RichLabel);            
+            GUILayout.Label("<color=orange>Knee</color>", RichLabel);            
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Knee(L)", "LeftLeg"), GUILayout.Width(80));
             LeftKneeConfig.Value = GUILayout.HorizontalSlider(LeftKneeConfig.Value, -1.0f, 1.0f);

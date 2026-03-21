@@ -96,7 +96,7 @@ namespace WindPhysics
 
         internal IEnumerator ExecuteWindEffectDelayed()
         {
-            int frameCount = 30;
+            int frameCount = 15;
             for (int i = 0; i < frameCount; i++)
                 yield return null;
 
@@ -329,7 +329,7 @@ namespace WindPhysics
                     0f,
                     gravityUp
                         ? UnityEngine.Random.Range(gravity, gravity + 0.03f)
-                        : UnityEngine.Random.Range(gravity, gravity - 0.03f),
+                        : UnityEngine.Random.Range(gravity, gravity - 0.02f),
                     0f
                 );
 

@@ -328,10 +328,10 @@ namespace RealHumanSupport
                         right_armdown_bs += bumpscale * 0.6f;
                     }
 
-                    UnityEngine.Debug.Log($">> fk_left_armdown._frontback {fk_left_armdown._frontback} in body"); 
-                    UnityEngine.Debug.Log($">> fk_right_armdown._frontback {fk_right_armdown._frontback} in body"); 
-                    UnityEngine.Debug.Log($">> fk_left_armup._frontback {fk_left_armup._frontback} in body"); 
-                    UnityEngine.Debug.Log($">> fk_right_armup._frontback {fk_right_armup._frontback} in body"); 
+                    // UnityEngine.Debug.Log($">> fk_left_armdown._frontback {fk_left_armdown._frontback} in body");
+                    // UnityEngine.Debug.Log($">> fk_right_armdown._frontback {fk_right_armdown._frontback} in body");
+                    // UnityEngine.Debug.Log($">> fk_left_armup._frontback {fk_left_armup._frontback} in body");
+                    // UnityEngine.Debug.Log($">> fk_right_armup._frontback {fk_right_armup._frontback} in body");
                 }
                 
             // 목
@@ -1078,31 +1078,6 @@ namespace RealHumanSupport
 
                     // Ground direction (world down) -> convert to local.
                     Vector3 worldGravity = Vector3.down * 0.015f;
-                    bone.m_Gravity = realHumanData.root_bone.InverseTransformDirection(worldGravity);
-                    bone.m_Force = Vector3.zero;
-                    bone.m_Damping    = 0.13f;
-                    bone.m_Elasticity = 0.05f;
-                    bone.m_Stiffness  = 0.13f;
-                }
-            }        
-        }
-
-        // Chain direction (root -> tip) gravity.
-        internal void SetHairDownV2() {
-
-            if (realHumanData != null && realHumanData.root_bone != null)
-            {
-                foreach (DynamicBone bone in realHumanData.hairDynamicBones)
-                {
-                    if (bone == null)
-                        continue;
-
-                    Transform hairTip;
-                    if (!realHumanData.hairTipCache.TryGetValue(bone, out hairTip))
-                        continue;
-
-                    Vector3 dirFromRoot = (hairTip.position - realHumanData.head_bone.position).normalized;
-                    Vector3 worldGravity = dirFromRoot * 0.015f;
                     bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
                     bone.m_Force = Vector3.zero;
                     bone.m_Damping    = 0.13f;
@@ -1110,7 +1085,32 @@ namespace RealHumanSupport
                     bone.m_Stiffness  = 0.13f;
                 }
             }        
-        }
+        }   
+
+        // // Chain direction (root -> tip) gravity.
+        // internal void SetHairDownV2() {
+
+        //     if (realHumanData != null && realHumanData.head_bone != null)
+        //     {
+        //         foreach (DynamicBone bone in realHumanData.hairDynamicBones)
+        //         {
+        //             if (bone == null)
+        //                 continue;
+
+        //             Transform hairTip;
+        //             if (!realHumanData.hairTipCache.TryGetValue(bone, out hairTip))
+        //                 continue;
+
+        //             Vector3 dirFromRoot = (hairTip.position - realHumanData.head_bone.position).normalized;
+        //             Vector3 worldGravity = dirFromRoot * 0.015f;
+        //             bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
+        //             bone.m_Force = Vector3.zero;
+        //             bone.m_Damping    = 0.13f;
+        //             bone.m_Elasticity = 0.05f;
+        //             bone.m_Stiffness  = 0.13f;
+        //         }
+        //     }        
+        // }
 
         internal void SetPregnancyRoundness(float roundNess) {
             if (realHumanData != null && realHumanData.pregnancyController != null)
@@ -1121,7 +1121,7 @@ namespace RealHumanSupport
         // 남성에게만 부여
         internal void SetRigidBodyOnDan()
         {
-            UnityEngine.Debug.Log($">> SetRigidBodyOnDan {realHumanData}");
+            // UnityEngine.Debug.Log($">> SetRigidBodyOnDan {realHumanData}");
 
             if (realHumanData != null)
             {
@@ -1170,11 +1170,11 @@ namespace RealHumanSupport
                         capsule.isTrigger = false;  // 실제 collider
                     }
 
-                    UnityEngine.Debug.Log($">> created rigidBody + collider on {bone_prefix_str}J_dan_top");
+                    // UnityEngine.Debug.Log($">> created rigidBody + collider on {bone_prefix_str}J_dan_top");
                 }
                 else
                 {
-                    UnityEngine.Debug.Log(">> dan_top not found");
+                    // UnityEngine.Debug.Log(">> dan_top not found");
                 }
             }
         }
@@ -1182,7 +1182,7 @@ namespace RealHumanSupport
         // 여성에게만 부여
         internal void SetCollisionOnOnKosi()
         {
-            UnityEngine.Debug.Log($">> SetCollisionOnOnKosi {realHumanData}");
+            // UnityEngine.Debug.Log($">> SetCollisionOnOnKosi {realHumanData}");
 
             if (realHumanData != null && realHumanData.charControl.sex == 1)
             {
@@ -1221,11 +1221,11 @@ namespace RealHumanSupport
                         childObj.AddComponent<CapsuleTrigger>();
                     }
 
-                    UnityEngine.Debug.Log(">> created sphere trigger on J_Kokan");
+                    // UnityEngine.Debug.Log(">> created sphere trigger on J_Kokan");
                 }
                 else
                 {
-                    UnityEngine.Debug.Log(">> J_Kokan not found");
+                    // UnityEngine.Debug.Log(">> J_Kokan not found");
                 }
             }
         }
@@ -1838,14 +1838,6 @@ namespace RealHumanSupport
                                     {
                                         realHumanData.fk_right_knee_bone = bone;
                                     }                        
-                                    // else if (bone.guideObject.transformTarget.name.Contains("_J_Hand_L"))
-                                    // {
-                                    //     realHumanData.fk_left_hand_bone = bone;
-                                    // }
-                                    // else if (bone.guideObject.transformTarget.name.Contains("_J_Hand_R"))
-                                    // {
-                                    //     realHumanData.fk_right_hand_bone = bone;
-                                    // }
                                     else if (bone.guideObject.transformTarget.name.Contains("_J_Head"))
                                     {
                                         realHumanData.fk_head_bone = bone;
@@ -1861,15 +1853,7 @@ namespace RealHumanSupport
                                     else if (bone.guideObject.transformTarget.name.Contains("_J_Foot01_R"))
                                     {
                                         realHumanData.fk_right_foot_bone = bone;
-                                    }                 
-                                    // else if (bone.guideObject.transformTarget.name.Contains("_J_Toes01_L"))
-                                    // {
-                                    //     realHumanData.fk_left_toes_bone = bone;
-                                    // }   
-                                    // else if (bone.guideObject.transformTarget.name.Contains("_J_Toes01_R"))
-                                    // {
-                                    //     realHumanData.fk_right_toes_bone = bone;
-                                    // } 
+                                    }
                                 }
                             }
                         }
