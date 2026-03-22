@@ -707,7 +707,7 @@ namespace RealHumanSupport
             Vector3 offset)
         {
             string pivotName = target.name + "_DBC_Pivot";
-            string colliderName = target.name + "_DynamicBoneCollider";
+            string colliderName = target.name + "_ExtDBoneCollider";
 
             // ===============================
             // 0. 로컬 헬퍼
@@ -902,6 +902,25 @@ namespace RealHumanSupport
 #endif
             return dbc;
         }
+
+        internal static void ApplyScaleToExtraDynamicBoneColliders(
+            Transform parent,
+            Vector3 targetScale)
+        {
+            if (parent == null) return;
+
+            // 모든 하위 Transform 가져오기 (비활성 포함)
+            Transform[] allChildren = parent.GetComponentsInChildren<Transform>(true);
+
+            foreach (Transform tr in allChildren)
+            {
+                // 이름 규칙 체크
+                if (!tr.name.EndsWith("_ExtDBoneCollider")) continue;
+
+                // scale 적용
+                tr.localScale = targetScale;
+            }
+        }        
 
 #if FEATURE_FACE_BLENDSHAPE_SUPPORT
         internal void SetFaceBlendShapes()

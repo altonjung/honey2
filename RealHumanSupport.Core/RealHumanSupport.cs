@@ -154,7 +154,8 @@ namespace RealHumanSupport
 
         private Coroutine _CheckMgmtCoroutine;    
 
-        // private float _nextLateSampleTime = 0f;
+        private float _prevTFScale = 1.0f;
+
         private GUIStyle _richLabel;
 
         private GUIStyle RichLabel
@@ -477,7 +478,10 @@ namespace RealHumanSupport
 
             while (true) // 무한 반복
             {   
-                if (_loaded && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() > 0)
+                if (!_loaded)
+                    yield return new WaitForSeconds(0.5f); // 0.5초 대기
+
+                if (Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() > 0)
                 {
                     TreeNodeObject _node = Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Last();
                     
@@ -492,6 +496,13 @@ namespace RealHumanSupport
                             var controller = chaControl.GetComponent<RealHumanSupportController>();
                             if (controller != null)
                             {
+#if FEATURE_EXTRA_COLLIDER_SCALE                                
+                                if (_prevTFScale != ExtraColliderScale.Value)
+                                {
+                                    _prevTFScale = ExtraColliderScale.Value;
+                                    controller.ApplyScaleToExtraDynamicBoneColliders(chaControl.objBodyBone.transform, ExtraColliderScale.Value);                                                                                            
+                                }
+#endif                                                                
                                 if (mouseReleased)
                                 {
                                     mouseReleased = false;  // 한 번만 쓰고 초기화
