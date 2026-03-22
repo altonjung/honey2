@@ -1092,16 +1092,13 @@ namespace RealHumanSupport
                     if (bone == null)
                         continue;
 
-                    Transform hairTip;
-                    if (!realHumanData.hairTipCache.TryGetValue(bone, out hairTip))
-                        continue;
-
                     // Ground direction (world down) -> convert to local.
                     bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
                     bone.m_Force = Vector3.zero;
                     bone.m_Damping    = 0.13f;
-                    bone.m_Elasticity = 0.05f;
-                    bone.m_Stiffness  = 0.13f;
+                    bone.m_Stiffness  = 0.02f;
+                    bone.m_Elasticity = 0.01f;
+
                 }
             }        
         }
@@ -1672,24 +1669,6 @@ namespace RealHumanSupport
             };
         }
 
-        internal static Transform FindHairTip(Transform hairRoot)
-        {
-            Transform tip = hairRoot;
-            float maxDist = 0f;
-
-            foreach (Transform t in hairRoot.GetComponentsInChildren<Transform>(true))
-            {
-                float d = Vector3.Distance(hairRoot.position, t.position);
-                if (d > maxDist)
-                {
-                    maxDist = d;
-                    tip = t;
-                }
-            }
-            return tip;
-        }
-
-
         internal RealHumanData InitRealHumanData(ChaControl chaCtrl)
         {
             // UnityEngine.Debug.Log($">> InitRealHumanData {chaCtrl}");
@@ -1747,8 +1726,7 @@ namespace RealHumanSupport
                     else
                     {
                         realHumanData.hairDynamicBones.Clear();
-                        realHumanData.hairTipCache.Clear();
-
+                        
                         string bone_prefix_str = "cf_";
                         if (chaCtrl.sex == 0)
                             bone_prefix_str = "cm_";
@@ -1760,20 +1738,7 @@ namespace RealHumanSupport
                         if (realHumanData.head_bone)
                         {
                             DynamicBone[] hairbones = realHumanData.head_bone.GetComponentsInChildren<DynamicBone>(true);  
-                        
                             realHumanData.hairDynamicBones = hairbones.ToList();
-
-                            foreach (DynamicBone bone in hairbones)
-                            {
-                                if (bone == null)
-                                    continue;
-
-                                if (!realHumanData.hairTipCache.ContainsKey(bone))
-                                {
-                                    Transform tip = FindHairTip(bone.transform);
-                                    realHumanData.hairTipCache.Add(bone, tip);
-                                }
-                            }
                         }
 
                         if (StudioAPI.InsideStudio) {
@@ -2179,8 +2144,6 @@ namespace RealHumanSupport
         public Transform neck_bone;
         public Transform root_bone;  // hair down 지원인데, 확인 필요..
         public List<DynamicBone> hairDynamicBones = new List<DynamicBone>(); // hair down 지원인데, 확인 필요..
-        public Dictionary<DynamicBone, Transform> hairTipCache = new Dictionary<DynamicBone, Transform>(); // hair down 지원인데, 확인 필요..
-
 
         // 가슴/엉덩이에 gravity 제어
         public DynamicBone_Ver02 rightBoob;

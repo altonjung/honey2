@@ -50,32 +50,12 @@ using KKAPI.Chara;
 using static CharaUtils.Expression;
 
 /*
-    확인해야 할 내용
+    추가 개발
+     - scene 저장
+
+    활용 자료
      - charmRate 값 실시간 변경
      - orderRate 값 실시간 변경
-
-    jointCorrection 관련 코드 조사
-        - OCIChar.ChaInfo.Expression 내 8개 사용되는듯
-        - Expression 내 아래 LateUpdate() 함수를 통해 각 Expression 항목 업데이트
-		private void LateUpdate()
-		{
-			if (__instance.info == null)
-			{
-				return;
-			}
-			if (this.enable)
-			{
-				Expression.ScriptInfo[] array = __instance.info;
-				for (int i = 0; i < array.Length; i++)
-				{
-					array[i].Update();
-				}
-			}
-		}        
-        - 결국 __instance.info 항목 갯수를 늘려 활용 필요
-    
-        // cf_J_Shoulder_L/cf_J_ArmUp00_L
-        // cf_J_Shoulder_R/cf_J_ArmUp00_R
 
         // category = 0  armup L
         // category = 1  armup R
@@ -86,22 +66,6 @@ using static CharaUtils.Expression;
         // category = 6  legup L, siri
         // category = 7  legup R, siri
 
-    - correctJoint 속성 설명
-    > trfReference: 기준이 되는 회전값(원본/입력)
-    > trfCorrect: 수정/가공된 회전값을 적용할 대상
-    > Euler 모드 (CalcType.Euler)
-        trfCorrect.localRotation, trfReference.localRotation을 오일러 각도로 변환합니다.
-        useRX/RY/RZ가 켜진 축만 계산합니다.
-        각 축에서:
-        reference 축 값의 절대값을 0~90도로 클램프
-        그 값을 0~1로 정규화하여 val*Min/Max 범위를 lerp
-        그 결과를 reference 축 값에 곱해서 correct 축 값 생성
-
-    > Quaternion 모드 (CalcType.Quaternion)
-        trfCorrect.localRotation을 시작점으로 두고,
-        useRX/RY/RZ 축에 대해:
-        trfReference.localRotation의 해당 쿼터니언 컴포넌트에 (valMin + valMax) * 0.5를 곱해 덮어씀
-        (이 모드는 Euler처럼 각도를 변환하지 않고 단순 스케일링에 가깝습니다)
 */
 
 namespace JointCorrectionSlider
