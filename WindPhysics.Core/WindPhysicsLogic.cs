@@ -170,8 +170,7 @@ namespace WindPhysics
         internal void SetHairDown()
         {
             // 월드 기준 방향
-            Vector3 worldGravity = Vector3.down * 0.01f;
-            Vector3 worldForce = new Vector3(0, -0.01f, -0.005f);
+            Vector3 worldGravity = Vector3.down * 0.015f;
             if (windData != null)
             {
                 foreach (DynamicBone bone in windData.hairDynamicBones)
@@ -179,8 +178,8 @@ namespace WindPhysics
                     if (bone == null)
                         continue;
 
-                    bone.m_Gravity = windData.head_bone.transform.InverseTransformDirection(worldGravity);
-                    bone.m_Force = windData.head_bone.transform.InverseTransformDirection(worldForce);
+                    bone.m_Gravity = windData.head_bone.InverseTransformDirection(worldGravity);
+                    bone.m_Force = Vector3.zero;         
                 }
             }
         }

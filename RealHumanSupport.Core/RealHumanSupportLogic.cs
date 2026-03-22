@@ -1067,6 +1067,7 @@ namespace RealHumanSupport
 
             if (realHumanData != null && realHumanData.head_bone != null)
             {
+                Vector3 worldGravity = Vector3.down * 0.015f;
                 foreach (DynamicBone bone in realHumanData.hairDynamicBones)
                 {
                     if (bone == null)
@@ -1077,7 +1078,6 @@ namespace RealHumanSupport
                         continue;
 
                     // Ground direction (world down) -> convert to local.
-                    Vector3 worldGravity = Vector3.down * 0.015f;
                     bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
                     bone.m_Force = Vector3.zero;
                     bone.m_Damping    = 0.13f;
@@ -1085,32 +1085,7 @@ namespace RealHumanSupport
                     bone.m_Stiffness  = 0.13f;
                 }
             }        
-        }   
-
-        // // Chain direction (root -> tip) gravity.
-        // internal void SetHairDownV2() {
-
-        //     if (realHumanData != null && realHumanData.head_bone != null)
-        //     {
-        //         foreach (DynamicBone bone in realHumanData.hairDynamicBones)
-        //         {
-        //             if (bone == null)
-        //                 continue;
-
-        //             Transform hairTip;
-        //             if (!realHumanData.hairTipCache.TryGetValue(bone, out hairTip))
-        //                 continue;
-
-        //             Vector3 dirFromRoot = (hairTip.position - realHumanData.head_bone.position).normalized;
-        //             Vector3 worldGravity = dirFromRoot * 0.015f;
-        //             bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
-        //             bone.m_Force = Vector3.zero;
-        //             bone.m_Damping    = 0.13f;
-        //             bone.m_Elasticity = 0.05f;
-        //             bone.m_Stiffness  = 0.13f;
-        //         }
-        //     }        
-        // }
+        }
 
         internal void SetPregnancyRoundness(float roundNess) {
             if (realHumanData != null && realHumanData.pregnancyController != null)
@@ -1363,6 +1338,12 @@ namespace RealHumanSupport
                 }                    
             }
 
+            float baseScale = 1.0f;
+
+#if FEATURE_EXTRA_COLLIDER_SCALE
+            baseScale = RealHumanSupport.ExtraColliderScale.Value;
+#endif
+
             // hair dynamic bone 연결 대상 finger collider 생성
             List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();       
 
@@ -1372,18 +1353,18 @@ namespace RealHumanSupport
             Transform leftArmUpObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
             Transform rightArmUpObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftArmUpObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f , new Vector3(0.0f, -0.38f, -0.06f)));
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightArmUpObject, DynamicBoneColliderBase.Direction.X, RealHumanSupport.ExtraColliderScale.Value * 0.53f, 0.0f, new Vector3(0.0f, -0.38f, -0.06f)));
+            float leftArmUp_radius = 0.53f * baseScale;
+            float rightArmUp_radius = 0.53f * baseScale;
+
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftArmUpObject, DynamicBoneColliderBase.Direction.X, leftArmUp_radius, 0.0f , new Vector3(0.0f, -0.38f, -0.06f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightArmUpObject, DynamicBoneColliderBase.Direction.X, rightArmUp_radius, 0.0f, new Vector3(0.0f, -0.38f, -0.06f)));
 
             // hair dynamic bone 연결 대상 spine collider 생성
             Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
             Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine03");
             
-            float spine2_radius = 0.9f;
-            float spine3_radius = 0.875f;
-
-            spine2_radius = spine2_radius * RealHumanSupport.ExtraColliderScale.Value;
-            spine3_radius = spine3_radius * RealHumanSupport.ExtraColliderScale.Value;
+            float spine2_radius = 0.9f * baseScale;
+            float spine3_radius = 0.875f * baseScale;
 
             extraHairColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.04f)));
             extraHairColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 3.4f, Vector3.zero));
@@ -1397,9 +1378,8 @@ namespace RealHumanSupport
 
             // hair dynamic bone 연결 대상 골반 collider 생성
             Transform kosi2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Kosi02");
-            float kosi2_radius = 1.17f;
-            
-            kosi2_radius = kosi2_radius * RealHumanSupport.ExtraColliderScale.Value;
+           
+            float kosi2_radius = 1.17f * baseScale;
 
             extraHairColliders.Add(AddExtraDynamicBoneCollider(kosi2Object, DynamicBoneColliderBase.Direction.X, kosi2_radius, kosi2_radius * 2.8f, new Vector3(0.0f, -0.05f, -0.05f)));
 
@@ -1646,7 +1626,7 @@ namespace RealHumanSupport
                         // UnityEngine.Debug.Log($">> mainTex.isReadable {mainTex.isReadable}");
                         // SaveAsPNG(CaptureMaterialOutput(realHumanData.m_skin_head, 2048, 2048), "c:/Temp/face_mainTex.png");
                     }
-#if FEATURE_TEARDROP_SUPPORT                    
+#if FEATURE_TEARDROP_SUPPORT
                     else if (name.Contains("c_m_eye_01") || name.Contains("c_m_eye_02"))
                     {
                         realHumanData.c_m_eye.Add(mat);
@@ -1655,7 +1635,7 @@ namespace RealHumanSupport
                         realHumanData.m_tear_eye = mat;
                         realHumanData.m_tear_eye.SetTexture("_MainTex", RealHumanSupport._self._TearDropImg);
                     }
-#endif                    
+#endif
                 }
             }
             return realHumanData;
@@ -1913,7 +1893,7 @@ namespace RealHumanSupport
 #if FEATURE_FACE_BLENDSHAPE_SUPPORT
                 SetFaceBlendShapes();
 #endif
- #if FEATURE_BODY_BLENDSHAPE_SUPPORT
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
                 SetBodyBlendShapes();
 #endif
         }
@@ -2304,7 +2284,7 @@ namespace RealHumanSupport
             thigh_right_bent_idx_in_body = -1;
             pubis_left_bent_idx_in_body = -1;
             pubis_right_bent_idx_in_body = -1;
-#endif            
+#endif
         }     
     }
 

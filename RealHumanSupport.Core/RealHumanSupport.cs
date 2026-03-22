@@ -190,7 +190,9 @@ namespace RealHumanSupport
 
         internal static ConfigEntry<float> BreathInterval { get; private set; }
 
+#if FEATURE_EXTRA_COLLIDER_SCALE
         internal static ConfigEntry<float> ExtraColliderScale{ get; private set; }
+#endif        
 
 #if FEATURE_EXTRA_COLLIDER_DEBUG
         internal static ConfigEntry<bool> ExtraColliderDebug{ get; private set; }        
@@ -219,8 +221,9 @@ namespace RealHumanSupport
             BreathInterval = Config.Bind("Breath", "Cycle", 1.5f, new ConfigDescription("Breath Interval", new AcceptableValueRange<float>(1.0f,  5.0f)));;
 
             BreathStrong = Config.Bind("Breath", "Strong", 0.45f, new ConfigDescription("Breath Amplitude", new AcceptableValueRange<float>(0.1f, 1.0f)));
-
+#if FEATURE_EXTRA_COLLIDER_SCALE
             ExtraColliderScale = Config.Bind("ExtraCollider", "Scale", 1.0f, new ConfigDescription("Not Supported Yet", new AcceptableValueRange<float>(1.0f, 1.1f)));
+#endif            
 #if FEATURE_EXTRA_COLLIDER_DEBUG
             ExtraColliderDebug = Config.Bind("ExtraCollider", "Show", false, new ConfigDescription("Debug Enable/Disable"));
 #endif            
@@ -263,7 +266,9 @@ namespace RealHumanSupport
             TearDropLevel.Value = (float)TearDropLevel.DefaultValue;
             BreathInterval.Value = (float)BreathInterval.DefaultValue;
             BreathStrong.Value = (float)BreathStrong.DefaultValue;
+#if FEATURE_EXTRA_COLLIDER_SCALE            
             ExtraColliderScale.Value = (float)ExtraColliderScale.DefaultValue;                       
+#endif            
         }
 
         protected override void Update()
@@ -394,14 +399,15 @@ namespace RealHumanSupport
             GUILayout.EndHorizontal(); 
 
 ///////////////////            
-            // GUILayout.Label("<color=red>Extra Collider</color>", RichLabel);
+#if FEATURE_EXTRA_COLLIDER_SCALE
+            GUILayout.Label("<color=red>Extra Collider</color>", RichLabel);
 
-            // GUILayout.BeginHorizontal();
-            // GUILayout.Label(new GUIContent("Scale", "be careful"), GUILayout.Width(60));
-            // ExtraColliderScale.Value = GUILayout.HorizontalSlider(ExtraColliderScale.Value, 0.1f, 10.0f);
-            // GUILayout.Label(ExtraColliderScale.Value.ToString("0.00"), GUILayout.Width(30));
-            // GUILayout.EndHorizontal(); 
-
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Scale", "be careful"), GUILayout.Width(60));
+            ExtraColliderScale.Value = GUILayout.HorizontalSlider(ExtraColliderScale.Value, 0.1f, 10.0f);
+            GUILayout.Label(ExtraColliderScale.Value.ToString("0.00"), GUILayout.Width(30));
+            GUILayout.EndHorizontal(); 
+#endif
             if (TearDropActive.Value)
                 if (GUILayout.Button("Tear(D)"))
                 {

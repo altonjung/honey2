@@ -272,16 +272,9 @@ namespace WindPhysics
             // ================= UI =================
 // Global
             GUILayout.Label("<color=orange>Global</color>", RichLabel);
-            // Gravity            
+            // Direction
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
-            Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
-            GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
-
-            // Flow
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Wind Flow", "Wind Flow"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("Direction", "Wind Direction"), GUILayout.Width(80));
             WindDirection.Value = GUILayout.HorizontalSlider(WindDirection.Value, 0.0f, 359.0f);
             GUILayout.Label(WindDirection.Value.ToString("0.00"), GUILayout.Width(40));
             GUILayout.EndHorizontal();
@@ -313,6 +306,13 @@ namespace WindPhysics
             WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.0f, 0.5f);
             GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(40));
             GUILayout.EndHorizontal(); 
+
+            // Gravity            
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
+            Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
+            GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.EndHorizontal();
           
             draw_seperate();
 // Hair
