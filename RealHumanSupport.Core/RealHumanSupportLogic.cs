@@ -1094,7 +1094,7 @@ namespace RealHumanSupport
 
                     // Ground direction (world down) -> convert to local.
                     bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
-                    bone.m_Force = Vector3.zero;
+                    bone.m_Force = realHumanData.head_bone.InverseTransformDirection(worldGravity);
                     bone.m_Damping    = 0.13f;
                     bone.m_Stiffness  = 0.02f;
                     bone.m_Elasticity = 0.01f;
@@ -1254,6 +1254,7 @@ namespace RealHumanSupport
             realHumanData.rightButtCheek.Force = new Vector3(0, -0.01f, 0);
             realHumanData.rightButtCheek.HeavyLoopMaxCount = 4;
 
+
             // boob/butt/hair dynamicbone에 body&leg&arm&finger collider 연결
             DynamicBoneCollider[] existingDynamicBoneColliders = chaCtrl.transform.FindLoop(bone_prefix_str+"J_Root").GetComponentsInChildren<DynamicBoneCollider>(true);
             List<DynamicBoneCollider> extraBoobColliders = new List<DynamicBoneCollider>();
@@ -1267,8 +1268,8 @@ namespace RealHumanSupport
             Transform fingerIdx2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_L");
             Transform fingerIdx3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index03_L");
             
-            Transform fingerMiddle2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_L");
-            Transform fingerMiddle3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_L");
+            // Transform fingerMiddle2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_L");
+            // Transform fingerMiddle3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_L");
             
             Transform fingerThumb2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb02_R");
             Transform fingerThumb3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb03_R");
@@ -1276,11 +1277,11 @@ namespace RealHumanSupport
             Transform fingerIdx2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_R");
             Transform fingerIdx3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index03_R");
 
-            Transform fingerMiddle2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_R");
-            Transform fingerMiddle3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_R");
+            // Transform fingerMiddle2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_R");
+            // Transform fingerMiddle3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_R");
             
             List<DynamicBoneCollider> extraHandsColliders = new List<DynamicBoneCollider>();
-
+  
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(handLObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(handRObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
 
@@ -1290,8 +1291,8 @@ namespace RealHumanSupport
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
 
-            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
                     
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.07f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, Vector2.zero));
@@ -1299,8 +1300,8 @@ namespace RealHumanSupport
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
 
-            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
             
             extraBoobColliders.AddRange(extraHandsColliders);
             
@@ -1359,45 +1360,50 @@ namespace RealHumanSupport
 #if FEATURE_EXTRA_COLLIDER_SCALE
             baseScale = RealHumanSupport.ExtraColliderScale.Value;
 #endif
-
             // hair dynamic bone 연결 대상 finger collider 생성
             List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();       
 
             extraHairColliders.AddRange(extraHandsColliders);
 
+            Transform faceObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_FaceLow_s");
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(faceObject, DynamicBoneColliderBase.Direction.X, 0.60f, 1.2f, Vector3.zero));
+
             // hair dynamic bone 연결 대상 shoulder collider 생성
             Transform leftArmUpObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
             Transform rightArmUpObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
 
-            float leftArmUp_radius = 0.53f * baseScale;
-            float rightArmUp_radius = 0.53f * baseScale;
+            float leftArmUp_radius = 0.52f * baseScale;
+            float rightArmUp_radius = 0.52f * baseScale;
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftArmUpObject, DynamicBoneColliderBase.Direction.X, leftArmUp_radius, 0.0f , new Vector3(0.0f, -0.38f, -0.06f)));
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightArmUpObject, DynamicBoneColliderBase.Direction.X, rightArmUp_radius, 0.0f, new Vector3(0.0f, -0.38f, -0.06f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftArmUpObject, DynamicBoneColliderBase.Direction.X, leftArmUp_radius, 0.0f , new Vector3(0.0f, -0.40f, -0.06f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightArmUpObject, DynamicBoneColliderBase.Direction.X, rightArmUp_radius, 0.0f, new Vector3(0.0f, -0.40f, -0.06f)));
 
             // hair dynamic bone 연결 대상 spine collider 생성
+            Transform spine1Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine01");
             Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
             Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine03");
             
-            float spine2_radius = 0.9f * baseScale;
-            float spine3_radius = 0.875f * baseScale;
+            float spine1_radius = 1.0f * baseScale;
+            float spine2_radius = 0.8f * baseScale;
+            float spine3_radius = 0.75f * baseScale;
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.04f)));
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 3.4f, Vector3.zero));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine1Object, DynamicBoneColliderBase.Direction.Y, spine1_radius, spine1_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.2f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 3.4f, new Vector3(0.0f, 0.0f, 0.0f)));
 
             // hair dynamic bone 연결 대상 nipple collider 생성  
             Transform leftNippleObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune02_L");
             Transform rightNippleObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune02_R");
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftNippleObject, DynamicBoneColliderBase.Direction.X, 0.385f, 0.385f, new Vector3(0.0f, 0.02f, 0.02f)));
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightNippleObject, DynamicBoneColliderBase.Direction.X, 0.385f, 0.385f, new Vector3(0.0f, 0.02f, 0.02f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftNippleObject, DynamicBoneColliderBase.Direction.X, 0.6f, 0.6f, new Vector3(0.0f, 0.0f, -0.15f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightNippleObject, DynamicBoneColliderBase.Direction.X, 0.6f, 0.6f, new Vector3(0.0f, 0.0f, -0.15f)));
 
             // hair dynamic bone 연결 대상 골반 collider 생성
             Transform kosi2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Kosi02");
            
             float kosi2_radius = 1.17f * baseScale;
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(kosi2Object, DynamicBoneColliderBase.Direction.X, kosi2_radius, kosi2_radius * 2.8f, new Vector3(0.0f, -0.05f, -0.05f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(kosi2Object, DynamicBoneColliderBase.Direction.X, kosi2_radius, kosi2_radius * 2.8f, new Vector3(0.0f, -0.15f, -0.05f)));
 
             foreach (var bone in realHumanData.hairDynamicBones)
             {
