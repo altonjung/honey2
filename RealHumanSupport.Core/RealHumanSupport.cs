@@ -672,6 +672,16 @@ namespace RealHumanSupport
             }
         }        
 
+        [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
+        private static class Studio_InitScene_Patches
+        {
+            private static bool Prefix(object __instance, bool _close)
+            {
+                _self.SceneInit();
+                return true;
+            }
+        }
+
 #if FEATURE_FACE_BLENDSHAPE_SUPPORT || FEATURE_WINK_SUPPORT
         [HarmonyPatch(typeof(FaceBlendShape), "OnLateUpdate")]
         private class FaceBlendShape_Patches

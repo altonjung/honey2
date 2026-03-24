@@ -215,6 +215,12 @@ namespace UndressPhysics
             }
         }
 
+        private void SceneInit()
+        {
+            Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+			_ShowUI = false;     
+        }
+
         protected override void OnGUI()
         {
             if (_ShowUI == false)
@@ -636,6 +642,7 @@ namespace UndressPhysics
         {
             private static bool Prefix(object __instance, bool _close)
             {
+                _self.SceneInit();
                 Logic.ClearBackup();
                 return true;
             }
