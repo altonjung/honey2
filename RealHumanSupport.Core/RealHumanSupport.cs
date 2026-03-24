@@ -483,7 +483,7 @@ namespace RealHumanSupport
         private void SceneInit()
         {
             Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
-			_ShowUI = false;            
+			_ShowUI = false;     
         }
 
         private static bool RotChanged(Quaternion current, Quaternion prev, float epsilonDeg)

@@ -1396,14 +1396,17 @@ namespace RealHumanSupport
             Transform spine1Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine01");
             Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
             Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine03");
-            
+            Transform spine3sObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str + "J_Spine03_s");
+
             float spine1_radius = 1.0f * baseScale;
             float spine2_radius = 0.8f * baseScale;
             float spine3_radius = 0.75f * baseScale;
+            float spine3s_radius = 0.75f * baseScale;
 
             extraHairColliders.Add(AddExtraDynamicBoneCollider(spine1Object, DynamicBoneColliderBase.Direction.Y, spine1_radius, spine1_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
             extraHairColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.2f)));
             extraHairColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 3.4f, new Vector3(0.0f, 0.0f, 0.0f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3s_radius, spine3s_radius * 3.4f, new Vector3(0.0f, 0.0f, 0.38f)));
 
             // hair dynamic bone 연결 대상 nipple collider 생성  
             Transform leftNippleObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune02_L");
