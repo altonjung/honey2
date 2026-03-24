@@ -178,6 +178,8 @@ namespace RealHumanSupport
 #if FEATURE_WINK_SUPPORT         
         internal static ConfigEntry<KeyboardShortcut> ConfigWinkShortcut { get; private set; }
 #endif
+        internal static ConfigEntry<bool> HairDownActive { get; private set; }
+
         internal static ConfigEntry<bool> TearDropActive { get; private set; }
 
         internal static ConfigEntry<bool> EyeShakeActive { get; private set; }
@@ -194,6 +196,8 @@ namespace RealHumanSupport
         {
             base.Awake();
             string support_type = "Studio";
+
+            HairDownActive = Config.Bind(support_type, "Hair Down", true, new ConfigDescription("Enable/Disable"));
 
             EyeShakeActive = Config.Bind(support_type, "Eye Shaking", true, new ConfigDescription("Enable/Disable"));
 
@@ -257,6 +261,14 @@ namespace RealHumanSupport
 
             return data;
         }        
+        private RealHumanSupportController GetCurrentControl()
+        {
+            if (_currentOCIChar == null)
+                return null;
+
+            return _currentOCIChar.GetChaControl().GetComponent<RealHumanSupportController>();            
+        }    
+
 
         protected override void Update()
         {
@@ -413,6 +425,13 @@ namespace RealHumanSupport
                     }
                 }
 
+                if (GUILayout.Button("Force Hairdown"))
+                {
+                    RealHumanSupportController control = GetCurrentControl();
+                    if (control != null)
+                        control.SetHairDown(true);
+                }
+
                 if (GUILayout.Button("Default")) {
                     InitConfig();
                 }
@@ -463,6 +482,8 @@ namespace RealHumanSupport
 
         private void SceneInit()
         {
+            Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+			_ShowUI = false;            
         }
 
         private static bool RotChanged(Quaternion current, Quaternion prev, float epsilonDeg)

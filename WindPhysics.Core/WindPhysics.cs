@@ -445,7 +445,8 @@ namespace WindPhysics
             }
 
             _selectChaMgmt.Clear();
-            _ShowUI = false;
+            Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+			_ShowUI = false;     
         }
 
         IEnumerator CheckWindMgmtRoutine()

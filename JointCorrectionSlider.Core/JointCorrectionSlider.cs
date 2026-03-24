@@ -738,6 +738,8 @@ namespace JointCorrectionSlider
 
         private void SceneInit()
         {
+            Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+			_ShowUI = false;     
         }
 #endregion
 
