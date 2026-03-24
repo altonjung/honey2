@@ -42,9 +42,19 @@ namespace RealHumanSupport
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
 
-        internal RealHumanData GetRealData()
+        internal RealHumanData GetData()
         {
             return realHumanData;
+        }
+
+        internal void ResetRealHumanData()
+        {
+            realHumanData.TearDropLevel = 0.3f;
+            realHumanData.BreathInterval = 1.5f;
+            realHumanData.BreathStrong = 0.45f;
+    #if FEATURE_EXTRA_COLLIDER_SCALE            
+            realHumanData.ExtraColliderScale = 1.0f;
+    #endif
         }
 
         internal static void SupportBodyBumpEffect(ChaControl chaCtrl, RealHumanData realHumanData)
@@ -64,7 +74,7 @@ namespace RealHumanSupport
 
                 Texture2D origin_texture = realHumanData.bodyOriginTexture;
 
-                List<BAreaData> areas = new List<BAreaData>();
+                realHumanData.areas.Clear();
 
                 PositionData fk_neck = GetRelativeBoneAngle(realHumanData.fk_hip_bone, realHumanData.fk_neck_bone);
                 PositionData fk_head = GetRelativeBoneAngle(realHumanData.fk_head_bone, realHumanData.fk_neck_bone);
@@ -337,81 +347,81 @@ namespace RealHumanSupport
             // 목
                 if (neck_bs >= 0.0f)
                 {
-                    areas.Add(InitBArea(260, 100, 140, 90, Math.Min(Math.Abs(neck_bs), 1.8f))); // 목선
+                    realHumanData.areas.Add(InitBArea(260, 100, 140, 90, Math.Min(Math.Abs(neck_bs), 1.8f))); // 목선
                 } else {
-                    areas.Add(InitBArea(770, 200, 140, 90, Math.Min(Math.Abs(neck_bs), 1.8f))); // 척추
+                    realHumanData.areas.Add(InitBArea(770, 200, 140, 90, Math.Min(Math.Abs(neck_bs), 1.8f))); // 척추
                 }
             // 허리
                 if (spine_bs >= 0.0f)
-                {                
-                    areas.Add(InitBArea(770, 300, 80, 240, Math.Min(Math.Abs(spine_bs), 1.8f))); // 척추
+                {
+                    realHumanData.areas.Add(InitBArea(770, 300, 80, 240, Math.Min(Math.Abs(spine_bs), 1.8f))); // 척추
                 }
             // 왼쪽 강조
                 if (left_neck_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(220, 90, 35, 80, Math.Min(left_neck_bs, 1.8f))); 
+                    realHumanData.areas.Add(InitBArea(220, 90, 35, 80, Math.Min(left_neck_bs, 1.8f))); 
                 }
                 if (left_ribs_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(150, 520, 145, 160, Math.Min(left_ribs_bs, 2.0f)));   
+                    realHumanData.areas.Add(InitBArea(150, 520, 145, 160, Math.Min(left_ribs_bs, 2.0f)));   
                 }                
                 if (left_thigh_ft_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(365, 970, 80, 120, Math.Min(left_thigh_ft_bs, 1.8f))); // 앞 허벅지        
+                    realHumanData.areas.Add(InitBArea(365, 970, 80, 120, Math.Min(left_thigh_ft_bs, 1.8f))); // 앞 허벅지        
                 }                                                       
                 if (left_thigh_inside_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(330, 900, 50, 180, Math.Min(left_thigh_inside_bs, 1.8f))); // 앞 허벅지                         
+                    realHumanData.areas.Add(InitBArea(330, 900, 50, 180, Math.Min(left_thigh_inside_bs, 1.8f))); // 앞 허벅지                         
                 }                 
                 if (left_shin_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(400, 1450, 110, 300, Math.Min(left_shin_bs, 1.8f))); // 앞 정강이            
+                    realHumanData.areas.Add(InitBArea(400, 1450, 110, 300, Math.Min(left_shin_bs, 1.8f))); // 앞 정강이            
                 }
                 if (left_thigh_bk_bs != 0.0f)
-                {    
-                    areas.Add(InitBArea(660, 1030, 60, 160, Math.Min(left_thigh_bk_bs, 1.8f))); // 뒷 허벅지                       
+                {
+                    realHumanData.areas.Add(InitBArea(660, 1030, 60, 160, Math.Min(left_thigh_bk_bs, 1.8f))); // 뒷 허벅지                       
                 }                                      
                 if (left_butt_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(650, 850, 85, 90, Math.Min(left_butt_bs, 1.8f))); // 뒷 엉덩이                                                
+                    realHumanData.areas.Add(InitBArea(650, 850, 85, 90, Math.Min(left_butt_bs, 1.8f))); // 뒷 엉덩이                                                
                 }        
                 if (left_calf_bs != 0.0f)
-                {                    
-                    areas.Add(InitBArea(670, 1420, 95, 140, Math.Min(left_calf_bs, 1.8f))); // 뒷 종아리 강조                                                     
+                {
+                    realHumanData.areas.Add(InitBArea(670, 1420, 95, 140, Math.Min(left_calf_bs, 1.8f))); // 뒷 종아리 강조                                                     
                 }     
 
             // 오른쪽 강조
                 if (right_neck_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(300, 90, 35, 80, Math.Min(right_neck_bs, 1.8f)));
+                    realHumanData.areas.Add(InitBArea(300, 90, 35, 80, Math.Min(right_neck_bs, 1.8f)));
                 }   
                 if (right_ribs_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(370, 520, 145, 160, Math.Min(right_ribs_bs, 2.0f)));   
+                    realHumanData.areas.Add(InitBArea(370, 520, 145, 160, Math.Min(right_ribs_bs, 2.0f)));   
                 }
                 if (right_thigh_ft_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(145, 970, 80, 120, Math.Min(right_thigh_ft_bs, 1.8f))); // 앞 허벅지               
+                    realHumanData.areas.Add(InitBArea(145, 970, 80, 120, Math.Min(right_thigh_ft_bs, 1.8f))); // 앞 허벅지               
                 }
                 if (right_thigh_inside_bs != 0.0f)
-                {            
-                    areas.Add(InitBArea(180, 900, 50, 180, Math.Min(right_thigh_inside_bs, 1.8f))); // 앞 허벅지 안쪽                       
+                {
+                    realHumanData.areas.Add(InitBArea(180, 900, 50, 180, Math.Min(right_thigh_inside_bs, 1.8f))); // 앞 허벅지 안쪽                       
                 } 
                 if (right_shin_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(120, 1450, 110, 300, Math.Min(right_shin_bs, 1.8f))); // 앞 정강이                         
+                    realHumanData.areas.Add(InitBArea(120, 1450, 110, 300, Math.Min(right_shin_bs, 1.8f))); // 앞 정강이                         
                 }
                 if (right_thigh_bk_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(900, 1030, 60, 160, Math.Min(right_thigh_bk_bs, 1.8f))); // 뒷 허벅지
+                    realHumanData.areas.Add(InitBArea(900, 1030, 60, 160, Math.Min(right_thigh_bk_bs, 1.8f))); // 뒷 허벅지
                 }                    
                 if (right_butt_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(920, 850, 85, 90, Math.Min(right_butt_bs, 1.8f))); // 뒷 엉덩이                        
+                    realHumanData.areas.Add(InitBArea(920, 850, 85, 90, Math.Min(right_butt_bs, 1.8f))); // 뒷 엉덩이                        
                 }
                 if (right_calf_bs != 0.0f)
                 {
-                    areas.Add(InitBArea(890, 1420, 95, 140, Math.Min(right_calf_bs, 1.8f))); // 뒷 종아리 강조                                                         
+                    realHumanData.areas.Add(InitBArea(890, 1420, 95, 140, Math.Min(right_calf_bs, 1.8f))); // 뒷 종아리 강조                                                         
                 }
 
                 realHumanData.prev_fk_left_foot_rot = fk_left_foot._q;
@@ -429,7 +439,7 @@ namespace RealHumanSupport
                 realHumanData.prev_fk_left_armup_rot = fk_left_armup._q;
                 realHumanData.prev_fk_right_armdown_rot = fk_right_armdown._q;
                 realHumanData.prev_fk_left_armdown_rot = fk_left_armdown._q;
-           
+
                 if (origin_texture != null)
                 {
                     int kernel = RealHumanSupport._self._mergeComputeShader.FindKernel("CSMain");
@@ -448,13 +458,13 @@ namespace RealHumanSupport
                     }
 
                     // 영역 데이터가 변경된 경우만 업데이트
-                    if (areas.Count > 0)
+                    if (realHumanData.areas.Count > 0)
                     {
-                        realHumanData.body_areaBuffer.SetData(areas.ToArray());
+                        realHumanData.body_areaBuffer.SetData(realHumanData.areas.ToArray());
                         // 셰이더 파라미터 설정
                         RealHumanSupport._self._mergeComputeShader.SetInt("Width", w);
                         RealHumanSupport._self._mergeComputeShader.SetInt("Height", h);
-                        RealHumanSupport._self._mergeComputeShader.SetInt("AreaCount", areas.Count);
+                        RealHumanSupport._self._mergeComputeShader.SetInt("AreaCount", realHumanData.areas.Count);
                         RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexA", origin_texture);
                         RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexB", RealHumanSupport._self._bodyStrongFemaleBumpMap2);
                         RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "Result", realHumanData._body_rt);
@@ -785,7 +795,7 @@ namespace RealHumanSupport
             string capBodyName = target.name + "_DBC_CapBody";
 
 #if FEATURE_EXTRA_COLLIDER_DEBUG
-            if (RealHumanSupport.ExtraColliderDebug.Value)
+            if (true)
             {
                 // ----- Sphere -----
                 Transform debugTf = pivotTf.Find(debugName);
@@ -920,9 +930,35 @@ namespace RealHumanSupport
                 // scale 적용
                 tr.localScale = targetScale;
             }
+        }
+
+        internal void SetHairDown() {
+
+            if (realHumanData != null && realHumanData.head_bone != null)
+            {
+                Vector3 worldGravity = Vector3.down * 0.015f;
+                foreach (DynamicBone bone in realHumanData.hairDynamicBones)
+                {
+                    if (bone == null)
+                        continue;
+
+                    // Ground direction (world down) -> convert to local.
+                    bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
+                    bone.m_Force = realHumanData.head_bone.InverseTransformDirection(worldGravity);
+                    bone.m_Damping    = 0.13f;
+                    bone.m_Stiffness  = 0.02f;
+                    bone.m_Elasticity = 0.01f;
+
+                }
+            }        
+        }
+
+        internal void SetPregnancyRoundness(float roundNess) {
+            if (realHumanData != null && realHumanData.pregnancyController != null)
+                realHumanData.pregnancyController.infConfig.inflationRoundness += roundNess;        
         }        
 
-#if FEATURE_FACE_BLENDSHAPE_SUPPORT
+#if FEATURE_FACE_BLENDSHAPE_SUPPORT || FEATURE_WINK_SUPPORT
         internal void SetFaceBlendShapes()
         {
             if (realHumanData != null)
@@ -995,6 +1031,7 @@ namespace RealHumanSupport
             }           
         }
 #endif 
+
 
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
         internal void SetBodyBlendShapes()
@@ -1081,32 +1118,6 @@ namespace RealHumanSupport
                 realHumanData.tearDropRate = tearDropRate;
         }          
 #endif
-
-        internal void SetHairDown() {
-
-            if (realHumanData != null && realHumanData.head_bone != null)
-            {
-                Vector3 worldGravity = Vector3.down * 0.015f;
-                foreach (DynamicBone bone in realHumanData.hairDynamicBones)
-                {
-                    if (bone == null)
-                        continue;
-
-                    // Ground direction (world down) -> convert to local.
-                    bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
-                    bone.m_Force = Vector3.zero;
-                    bone.m_Damping    = 0.13f;
-                    bone.m_Stiffness  = 0.02f;
-                    bone.m_Elasticity = 0.01f;
-
-                }
-            }        
-        }
-
-        internal void SetPregnancyRoundness(float roundNess) {
-            if (realHumanData != null && realHumanData.pregnancyController != null)
-                realHumanData.pregnancyController.infConfig.inflationRoundness += roundNess;        
-        }
 
 #if FEATURE_STRAPON_SUPPORT
         // 남성에게만 부여
@@ -1254,6 +1265,7 @@ namespace RealHumanSupport
             realHumanData.rightButtCheek.Force = new Vector3(0, -0.01f, 0);
             realHumanData.rightButtCheek.HeavyLoopMaxCount = 4;
 
+
             // boob/butt/hair dynamicbone에 body&leg&arm&finger collider 연결
             DynamicBoneCollider[] existingDynamicBoneColliders = chaCtrl.transform.FindLoop(bone_prefix_str+"J_Root").GetComponentsInChildren<DynamicBoneCollider>(true);
             List<DynamicBoneCollider> extraBoobColliders = new List<DynamicBoneCollider>();
@@ -1267,8 +1279,8 @@ namespace RealHumanSupport
             Transform fingerIdx2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_L");
             Transform fingerIdx3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index03_L");
             
-            Transform fingerMiddle2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_L");
-            Transform fingerMiddle3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_L");
+            // Transform fingerMiddle2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_L");
+            // Transform fingerMiddle3LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_L");
             
             Transform fingerThumb2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb02_R");
             Transform fingerThumb3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Thumb03_R");
@@ -1276,11 +1288,11 @@ namespace RealHumanSupport
             Transform fingerIdx2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_R");
             Transform fingerIdx3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index03_R");
 
-            Transform fingerMiddle2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_R");
-            Transform fingerMiddle3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_R");
+            // Transform fingerMiddle2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle02_R");
+            // Transform fingerMiddle3RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Middle03_R");
             
             List<DynamicBoneCollider> extraHandsColliders = new List<DynamicBoneCollider>();
-
+  
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(handLObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(handRObject, DynamicBoneColliderBase.Direction.X, 0.20f, 0.40f, Vector2.zero));
 
@@ -1290,8 +1302,8 @@ namespace RealHumanSupport
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
 
-            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3LObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
                     
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb2RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.07f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerThumb3RObject, DynamicBoneColliderBase.Direction.X, 0.07f, 0.24f, Vector2.zero));
@@ -1299,8 +1311,8 @@ namespace RealHumanSupport
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
             extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerIdx3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
 
-            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
-            extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle2RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.06f, Vector2.zero));
+            // extraHandsColliders.Add(AddExtraDynamicBoneCollider(fingerMiddle3RObject, DynamicBoneColliderBase.Direction.X, 0.06f, 0.24f, Vector2.zero));
             
             extraBoobColliders.AddRange(extraHandsColliders);
             
@@ -1357,47 +1369,52 @@ namespace RealHumanSupport
             float baseScale = 1.0f;
 
 #if FEATURE_EXTRA_COLLIDER_SCALE
-            baseScale = RealHumanSupport.ExtraColliderScale.Value;
+            baseScale = realHumanData.ExtraColliderScale;
 #endif
-
             // hair dynamic bone 연결 대상 finger collider 생성
             List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();       
 
             extraHairColliders.AddRange(extraHandsColliders);
 
+            Transform faceObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_FaceLow_s");
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(faceObject, DynamicBoneColliderBase.Direction.X, 0.60f, 1.2f, Vector3.zero));
+
             // hair dynamic bone 연결 대상 shoulder collider 생성
             Transform leftArmUpObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
             Transform rightArmUpObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
 
-            float leftArmUp_radius = 0.53f * baseScale;
-            float rightArmUp_radius = 0.53f * baseScale;
+            float leftArmUp_radius = 0.52f * baseScale;
+            float rightArmUp_radius = 0.52f * baseScale;
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftArmUpObject, DynamicBoneColliderBase.Direction.X, leftArmUp_radius, 0.0f , new Vector3(0.0f, -0.38f, -0.06f)));
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightArmUpObject, DynamicBoneColliderBase.Direction.X, rightArmUp_radius, 0.0f, new Vector3(0.0f, -0.38f, -0.06f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftArmUpObject, DynamicBoneColliderBase.Direction.X, leftArmUp_radius, 0.0f , new Vector3(0.0f, -0.40f, -0.06f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightArmUpObject, DynamicBoneColliderBase.Direction.X, rightArmUp_radius, 0.0f, new Vector3(0.0f, -0.40f, -0.06f)));
 
             // hair dynamic bone 연결 대상 spine collider 생성
+            Transform spine1Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine01");
             Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
             Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine03");
             
-            float spine2_radius = 0.9f * baseScale;
-            float spine3_radius = 0.875f * baseScale;
+            float spine1_radius = 1.0f * baseScale;
+            float spine2_radius = 0.8f * baseScale;
+            float spine3_radius = 0.75f * baseScale;
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.04f)));
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 3.4f, Vector3.zero));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine1Object, DynamicBoneColliderBase.Direction.Y, spine1_radius, spine1_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.2f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 3.4f, new Vector3(0.0f, 0.0f, 0.0f)));
 
             // hair dynamic bone 연결 대상 nipple collider 생성  
             Transform leftNippleObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune02_L");
             Transform rightNippleObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune02_R");
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftNippleObject, DynamicBoneColliderBase.Direction.X, 0.385f, 0.385f, new Vector3(0.0f, 0.02f, 0.02f)));
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightNippleObject, DynamicBoneColliderBase.Direction.X, 0.385f, 0.385f, new Vector3(0.0f, 0.02f, 0.02f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(leftNippleObject, DynamicBoneColliderBase.Direction.X, 0.6f, 0.6f, new Vector3(0.0f, 0.0f, -0.15f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(rightNippleObject, DynamicBoneColliderBase.Direction.X, 0.6f, 0.6f, new Vector3(0.0f, 0.0f, -0.15f)));
 
             // hair dynamic bone 연결 대상 골반 collider 생성
             Transform kosi2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Kosi02");
            
             float kosi2_radius = 1.17f * baseScale;
 
-            extraHairColliders.Add(AddExtraDynamicBoneCollider(kosi2Object, DynamicBoneColliderBase.Direction.X, kosi2_radius, kosi2_radius * 2.8f, new Vector3(0.0f, -0.05f, -0.05f)));
+            extraHairColliders.Add(AddExtraDynamicBoneCollider(kosi2Object, DynamicBoneColliderBase.Direction.X, kosi2_radius, kosi2_radius * 2.8f, new Vector3(0.0f, -0.15f, -0.05f)));
 
             foreach (var bone in realHumanData.hairDynamicBones)
             {
@@ -1685,7 +1702,7 @@ namespace RealHumanSupport
                     realHumanData.body_areaBuffer = new ComputeBuffer(30, sizeof(float) * 6);
 
 #if FEATURE_TEARDROP_SUPPORT
-                    realHumanData.tearDropRate = RealHumanSupport.TearDropLevel.Value;
+                    realHumanData.tearDropRate = realHumanData.TearDropLevel;
 #endif
                     realHumanData.c_m_eye.Clear();
 
@@ -1874,7 +1891,7 @@ namespace RealHumanSupport
         {
             if (chaCtrl.sex == 0)
                 return;
-#if FEATURE_FACE_BLENDSHAPE_SUPPORT
+#if FEATURE_FACE_BLENDSHAPE_SUPPORT || FEATURE_WINK_SUPPORT
                 SetFaceBlendShapes();
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
@@ -1955,9 +1972,9 @@ namespace RealHumanSupport
                                }
                            } else
                            {
-                               float sinValue = (Mathf.Sin(time * RealHumanSupport.BreathInterval.Value) + 1f) * 0.5f;
+                               float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
                      
-                               realHumanData.pregnancyController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * RealHumanSupport.BreathStrong.Value;
+                               realHumanData.pregnancyController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * realHumanData.BreathStrong;
                                realHumanData.pregnancyController.MeshInflate(new MeshInflateFlags(realHumanData.pregnancyController), "StudioSlider");
                                previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
                            }
@@ -2138,7 +2155,8 @@ namespace RealHumanSupport
         // 코루틴 제어
         public bool coroutine_pause;
 
-        // belly 처리        
+        public List<BAreaData> areas = new List<BAreaData>();
+
         // hair down 제어
         public Transform head_bone;
         public Transform neck_bone;
@@ -2219,7 +2237,7 @@ namespace RealHumanSupport
         public float tearDropRate;   
 #endif
 
-#if FEATURE_FACE_BLENDSHAPE_SUPPORT
+#if FEATURE_FACE_BLENDSHAPE_SUPPORT || FEATURE_WINK_SUPPORT
         public int eye_close_idx_in_head_of_eyectrl;
         public int eye_close_idx_in_namida_of_eyectrl;
         public int eye_close_idx_in_lash_of_eyectrl;
@@ -2251,6 +2269,14 @@ namespace RealHumanSupport
         public int pubis_left_bent_idx_in_body;
         public int pubis_right_bent_idx_in_body;
 #endif
+
+        public float TearDropLevel = 0.3f;
+        public float BreathInterval = 1.5f;
+        public float BreathStrong = 0.45f;
+#if FEATURE_EXTRA_COLLIDER_SCALE
+        public float  ExtraColliderScale = 1.0f;
+#endif
+
         public RealHumanData()
         {
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT

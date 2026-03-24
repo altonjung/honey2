@@ -131,11 +131,7 @@ namespace RealHumanSupport
 		
         private const int _uniqueId = ('R' << 24) | ('E' << 16) | ('A' << 8) | 'G';
 
-        private Rect _windowRect = new Rect(140, 10, 350, 10);
-        
-        private WinkState _winkState = WinkState.Idle;
-        
-        float _winkTime = 0f;
+        private Rect _windowRect = new Rect(140, 10, 350, 10);            
 
         internal Texture2D _faceExpressionFemaleBumpMap2;
 
@@ -144,14 +140,19 @@ namespace RealHumanSupport
 #if FEATURE_TEARDROP_SUPPORT
         internal Texture2D _TearDropImg;
 #endif
+#if FEATURE_WINK_SUPPORT        
+        private WinkState _winkState = WinkState.Idle;
+        
+        float _winkTime = 0f;
+#endif
         internal ComputeShader _mergeComputeShader;
 
         internal Coroutine _CheckRotationRoutine;
 
         private bool mouseReleased = false;
-
+#if FEATURE_WINK_SUPPORT 
         private bool winkReleased = false;
-
+#endif
         private Coroutine _CheckMgmtCoroutine;    
 
         private float _prevTFScale = 1.0f;
@@ -171,12 +172,12 @@ namespace RealHumanSupport
             }
         }
 
+        private OCIChar _currentOCIChar = null;
         // Config
         #region Accessors
+#if FEATURE_WINK_SUPPORT         
         internal static ConfigEntry<KeyboardShortcut> ConfigWinkShortcut { get; private set; }
-
-        // internal static ConfigEntry<bool> AnimActive { get; private set; }
-
+#endif
         internal static ConfigEntry<bool> TearDropActive { get; private set; }
 
         internal static ConfigEntry<bool> EyeShakeActive { get; private set; }
@@ -185,19 +186,6 @@ namespace RealHumanSupport
 
         internal static ConfigEntry<bool> BodyBlendingActive { get; private set; }
 
-        internal static ConfigEntry<float> TearDropLevel { get; private set; }
-
-        internal static ConfigEntry<float> BreathStrong { get; private set; }
-
-        internal static ConfigEntry<float> BreathInterval { get; private set; }
-
-#if FEATURE_EXTRA_COLLIDER_SCALE
-        internal static ConfigEntry<float> ExtraColliderScale{ get; private set; }
-#endif        
-
-#if FEATURE_EXTRA_COLLIDER_DEBUG
-        internal static ConfigEntry<bool> ExtraColliderDebug{ get; private set; }        
-#endif        
         #endregion
 
 
@@ -207,29 +195,14 @@ namespace RealHumanSupport
             base.Awake();
             string support_type = "Studio";
 
-            // AnimActive = Config.Bind(support_type, "Animation", true, new ConfigDescription("Enable/Disable"));
-
             EyeShakeActive = Config.Bind(support_type, "Eye Shaking", true, new ConfigDescription("Enable/Disable"));
 
             BreathActive = Config.Bind(support_type, "Bumping Belly", true, new ConfigDescription("Enable/Disable"));
             
-            TearDropActive = Config.Bind(support_type, "Tear Drop", true, new ConfigDescription("Enable/Disable"));
+            TearDropActive = Config.Bind(support_type, "Tear Drop", true, new ConfigDescription("Enable/Disable"));            
 
-            TearDropLevel = Config.Bind(support_type, "Tear Drop Level", 0.3f, new ConfigDescription("Tear Drop Level", new AcceptableValueRange<float>(0.1f, 1.0f)));
+            BodyBlendingActive = Config.Bind(support_type, "Dynamic Bump", true, new ConfigDescription("Enable/Disable"));
 
-            BodyBlendingActive = Config.Bind(support_type, "Blending Body", true, new ConfigDescription("Enable/Disable"));
-
-            BreathInterval = Config.Bind("Breath", "Cycle", 1.5f, new ConfigDescription("Breath Interval", new AcceptableValueRange<float>(1.0f,  5.0f)));;
-
-            BreathStrong = Config.Bind("Breath", "Strong", 0.45f, new ConfigDescription("Breath Amplitude", new AcceptableValueRange<float>(0.1f, 1.0f)));
-#if FEATURE_EXTRA_COLLIDER_SCALE
-            ExtraColliderScale = Config.Bind("ExtraCollider", "Scale", 1.0f, new ConfigDescription("Not Supported Yet", new AcceptableValueRange<float>(1.0f, 1.1f)));
-#endif            
-#if FEATURE_EXTRA_COLLIDER_DEBUG
-            ExtraColliderDebug = Config.Bind("ExtraCollider", "Show", false, new ConfigDescription("Debug Enable/Disable"));
-#endif            
-            ConfigWinkShortcut = Config.Bind("Expresison", "Toggle Wink", new KeyboardShortcut(KeyCode.W,  KeyCode.LeftControl));
-  
             _self = this;
 
             Logger = base.Logger;
@@ -264,13 +237,26 @@ namespace RealHumanSupport
 
         private void InitConfig()
         {
-            TearDropLevel.Value = (float)TearDropLevel.DefaultValue;
-            BreathInterval.Value = (float)BreathInterval.DefaultValue;
-            BreathStrong.Value = (float)BreathStrong.DefaultValue;
-#if FEATURE_EXTRA_COLLIDER_SCALE            
-            ExtraColliderScale.Value = (float)ExtraColliderScale.DefaultValue;                       
-#endif            
+            var controller = _currentOCIChar.GetChaControl().GetComponent<RealHumanSupportController>();
+            if (controller)
+            {
+                controller.ResetRealHumanData();
+            }               
         }
+
+        private RealHumanData GetCurrentData()
+        {
+            if (_currentOCIChar == null)
+                return null;
+
+            var controller = _currentOCIChar.GetChaControl().GetComponent<RealHumanSupportController>();
+            if (controller == null)
+                return null;
+
+            RealHumanData data = controller.GetData();
+
+            return data;
+        }        
 
         protected override void Update()
         {
@@ -282,11 +268,13 @@ namespace RealHumanSupport
                 mouseReleased = true;                
             }
 
+#if FEATURE_WINK_SUPPORT 
             if (ConfigWinkShortcut.Value.IsDown())
             {
                 if(winkReleased == false)
                     winkReleased = true;                
             }        
+#endif            
         }
 
         // protected override void LateUpdate()
@@ -374,56 +362,66 @@ namespace RealHumanSupport
                 studio.cameraCtrl.noCtrlCondition = null;
             }
 
-            // ================= UI =================
-///////////////////
-            GUILayout.Label("<color=orange>Breath</color>", RichLabel);
+            RealHumanData data = GetCurrentData();
+            if (data != null)
+            {
+                // ================= UI =================
+    ///////////////////
+                GUILayout.Label("<color=orange>Breath</color>", RichLabel);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
-            BreathStrong.Value = GUILayout.HorizontalSlider(BreathStrong.Value, 0.1f, 1.0f);
-            GUILayout.Label(BreathStrong.Value.ToString("0.00"), GUILayout.Width(30));
-            GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
+                data.BreathStrong = GUILayout.HorizontalSlider(data.BreathStrong, 0.1f, 1.0f);
+                GUILayout.Label(data.BreathStrong.ToString("0.00"), GUILayout.Width(30));
+                GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Interval", "Interval"), GUILayout.Width(60));
-            BreathInterval.Value = GUILayout.HorizontalSlider(BreathInterval.Value, 1.0f, 5.0f);
-            GUILayout.Label(BreathInterval.Value.ToString("0.00"), GUILayout.Width(30));
-            GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Interval", "Interval"), GUILayout.Width(60));
+                data.BreathInterval = GUILayout.HorizontalSlider(data.BreathInterval, 1.0f, 5.0f);
+                GUILayout.Label(data.BreathInterval.ToString("0.00"), GUILayout.Width(30));
+                GUILayout.EndHorizontal();
 
-///////////////////
-            GUILayout.Label("<color=orange>Tear</color>", RichLabel);
+    ///////////////////
+                GUILayout.Label("<color=orange>Tear</color>", RichLabel);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
-            TearDropLevel.Value = GUILayout.HorizontalSlider(TearDropLevel.Value, 0.1f, 1.0f);
-            GUILayout.Label(TearDropLevel.Value.ToString("0.00"), GUILayout.Width(30));
-            GUILayout.EndHorizontal(); 
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
+                data.TearDropLevel = GUILayout.HorizontalSlider(data.TearDropLevel, 0.1f, 1.0f);
+                GUILayout.Label(data.TearDropLevel.ToString("0.00"), GUILayout.Width(30));
+                GUILayout.EndHorizontal(); 
 
-///////////////////            
-#if FEATURE_EXTRA_COLLIDER_SCALE
-            GUILayout.Label("<color=red>Extra Collider</color>", RichLabel);
+    ///////////////////            
+    #if FEATURE_EXTRA_COLLIDER_SCALE
+                GUILayout.Label("<color=red>Extra Collider</color>", RichLabel);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Scale", "be careful"), GUILayout.Width(60));
-            ExtraColliderScale.Value = GUILayout.HorizontalSlider(ExtraColliderScale.Value, 0.1f, 10.0f);
-            GUILayout.Label(ExtraColliderScale.Value.ToString("0.00"), GUILayout.Width(30));
-            GUILayout.EndHorizontal(); 
-#endif
-            if (TearDropActive.Value)
-                if (GUILayout.Button("Tear(D)"))
-                {
-                    TearDropActive.Value = false;
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Scale", "be careful"), GUILayout.Width(60));
+                data.ExtraColliderScale = GUILayout.HorizontalSlider(data.ExtraColliderScale, 0.1f, 10.0f);
+                GUILayout.Label(data.ExtraColliderScale.ToString("0.00"), GUILayout.Width(30));
+                GUILayout.EndHorizontal(); 
+    #endif
+                if (TearDropActive.Value) {
+                    if (GUILayout.Button("Tear(D)"))
+                    {
+                        TearDropActive.Value = false;
+                    }
                 }
-            else 
-                if (GUILayout.Button("Tear(A)"))
-                {
-                    TearDropActive.Value = true;
+                else {
+                    if (GUILayout.Button("Tear(A)"))
+                    {
+                        TearDropActive.Value = true;
+                    }
                 }
 
-            if (GUILayout.Button("Default")) {
-                InitConfig();
-			}
-
+                if (GUILayout.Button("Default")) {
+                    InitConfig();
+                }
+            }
+            else
+            {
+                GUILayout.Label("<color=white>Nothing to select</color>", RichLabel);                
+            }
+//
             if (GUILayout.Button("Close")) {
                 Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
 				_ShowUI = false;
@@ -506,7 +504,7 @@ namespace RealHumanSupport
                                 if (mouseReleased)
                                 {
                                     mouseReleased = false;  // 한 번만 쓰고 초기화
-                                    RealHumanData realHumanData = controller.GetRealData();
+                                    RealHumanData realHumanData = controller.GetData();
 
                                     if (realHumanData != null)
                                     {   
@@ -565,12 +563,14 @@ namespace RealHumanSupport
 
                 if (ociChar != null)
                 {
+                    _self._currentOCIChar = ociChar;
                     ChaControl chaControl = ociChar.GetChaControl();
 
                     var controller = chaControl.GetComponent<RealHumanSupportController>();
                     if (controller != null)
                     {
-                        controller.InitRealHumanData(chaControl);                        
+                        if (controller.GetData() == null)
+                            controller.InitRealHumanData(chaControl);        
                     }
                 }
 
@@ -651,7 +651,7 @@ namespace RealHumanSupport
             }
         }        
 
-#if FEATURE_FACE_BLENDSHAPE_SUPPORT
+#if FEATURE_FACE_BLENDSHAPE_SUPPORT || FEATURE_WINK_SUPPORT
         [HarmonyPatch(typeof(FaceBlendShape), "OnLateUpdate")]
         private class FaceBlendShape_Patches
         {

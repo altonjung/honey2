@@ -9,8 +9,9 @@
     <Import_RootNamespace>JointCorrectionSlider.Core</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />    
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)JointCorrectionSlider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)JointCorrectionSliderController.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />
