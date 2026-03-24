@@ -1118,6 +1118,32 @@ namespace RealHumanSupport
                 realHumanData.tearDropRate = tearDropRate;
         }          
 #endif
+        internal void SetHairDown() {
+
+            if (realHumanData != null && realHumanData.head_bone != null)
+            {
+                Vector3 worldGravity = Vector3.down * 0.015f;
+                foreach (DynamicBone bone in realHumanData.hairDynamicBones)
+                {
+                    if (bone == null)
+                        continue;
+
+                    // Ground direction (world down) -> convert to local.
+                    bone.m_Gravity = realHumanData.head_bone.InverseTransformDirection(worldGravity);
+                    bone.m_Force = realHumanData.head_bone.InverseTransformDirection(worldGravity);
+                    bone.m_Damping    = 0.13f;
+                    bone.m_Stiffness  = 0.02f;
+                    bone.m_Elasticity = 0.01f;
+
+                }
+            }        
+        }
+
+        internal void SetPregnancyRoundness(float roundNess) {
+            if (realHumanData != null && realHumanData.pregnancyController != null)
+                realHumanData.pregnancyController.infConfig.inflationRoundness += roundNess;        
+        }
+
 
 #if FEATURE_STRAPON_SUPPORT
         // 남성에게만 부여
