@@ -14,7 +14,6 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using System.Threading.Tasks;
-using System.Security.Cryptography.X509Certificates;
 
 #if AISHOUJO || HONEYSELECT2
 using CharaUtils;

@@ -34,6 +34,8 @@ using KKAPI.Chara;
 using HS2;
 using Illusion.Anime;
 using Illusion.Extensions;
+using Manager;
+
 #endif
 
 #if AISHOUJO || HONEYSELECT2
@@ -183,7 +185,7 @@ namespace HoneySelect2Maker
                 this.Init();
         }
 #elif SUNSHINE || HONEYSELECT2 || AISHOUJO
-        protected override void LevelLoaded(Scene scene, LoadSceneMode mode)
+        protected override void LevelLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
         {
             base.LevelLoaded(scene, mode);
             if (mode == LoadSceneMode.Single && scene.buildIndex == 2)
@@ -530,21 +532,22 @@ namespace HoneySelect2Maker
             private static bool Prefix(ADV.ADVMainScene __instance)
             {
                 // UnityEngine.Debug.Log($">> start in ADVMainScene {scene.name}, {_reEntryHarmony} | {DateTime.Now:HH:mm:ss.fff}");
-                Scene scene = SceneManager.GetActiveScene();
+                UnityEngine.SceneManagement.Scene scene = SceneManager.GetActiveScene();
 
                 if (_reEntryHarmony)
                 {
                     _reEntryHarmony = false;
                     return true;
-                }            
-
-                string heroinName = "";
-                if (__instance.heroineList.Count > 0)
-                {
-                    heroinName = __instance.heroineList[0].chaFile.parameter.fullname;
                 }
 
-                UnityEngine.Debug.Log($">> start in ADVMainScene {__instance.heroineList.Count}, {heroinName} | {DateTime.Now:HH:mm:ss.fff}");
+                Game instance = Singleton<Game>.Instance;
+                string heroinName = "";
+                if (instance.heroineList.Count > 0)
+                {
+                    heroinName = instance.heroineList[0].chaFile.parameter.fullname;
+                }
+
+                UnityEngine.Debug.Log($">> start in ADVMainScene {instance.heroineList.Count}, {heroinName} | {DateTime.Now:HH:mm:ss.fff}");
 
                 _self.StartCoroutine(WaitAdvMainSceneCall(scene.name, __instance, heroinName));
                 return false;
@@ -849,8 +852,8 @@ namespace HoneySelect2Maker
         private static class BaseMap_ChangeAsync_Patches
         {
            private static bool Prefix(Manager.BaseMap __instance, int _no, FadeCanvas.Fade fadeType = FadeCanvas.Fade.InOut, bool isForce = false)
-           {    
-                Scene scene = SceneManager.GetActiveScene();
+           {
+                UnityEngine.SceneManagement.Scene scene = SceneManager.GetActiveScene();
 
                 if (!VideoModeActive.Value)
                     return true;
@@ -874,7 +877,7 @@ namespace HoneySelect2Maker
             private static bool Prefix(Actor.CharaData __instance, GameObject root)
             {
                 // UnityEngine.Debug.Log(Environment.StackTrace);
-                Scene scene = SceneManager.GetActiveScene();
+                UnityEngine.SceneManagement.Scene scene = SceneManager.GetActiveScene();
                 
                 if (!VideoModeActive.Value)
                     return true;

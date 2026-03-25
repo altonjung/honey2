@@ -96,11 +96,4 @@ namespace HoneySelect2Maker
             
         }   
     }
-
-    class HeroinData
-    {
-        public int favorite;
-        public int age;
-        public int encounterCnt;
-    }
 }

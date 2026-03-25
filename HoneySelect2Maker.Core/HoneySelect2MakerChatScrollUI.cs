@@ -48,7 +48,7 @@ namespace HoneySelect2Maker
         - 이 버전은 ScrollRect 기반으로 메시지가 스크롤됩니다.
     */
     // UGUI(Canvas + ScrollRect + InputField/Text) 생성
-    public class ChatUIController
+    public class ChatScrollUIController
     {
         public enum FontColorOption
         {

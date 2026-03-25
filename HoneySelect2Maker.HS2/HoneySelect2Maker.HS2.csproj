@@ -152,6 +152,10 @@
       <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.UIModule.2018.4.11.4\lib\net46\UnityEngine.UIModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.JSONSerializeModule.2018.4.11.4\lib\net46\UnityEngine.JSONSerializeModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>    
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

@@ -141,7 +141,7 @@ namespace HoneySelect2Maker
                 temperature = temperature
             };
 
-            string json = JsonUtility.ToJson(payloadObj);
+            string json = UnityEngine.JsonUtility.ToJson(payloadObj);
 
             var request = new UnityWebRequest($"{host}/v1/chat/completions", "POST");
             byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
