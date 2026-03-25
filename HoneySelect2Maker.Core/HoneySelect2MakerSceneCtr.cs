@@ -93,6 +93,7 @@ namespace HoneySelect2Maker
             rawGO.transform.SetParent(HoneySelect2Maker._overlayCanvasGO.transform, false);
 
             HoneySelect2Maker._rawImage = rawGO.AddComponent<UnityEngine.UI.RawImage>();
+            HoneySelect2Maker._rawImage.raycastTarget = false;
 
             var rect = HoneySelect2Maker._rawImage.rectTransform;
             rect.anchorMin = Vector2.zero;
@@ -194,6 +195,32 @@ namespace HoneySelect2Maker
                 vp.loopPointReached += OnVideoCompleted;
 
             vp.Prepare();
+        }
+
+        /*
+            var pngPath = UserData.Path + "/hs2maker/backgrounds/mybg.png";
+            var texture = SceneController.LoadTextureFromPng(pngPath);
+            SceneController.PlaySceneImage(texture);
+        */
+        internal static void PlaySceneImage(Texture texture, int sortingOrder = -100)
+        {
+            if (texture == null)
+                return;
+
+            EnsureOverlayCanvas(sortingOrder);
+
+            var vp = HoneySelect2Maker._self._sceneVideoPlayer;
+            vp.Stop();
+
+            if (HoneySelect2Maker._sceneRT != null)
+            {
+                HoneySelect2Maker._sceneRT.Release();
+                UnityEngine.Object.Destroy(HoneySelect2Maker._sceneRT);
+                HoneySelect2Maker._sceneRT = null;
+            }
+
+            HoneySelect2Maker._rawImage.texture = texture;
+            HoneySelect2Maker._rawImage.enabled = true;
         }
 
         internal static void OnPrepared(UnityEngine.Video.VideoPlayer vp)
@@ -316,12 +343,39 @@ namespace HoneySelect2Maker
                             }
                         );
                     }
-            }
-            else
-            {
-                HoneySelect2Maker._videoFinished = true;
-            } 
+                }
+                else
+                {
+                    HoneySelect2Maker._videoFinished = true;
+                } 
         }
+
+        internal static void PlayVideoWithChat(string video_folder, bool isAudio=false, int sortingOrder = 9999)
+        {
+                HoneySelect2Maker._videoFinished = false;
+
+                List<string> video_files  = new List<string>();
+                bool isLoop=true;
+
+                video_files = GetVideoFiles(video_folder);
+
+                if (video_files.Count > 0)
+                {
+                    int idx = UnityEngine.Random.Range(0, Mathf.Min(HoneySelect2Maker.VIDEO_MAX_COUNT, video_files.Count));
+                    string path = video_folder + video_files[idx];
+
+                    PlaySceneVideo(
+                            path,
+                            isLoop,
+                            isAudio,
+                            sortingOrder
+                        );  
+                }
+                else
+                {
+                    HoneySelect2Maker._videoFinished = true;
+                } 
+        }        
 
         internal static void StopSceneVideo()
         {

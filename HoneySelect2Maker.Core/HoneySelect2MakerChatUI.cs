@@ -65,7 +65,7 @@ namespace HoneySelect2Maker
         private static FontColorOption _systemFontColor = FontColorOption.White;
 
         // Chat UI 생성 함수: 캔버스/패널/로그/입력창을 생성하고 하단에 고정한다.
-        internal static void CreateChatUI(int sortingOrder = 1000)
+        internal static void CreateChatUI(int sortingOrder = 19999)
         {
             if (_initialized)
                 return;
@@ -129,7 +129,11 @@ namespace HoneySelect2Maker
             _chatInput.lineType = InputField.LineType.SingleLine;
             _chatInput.onEndEdit.AddListener(OnSubmitInput);
 
+            CreateCloseButton(_chatRootGO.transform);
+
             _initialized = true;
+
+            _chatInput.ActivateInputField();
         }
 
         // Chat UI 사용자 Prompt 수집 함수: 엔터 입력 시 호출되어 로그에 출력한다.
@@ -222,6 +226,28 @@ namespace HoneySelect2Maker
             t.text = text;
 
             return t;
+        }
+
+        private static void CreateCloseButton(Transform parent)
+        {
+            var buttonGO = new GameObject("ChatCloseButton");
+            buttonGO.transform.SetParent(parent, false);
+
+            var rect = buttonGO.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1.0f, 1.0f);
+            rect.anchorMax = new Vector2(1.0f, 1.0f);
+            rect.pivot = new Vector2(1.0f, 1.0f);
+            rect.sizeDelta = new Vector2(90.0f, 28.0f);
+            rect.anchoredPosition = new Vector2(-12.0f, -12.0f);
+
+            var image = buttonGO.AddComponent<Image>();
+            image.color = new Color(0.2f, 0.2f, 0.2f, 0.9f);
+
+            var button = buttonGO.AddComponent<Button>();
+            button.onClick.AddListener(DestroyChatUI);
+
+            var text = CreateTextChild(buttonGO.transform, "Label", 14, Color.white, TextAnchor.MiddleCenter, "Close");
+            text.raycastTarget = false;
         }
 
         private static Color GetFontColor(bool isUser)

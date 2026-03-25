@@ -286,7 +286,7 @@ namespace HoneySelect2Maker
                         return true;
                     }
 
-                    _self.StartCoroutine(WaitHomeSceneCall(__instance));
+                    _self.StartCoroutine(WaitHomeSceneCallWithChat(__instance));
                     return false;
                 }
 
@@ -300,10 +300,35 @@ namespace HoneySelect2Maker
             // UnityEngine.Debug.Log($">>currentSceneName {currentSceneName} in WaitHomeSceneCall | {Time.realtimeSinceStartup:F3}");
 
             yield return new WaitForEndOfFrame();
-            SceneController.PlayVideoRandom(_self._video_home_scene_folder, true);
             yield return new WaitUntil(() => _videoFinished);
 
             UnityEngine.Debug.Log($">> WaitHomeSceneCall videoFinished | {Time.realtimeSinceStartup:F3}");
+
+            // 🔥 원 함수 실행
+            var method = typeof(HS2.HomeScene)
+                .GetMethod("Start", System.Reflection.BindingFlags.Instance |
+                                    System.Reflection.BindingFlags.NonPublic);
+
+            _reEntryHarmony = true;
+            if (method != null)
+            {
+                var enumerator = (IEnumerator)method.Invoke(__instance, null);
+                yield return __instance.StartCoroutine(enumerator);
+            }
+        }
+
+        private static IEnumerator WaitHomeSceneCallWithChat(HS2.HomeScene __instance)
+        {
+            string currentSceneName = SceneManager.GetActiveScene().name;
+            // UnityEngine.Debug.Log($">>currentSceneName {currentSceneName} in WaitHomeSceneCall | {Time.realtimeSinceStartup:F3}");
+
+            yield return new WaitForEndOfFrame();
+            SceneController.PlayVideoWithChat(_self._video_home_scene_folder, true);
+            ChatUIController.CreateChatUI();
+            yield return new WaitUntil(() => _videoFinished);
+            ChatUIController.DestroyChatUI();
+
+            UnityEngine.Debug.Log($">> WaitHomeSceneCallWithChat videoFinished | {Time.realtimeSinceStartup:F3}");
 
             // 🔥 원 함수 실행
             var method = typeof(HS2.HomeScene)

@@ -15,6 +15,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using System.Threading.Tasks;
 using System.Security.Cryptography.X509Certificates;
+using UnityEngine.Networking;
 
 #if AISHOUJO || HONEYSELECT2
 using CharaUtils;
@@ -82,7 +83,7 @@ namespace HoneySelect2Maker
                         - live is in {heroin.address}.
                         - job is {heroin.job}
                         - character is {heroin.character1} and {heroin.character2}.
-                        - talking style is {herione.talking_style}.
+                        - talking style is {heroin.talking_style}.
                     # chat_state
                         - stay | leave
                     # output format
@@ -92,22 +93,15 @@ namespace HoneySelect2Maker
                     ""emotion"": """",
                     ""emotion_score"": ""-5 to 5"",
                     ""next_chat_state"": """"
-                    }}";
+                    }}
+                    ```";
 
             return SYS_PROMPT;
         }
 
-        internal static List<ContentItem> MakeHumanMsg(string instruction)
+        internal static string MakeHumanMsg(string instruction)
         {
-            var humanMessages = new List<ContentItem>();
-
-            humanMessages.Add(new ContentItem
-            {
-                type = "text",
-                text = instruction
-            });
-
-            return humanMessages;
+            return instruction;
         }
 
         internal static async Task<string> SendChatAsync(
@@ -157,14 +151,14 @@ namespace HoneySelect2Maker
 
             request.SetRequestHeader("Content-Type", "application/json");
 
-            Debug.Log($"> 요청: {host}/v1/chat/completions");
+            UnityEngine.Debug.Log($"> 요청: {host}/v1/chat/completions");
 
             var operation = request.SendWebRequest();
 
             while (!operation.isDone)
                 await Task.Yield();
 
-            Debug.Log($"> 응답값 {request.responseCode}");
+            UnityEngine.Debug.Log($"> 응답값 {request.responseCode}");
 
             if (request.isNetworkError || request.isHttpError)
             {
@@ -180,30 +174,23 @@ namespace HoneySelect2Maker
 
     class ChatUser
     {
-        string gender; // = "boy";
-        string name; // = "";
-        int    age; // = 18;
-        string nationality; // = "korean";
-        string address; // = "Seoul";
-        string job; // = "studying in high-school";        
-        string character1; // = "cautious and depensive";  // aggressive, submissive, cautious
-        string character2; // = "girlish"; // feminine, girlish
-        string talking_style; // too much talk
+        public string gender; // = "boy";
+        public string name; // = "";
+        public int    age; // = 18;
+        public string nationality; // = "korean";
+        public string address; // = "Seoul";
+        public string job; // = "studying in high-school";        
+        public string character1; // = "cautious and depensive";  // aggressive, submissive, cautious
+        public string character2; // = "girlish"; // feminine, girlish
+        public string talking_style; // too much talk
 
-    }
-
-    [Serializable]
-    public class ContentItem
-    {
-        public string type;
-        public string text;
     }
 
     [Serializable]
     public class Message
     {
         public string role;
-        public List<ContentItem> content;
+        public string content;
     }
 
     [Serializable]
