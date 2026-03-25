@@ -87,15 +87,30 @@ namespace WindPhysics
 
         private Rect _windowRect = new Rect(70, 10, 550, 10);
 
-        private bool _previousConfigKeyEnableWind;
-        private float _previousInterval;
+        private bool _lastConfigKeyEnableWind;
+        private float _lastInterval;
 
         // 위치에 따른 바람 강도
         private AnimationCurve _heightToForceCurve = AnimationCurve.Linear(0f, 1f, 1f, 0.1f); // 위로 갈수록 약함
 
         internal Dictionary<int, ChaControl> _selectChaMgmt = new Dictionary<int, ChaControl>();
 
-        private Coroutine _CheckWindMgmtCoroutine;    
+        private Coroutine _CheckWindMgmtCoroutine;
+
+#if FEATURE_VISUAL_WINDDIRECTION
+        // LineRenderer 객체
+        private GameObject _windDirObj;
+        private LineRenderer _windDirLine;
+
+        // 표시 시간 제어
+        private float _lastWindDirValue = float.NaN;
+        private float _windDirVisibleUntil = 0f;
+        private const float _windDirVisibleDuration = 2.0f;
+
+        // 표시 위치/길이        
+        private const float _windDirLength = 5f;        
+#endif
+        private OCIChar _currentOCIChar = null;
 
         private GUIStyle _richLabel;
         
@@ -178,8 +193,8 @@ namespace WindPhysics
 
             ConfigKeyEnableWindShortcut = Config.Bind("ShortKey", "Toggle effect key", new KeyboardShortcut(KeyCode.W));
 
-            _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value;
-            _previousInterval = WindInterval.Value;
+            _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;
+            _lastInterval = WindInterval.Value;
 
             _self = this;
             Logger = base.Logger; 
@@ -231,10 +246,36 @@ namespace WindPhysics
             {
                 ConfigKeyEnableWind.Value = !ConfigKeyEnableWind.Value;
             }
+
+#if FEATURE_VISUAL_WINDDIRECTION
+            UpdateWindDirectionLine();
+#endif
         }
 #if FEATURE_PUBLIC
 
 #else
+        private WindData GetCurrentData()
+        {
+            if (_currentOCIChar == null)
+                return null;
+
+            var controller = _currentOCIChar.GetChaControl().GetComponent<WindPhysicsController>();
+            if (controller == null)
+                return null;
+
+            WindData data = controller.GetWindData();
+
+            return data;
+        }    
+
+        private WindPhysicsController GetCurrentControl()
+        {
+            if (_currentOCIChar == null)
+                return null;
+
+            return _currentOCIChar.GetChaControl().GetComponent<WindPhysicsController>();            
+        }   
+
         protected override void OnGUI()
         {
             if (_ShowUI == false)
@@ -364,13 +405,13 @@ namespace WindPhysics
             if (ConfigKeyEnableWind.Value == true)
             {
                 if (GUILayout.Button("Deactive")) {
-                    _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value;   
+                    _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;   
                     ConfigKeyEnableWind.Value = false;
                 }    
             } else
             {
                 if (GUILayout.Button("Active")) {
-                    _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value; 
+                    _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value; 
                     ConfigKeyEnableWind.Value = true;
                 }   
             }
@@ -396,6 +437,63 @@ namespace WindPhysics
 
             GUI.DragWindow();
         }
+
+#if FEATURE_VISUAL_WINDDIRECTION
+        private void EnsureWindDirectionLine()
+        {
+            if (_windDirObj != null)
+                return;
+
+            _windDirObj = new GameObject("WindPhysics_WindDirection");
+            _windDirLine = _windDirObj.AddComponent<LineRenderer>();
+            _windDirLine.positionCount = 2;
+            _windDirLine.startWidth = 0.3f;
+            _windDirLine.endWidth = 0.1f;
+            _windDirLine.useWorldSpace = true;
+            _windDirLine.material = new Material(Shader.Find("Sprites/Default"));
+            _windDirLine.startColor = new Color(0.2f, 0.8f, 1.0f, 0.9f);
+            _windDirLine.endColor = new Color(0.2f, 0.8f, 1.0f, 0.9f);
+        }
+
+        private void UpdateWindDirectionLine()
+        {
+            if (!_loaded)
+                return;
+
+            if (_windDirLine == null)
+                return;
+
+            WindData data = GetCurrentData();
+
+            if (data != null) {
+                // 변화 감지
+                float current = WindDirection.Value;
+                if (!Mathf.Approximately(current, _lastWindDirValue))
+                {
+                    _lastWindDirValue = current;
+                    _windDirVisibleUntil = Time.time + _windDirVisibleDuration;
+                }
+
+                // 표시 여부 판단
+                bool visible = Time.time <= _windDirVisibleUntil;
+                _windDirLine.enabled = visible;
+                if (!visible)
+                    return;
+                
+                Vector3 origin = data.head_bone.position
+                    + Vector3.up * 0.2f
+                    - data.head_bone.forward * 0.5f;
+
+                float rad = (current + 180f) * Mathf.Deg2Rad;
+                Vector3 dir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad));
+
+                _windDirLine.SetPosition(0, origin);
+                _windDirLine.SetPosition(1, origin + dir * _windDirLength);
+            }
+
+        }        
+#endif
+
 #endif
         
 #endregion
@@ -408,6 +506,10 @@ namespace WindPhysics
         private void Init()
         {
             _loaded = true;
+
+#if FEATURE_VISUAL_WINDDIRECTION
+            EnsureWindDirectionLine();
+#endif
         }
 
         private void InitConfig()
@@ -445,15 +547,14 @@ namespace WindPhysics
             }
 
             _selectChaMgmt.Clear();
-            Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
-			_ShowUI = false;     
+            _ShowUI = false;
         }
 
         IEnumerator CheckWindMgmtRoutine()
         {
             while (true)
             {
-                if(_loaded && (_previousConfigKeyEnableWind != ConfigKeyEnableWind.Value || _previousInterval != WindInterval.Value))
+                if(_loaded && (_lastConfigKeyEnableWind != ConfigKeyEnableWind.Value || _lastInterval != WindInterval.Value))
                 {
                     // 선택된 대상에 대해서만, 재처리
                     foreach (var kvp in _selectChaMgmt)
@@ -479,83 +580,8 @@ namespace WindPhysics
                         }
                     }
                 
-                    _previousInterval = WindInterval.Value;
-                    _previousConfigKeyEnableWind = ConfigKeyEnableWind.Value;          
-                } 
-                else
-                {
-#if FEATURE_FIX_LONGHAIR
-                    // if (ConfigKeyEnableWind.Value) {
-                    //     List<ObjectCtrlInfo>  selectedObjCtrlInfos = Logic.GetSelectedObjects();
-                    //     foreach (ObjectCtrlInfo ctrlInfo in selectedObjCtrlInfos)
-                    //     {
-                    //         OCIChar ociChar = ctrlInfo as OCIChar;
-                    //         if (ociChar != null && _self._ociObjectMgmt.TryGetValue(ctrlInfo.GetHashCode(), out var windData))
-                    //         {    
-                    //             if (windData.head_bone != null && windData.hairDynamicBones.Count > 0)
-                    //             {
-                    //                 PositionData neckData = Logic.GetBoneRotationFromTF(windData.neck_bone);
-                    //                 PositionData headData = Logic.GetBoneRotationFromTF(windData.head_bone);
-
-                    //                 Vector3 worldGravity = Vector3.down * 0.02f;
-                    //                 Vector3 worldForce1 = Vector3.zero;          
-                    //                 Vector3 worldForce2 = Vector3.zero;   
-                    //                 Vector3 worldForce3 = Vector3.zero;   
-
-                    //                 float zOffset = 0f;
-                    //                 float yOffset = 0f;
-                    //                 if (neckData._front >= 0f)
-                    //                 {   
-                    //                     // neck이 앞으로 숙인 유형                                                                        
-                    //                     float angle = Math.Abs(neckData._front);                                
-                    //                     yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.01f, 0.02f);
-                    //                     zOffset = yOffset;
-                    //                     worldForce1 = new Vector3(0, -yOffset, zOffset);
-                    //                 } else
-                    //                 {
-                    //                     // neck이 뒤로 숙인 유형                                                                        
-                    //                     float angle = Math.Abs(neckData._front);                                
-                    //                     yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 140.0f, 0.005f, 0.07f);
-                    //                     zOffset = yOffset;
-                    //                     worldForce1 = new Vector3(0, -yOffset, -zOffset);                                    
-                    //                 }
-
-                    //                 if (neckData._front < headData._front)
-                    //                 {
-                    //                     // head가 앞으로 숙인 유형                                                                        
-                    //                     float angle = Logic.GetRelativePosition(neckData._front, headData._front);                           
-                    //                     yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.01f, 0.03f);
-                    //                     zOffset = yOffset;
-                    //                     worldForce2 = new Vector3(0, -yOffset, zOffset);
-                    //                 } else
-                    //                 {
-                    //                     // head가 뒤로 숙인 유형   
-                    //                     float angle = Logic.GetRelativePosition(neckData._front, headData._front);
-                    //                     yOffset = Logic.Remap(Math.Abs(angle), 0.0f, 120.0f, 0.005f, 0.035f);
-                    //                     zOffset = yOffset;
-                    //                     worldForce2 = new Vector3(0, -yOffset, -zOffset);                  
-                    //                 }
-
-                    //                 worldForce3 = worldForce1 + worldForce2;
-                                    
-                    //                 // hair 에 대해 world position 적용
-                    //                 foreach (DynamicBone hairDynamicBone in realHumanData1.hairDynamicBones)
-                    //                 {
-                    //                     if (hairDynamicBone == null)
-                    //                         continue;
-
-                    //                     // DynamicBone 기준 로컬 변환
-                    //                     hairDynamicBone.m_Gravity =
-                    //                         realHumanData1.root_bone.InverseTransformDirection(worldGravity);
-
-                    //                     hairDynamicBone.m_Force =
-                    //                         realHumanData1.root_bone.InverseTransformDirection(worldForce3);
-                    //                 }                         
-                    //             }                     
-                    //         }
-                    //     }
-                    // }
-#endif
+                    _lastInterval = WindInterval.Value;
+                    _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;
                 }
 
                 yield return new WaitForSeconds(0.3f); // 0.3초 대기
@@ -581,6 +607,7 @@ namespace WindPhysics
 
                 if (ociChar != null)
                 {
+                    _self._currentOCIChar = ociChar;
                     ChaControl chaCtrl = ociChar.GetChaControl();
 
                     if (_self._selectChaMgmt.TryGetValue(chaCtrl.GetHashCode(), out var chaCtrl1))
