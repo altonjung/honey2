@@ -250,23 +250,25 @@ namespace RealHumanSupport
 
         private RealHumanData GetCurrentData()
         {
-            if (_currentOCIChar == null)
-                return null;
+            if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
+                var controller = _currentOCIChar.GetChaControl().GetComponent<RealHumanSupportController>();
+                if (controller == null)
+                    return null;
 
-            var controller = _currentOCIChar.GetChaControl().GetComponent<RealHumanSupportController>();
-            if (controller == null)
-                return null;
+                RealHumanData data = controller.GetData();
+                return data;
+            } 
 
-            RealHumanData data = controller.GetData();
+            return null;
+        }
 
-            return data;
-        }        
         private RealHumanSupportController GetCurrentControl()
         {
-            if (_currentOCIChar == null)
-                return null;
-
-            return _currentOCIChar.GetChaControl().GetComponent<RealHumanSupportController>();            
+            if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
+                return _currentOCIChar.GetChaControl().GetComponent<RealHumanSupportController>();         
+            }
+             
+            return null;      
         }    
 
 

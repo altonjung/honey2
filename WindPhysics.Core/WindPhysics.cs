@@ -131,24 +131,12 @@ namespace WindPhysics
 
         #region Accessors
         internal static ConfigEntry<bool> ConfigKeyEnableWind { get; private set; }
-        internal static ConfigEntry<KeyboardShortcut> ConfigKeyEnableWindShortcut { get; private set; }
-
         internal static ConfigEntry<float> Gravity { get; private set; }
         internal static ConfigEntry<float> WindDirection { get; private set; }
         internal static ConfigEntry<float> WindInterval { get; private set; }
         internal static ConfigEntry<float> WindUpForce { get; private set; }
         internal static ConfigEntry<float> WindForce { get; private set; }
-        internal static ConfigEntry<float> WindAmplitude { get; private set; }
-
-        // internal static ConfigEntry<float> AccesoriesForce { get; private set; }
-        // internal static ConfigEntry<float> AccesoriesElastic { get; private set; }
-
-        // internal static ConfigEntry<float> HairForce { get; private set; }
-        // internal static ConfigEntry<float> HairElastic { get; private set; }
-
-        // internal static ConfigEntry<float> ClotheForce { get; private set; }
-        // internal static ConfigEntry<float> ClothDamping { get; private set; }
-        // internal static ConfigEntry<float> ClothStiffness { get; private set; }    
+        internal static ConfigEntry<float> WindAmplitude { get; private set; } 
         #endregion
 
 
@@ -169,28 +157,8 @@ namespace WindPhysics
 
             WindAmplitude = Config.Bind("All", "Amplitude", 1.0f, new ConfigDescription("wind amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            // // clothes
-            // ClotheForce = Config.Bind("Cloth", "Force", 1.0f, new ConfigDescription("cloth force", new AcceptableValueRange<float>(0.1f, 1.0f)));
-
-            // ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("cloth damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
-
-            // ClothStiffness = Config.Bind("Cloth", "Stiffness", 7.0f, new ConfigDescription("wind stiffness", new AcceptableValueRange<float>(0.0f, 10.0f)));
-
-            // // hair
-            // HairForce = Config.Bind("Hair", "Force", 1.0f, new ConfigDescription("hair force", new AcceptableValueRange<float>(0.1f, 1.0f)));
-
-            // HairElastic = Config.Bind("Hair", "Elastic", 0.15f, new ConfigDescription("hair elastic", new AcceptableValueRange<float>(0.0f, 1.0f)));
-
-            // // accesories
-            // AccesoriesForce = Config.Bind("Misc", "Force", 1.0f, new ConfigDescription("accesories force", new AcceptableValueRange<float>(0.1f, 1.0f)));
-
-            // AccesoriesElastic = Config.Bind("Misc", "Elastic", 0.7f, new ConfigDescription("accesories elastic", new AcceptableValueRange<float>(0.0f, 1.0f)));
-
-
             // option 
             ConfigKeyEnableWind = Config.Bind("Options", "Toggle effect", false, "Wind enabled/disabled");
-
-            ConfigKeyEnableWindShortcut = Config.Bind("ShortKey", "Toggle effect key", new KeyboardShortcut(KeyCode.W));
 
             _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;
             _lastInterval = WindInterval.Value;
@@ -202,16 +170,17 @@ namespace WindPhysics
 
             var harmony = HarmonyExtensions.CreateInstance(GUID);
             harmony.PatchAll(Assembly.GetExecutingAssembly());
-#if FEATURE_PUBLIC
 
-#else
+
+            _lastWindDirValue = WindDirection.Value;
+
             _toolbarButton = new SimpleToolbarToggle(
                 "Open window",
                 "Open WindPhysics window",
                 () => ResourceUtils.GetEmbeddedResource("wp_toolbar_icon.png", typeof(WindPhysics).Assembly).LoadTexture(),
                 false, this, val => _ShowUI = val);
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
-#endif
+
             CharacterApi.RegisterExtraBehaviour<WindPhysicsController>(GUID);
 
             _CheckWindMgmtCoroutine = StartCoroutine(CheckWindMgmtRoutine());
@@ -241,11 +210,6 @@ namespace WindPhysics
             if (_loaded == false)
                 return;
 
-            if (ConfigKeyEnableWindShortcut.Value.IsDown())
-            {
-                ConfigKeyEnableWind.Value = !ConfigKeyEnableWind.Value;
-            }
-
 #if FEATURE_VISUAL_WINDDIRECTION
             UpdateWindDirectionLine();
 #endif
@@ -255,24 +219,25 @@ namespace WindPhysics
 #else
         private WindData GetCurrentData()
         {
-            if (_currentOCIChar == null)
-                return null;
+            if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
+                var controller = _currentOCIChar.GetChaControl().GetComponent<WindPhysicsController>();
+                if (controller == null)
+                    return null;
 
-            var controller = _currentOCIChar.GetChaControl().GetComponent<WindPhysicsController>();
-            if (controller == null)
-                return null;
+                WindData data = controller.GetWindData();
+                return data;
+            } 
 
-            WindData data = controller.GetWindData();
-
-            return data;
+            return null;
         }    
 
         private WindPhysicsController GetCurrentControl()
         {
-            if (_currentOCIChar == null)
-                return null;
-
-            return _currentOCIChar.GetChaControl().GetComponent<WindPhysicsController>();            
+            if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
+                return _currentOCIChar.GetChaControl().GetComponent<WindPhysicsController>();         
+            }
+             
+            return null;   
         }   
 
         protected override void OnGUI()
@@ -291,6 +256,7 @@ namespace WindPhysics
             GUI.Box(rect, GUIContent.none);
             GUILayout.Space(10);
         }
+
         private void WindowFunc(int id)
         {
             var studio = Studio.Studio.Instance;
@@ -309,11 +275,10 @@ namespace WindPhysics
                 studio.cameraCtrl.noCtrlCondition = null;
             }
 
-            WinData data = GetCurrentData();
+            WindData data = GetCurrentData();
 
             if (data != null)
             {
-
                 // ================= UI =================
     // Global
                 GUILayout.Label("<color=orange>Global</color>", RichLabel);
@@ -368,8 +333,8 @@ namespace WindPhysics
                 GUILayout.Label(data.HairElastic.ToString("0.00"), GUILayout.Width(40));
 
                 GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-                HairForce.Value = GUILayout.HorizontalSlider(HairForce.Value, 0.1f, 1.0f);
-                GUILayout.Label(HairForce.Value.ToString("0.00"), GUILayout.Width(40));
+                data.HairForce = GUILayout.HorizontalSlider(data.HairForce, 0.1f, 1.0f);
+                GUILayout.Label(data.HairForce.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
                 
                 draw_seperate();            
@@ -424,14 +389,23 @@ namespace WindPhysics
                 {
                     InitConfig();   
                 }   
-            }
+
+                if (GUILayout.Button("Close")) {
+                    Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+                    _ShowUI = false;
+                }
+                
+                GUILayout.EndHorizontal();                
+            } 
+            else
+            {
+                GUILayout.Label("<color=white>Nothing to select</color>", RichLabel);
+            }         
 
             if (GUILayout.Button("Close")) {
                 Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
                 _ShowUI = false;
             }
-            
-            GUILayout.EndHorizontal();
 
             // ⭐ 툴팁 직접 그리기
             if (!string.IsNullOrEmpty(GUI.tooltip))

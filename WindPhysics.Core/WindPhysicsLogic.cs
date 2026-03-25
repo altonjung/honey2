@@ -232,15 +232,15 @@ namespace WindPhysics
             float windForce = WindPhysics.WindForce.Value;
             float windUpForce = WindPhysics.WindUpForce.Value;
 
-            float hairElastic = WindPhysics.HairElastic.Value;
-            float hairForce = WindPhysics.HairForce.Value;
+            float hairElastic = windData.HairElastic;
+            float hairForce = windData.HairForce;
 
-            float accessoriesElastic = WindPhysics.AccesoriesElastic.Value;
-            float accessoriesForce = WindPhysics.AccesoriesForce.Value;
+            float accessoriesElastic = windData.AccesoriesElastic;
+            float accessoriesForce = windData.AccesoriesForce;
 
-            float clothDamping = WindPhysics.ClothDamping.Value;
-            float clothStiffness = WindPhysics.ClothStiffness.Value;
-            float clothForce = WindPhysics.ClotheForce.Value;
+            float clothDamping = windData.ClothDamping;
+            float clothStiffness = windData.ClothStiffness;
+            float clothForce = windData.ClotheForce;
 
             float windWave = Mathf.Max(Mathf.Sin(time * WindPhysics.WindAmplitude.Value), 0f);
             float upWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(windWave, 0f));

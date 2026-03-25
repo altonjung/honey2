@@ -538,17 +538,27 @@ namespace JointCorrectionSlider
 
         private JointCorrectionSliderData GetCurrentData()
         {
-            if (_currentOCIChar == null)
-                return null;
+            if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
+                var controller = _currentOCIChar.GetChaControl().GetComponent<JointCorrectionSliderController>();
+                if (controller == null)
+                    return null;
 
-            var controller = _currentOCIChar.GetChaControl().GetComponent<JointCorrectionSliderController>();
-            if (controller == null)
-                return null;
+                JointCorrectionSliderData data = controller.GetData();                
+                return data;
+            } 
 
-            JointCorrectionSliderData jointCorrectionSliderData = controller.GetData();
+            return null;
 
-            return jointCorrectionSliderData;
         }
+
+        private JointCorrectionSliderController GetCurrentControl()
+        {
+            if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
+                return _currentOCIChar.GetChaControl().GetComponent<JointCorrectionSliderController>();         
+            }
+             
+            return null;   
+        }   
 
         private void InitConfig()
         {
@@ -695,7 +705,6 @@ namespace JointCorrectionSlider
                 GUILayout.Label(data.DanLengthValue.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal();
 #endif
-
                 draw_seperate();  
                 if (GUILayout.Button("Default"))
                     InitConfig();
@@ -704,7 +713,6 @@ namespace JointCorrectionSlider
             else
             {
                 GUILayout.Label("<color=white>Nothing to select</color>", RichLabel);
-                draw_seperate();  
             }         
 
             if (GUILayout.Button("Close")) {
