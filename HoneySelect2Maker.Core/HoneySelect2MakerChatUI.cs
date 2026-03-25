@@ -92,8 +92,8 @@ namespace HoneySelect2Maker
             rootRect.sizeDelta = new Vector2(0.0f, 260.0f);
             rootRect.anchoredPosition = Vector2.zero;
 
-            var bg = _chatRootGO.AddComponent<Image>();
-            bg.color = new Color(0.0f, 0.0f, 0.0f, 0.6f);
+            // var bg = _chatRootGO.AddComponent<Image>();
+            // bg.color = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
             var logGO = new GameObject("ChatLog");
             logGO.transform.SetParent(_chatRootGO.transform, false);
