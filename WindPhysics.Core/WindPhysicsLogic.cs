@@ -40,6 +40,22 @@ namespace WindPhysics
             return windData;
         }
 
+        internal void ResetWindData()
+        {
+            if (windData != null)
+            {
+                windData.ClotheForce = 1.0f;
+                windData.ClothDamping = 0.5f;
+                windData.ClothStiffness = 7.0f;
+                // hair
+                windData.HairForce = 1.0f;
+                windData.HairElastic = 0.15f;
+                // accesories
+                windData.AccesoriesForce = 1.0f;
+                windData.AccesoriesElastic = 0.7f;
+            }
+        }
+
         internal static List<ObjectCtrlInfo> GetSelectedObjects()
         {
             List<ObjectCtrlInfo> selectedObjCtrlInfos = new List<ObjectCtrlInfo>();
@@ -539,6 +555,17 @@ namespace WindPhysics
         public float _minY = float.MaxValue;
         public float _maxY = float.MinValue;
 
+
+            // clothes
+        public float ClotheForce = 1.0f;
+        public float ClothDamping = 0.5f;
+        public float ClothStiffness = 7.0f;
+        // hair
+        public float HairForce = 1.0f;
+        public float HairElastic = 0.15f;
+        // accesories
+        public float AccesoriesForce = 1.0f;
+        public float AccesoriesElastic = 0.7f;
 
         public WindData()
         {

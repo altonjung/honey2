@@ -140,16 +140,15 @@ namespace WindPhysics
         internal static ConfigEntry<float> WindForce { get; private set; }
         internal static ConfigEntry<float> WindAmplitude { get; private set; }
 
-        internal static ConfigEntry<float> AccesoriesForce { get; private set; }
-        internal static ConfigEntry<float> AccesoriesElastic { get; private set; }
+        // internal static ConfigEntry<float> AccesoriesForce { get; private set; }
+        // internal static ConfigEntry<float> AccesoriesElastic { get; private set; }
 
-        internal static ConfigEntry<float> HairForce { get; private set; }
+        // internal static ConfigEntry<float> HairForce { get; private set; }
+        // internal static ConfigEntry<float> HairElastic { get; private set; }
 
-        internal static ConfigEntry<float> HairElastic { get; private set; }
-
-        internal static ConfigEntry<float> ClotheForce { get; private set; }
-        internal static ConfigEntry<float> ClothDamping { get; private set; }
-        internal static ConfigEntry<float> ClothStiffness { get; private set; }    
+        // internal static ConfigEntry<float> ClotheForce { get; private set; }
+        // internal static ConfigEntry<float> ClothDamping { get; private set; }
+        // internal static ConfigEntry<float> ClothStiffness { get; private set; }    
         #endregion
 
 
@@ -170,22 +169,22 @@ namespace WindPhysics
 
             WindAmplitude = Config.Bind("All", "Amplitude", 1.0f, new ConfigDescription("wind amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            // clothes
-            ClotheForce = Config.Bind("Cloth", "Force", 1.0f, new ConfigDescription("cloth force", new AcceptableValueRange<float>(0.1f, 1.0f)));
+            // // clothes
+            // ClotheForce = Config.Bind("Cloth", "Force", 1.0f, new ConfigDescription("cloth force", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("cloth damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            // ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("cloth damping", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            ClothStiffness = Config.Bind("Cloth", "Stiffness", 7.0f, new ConfigDescription("wind stiffness", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            // ClothStiffness = Config.Bind("Cloth", "Stiffness", 7.0f, new ConfigDescription("wind stiffness", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            // hair
-            HairForce = Config.Bind("Hair", "Force", 1.0f, new ConfigDescription("hair force", new AcceptableValueRange<float>(0.1f, 1.0f)));
+            // // hair
+            // HairForce = Config.Bind("Hair", "Force", 1.0f, new ConfigDescription("hair force", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            HairElastic = Config.Bind("Hair", "Elastic", 0.15f, new ConfigDescription("hair elastic", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            // HairElastic = Config.Bind("Hair", "Elastic", 0.15f, new ConfigDescription("hair elastic", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            // accesories
-            AccesoriesForce = Config.Bind("Misc", "Force", 1.0f, new ConfigDescription("accesories force", new AcceptableValueRange<float>(0.1f, 1.0f)));
+            // // accesories
+            // AccesoriesForce = Config.Bind("Misc", "Force", 1.0f, new ConfigDescription("accesories force", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            AccesoriesElastic = Config.Bind("Misc", "Elastic", 0.7f, new ConfigDescription("accesories elastic", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            // AccesoriesElastic = Config.Bind("Misc", "Elastic", 0.7f, new ConfigDescription("accesories elastic", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
 
             // option 
@@ -310,115 +309,121 @@ namespace WindPhysics
                 studio.cameraCtrl.noCtrlCondition = null;
             }
 
-            // ================= UI =================
-// Global
-            GUILayout.Label("<color=orange>Global</color>", RichLabel);
-            // Direction
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Direction", "Wind Direction"), GUILayout.Width(80));
-            WindDirection.Value = GUILayout.HorizontalSlider(WindDirection.Value, 0.0f, 359.0f);
-            GUILayout.Label(WindDirection.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
+            WinData data = GetCurrentData();
 
-            // Interval
-            GUILayout.BeginHorizontal();            
-            GUILayout.Label(new GUIContent("Interval", "Wind Interval"), GUILayout.Width(80));
-            WindInterval.Value = GUILayout.HorizontalSlider(WindInterval.Value, 0.0f, 60.0f);
-            GUILayout.Label(WindInterval.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();            
-
-            // Amplitude
-            GUILayout.BeginHorizontal(); 
-            GUILayout.Label(new GUIContent("Amplitude", "Wind Amplitude"),  GUILayout.Width(80));
-            WindAmplitude.Value = GUILayout.HorizontalSlider(WindAmplitude.Value, 1.0f, 10.0f);
-            GUILayout.Label(WindAmplitude.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
-
-            // Force
-            GUILayout.BeginHorizontal();             
-            GUILayout.Label(new GUIContent("Force", "Wind Force"), GUILayout.Width(80));
-            WindForce.Value = GUILayout.HorizontalSlider(WindForce.Value, 0.1f, 1.0f);
-            GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
-
-            // Force up
-            GUILayout.BeginHorizontal();              
-            GUILayout.Label(new GUIContent("Force Up", "Wind ForceUp"),  GUILayout.Width(80));
-            WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.0f, 0.5f);
-            GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal(); 
-
-            // Gravity            
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
-            Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
-            GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
-          
-            draw_seperate();
-// Hair
-            GUILayout.Label("<color=orange>Hair</color>", RichLabel);
-            GUILayout.BeginHorizontal();            
-            GUILayout.Label(new GUIContent("E", "Elastic"), GUILayout.Width(20));
-            HairElastic.Value = GUILayout.HorizontalSlider(HairElastic.Value, 0.0f, 1.0f);
-            GUILayout.Label(HairElastic.Value.ToString("0.00"), GUILayout.Width(40));
-
-            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-            HairForce.Value = GUILayout.HorizontalSlider(HairForce.Value, 0.1f, 1.0f);
-            GUILayout.Label(HairForce.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
-            
-            draw_seperate();            
-// Acc
-            GUILayout.Label("<color=orange>Accessory</color>", RichLabel);;
-            GUILayout.BeginHorizontal();
-        
-            GUILayout.Label(new GUIContent("D", "Elastic"), GUILayout.Width(20));
-            AccesoriesElastic.Value = GUILayout.HorizontalSlider(AccesoriesElastic.Value, 0.0f, 1.0f);
-            GUILayout.Label(AccesoriesElastic.Value.ToString("0.00"), GUILayout.Width(40));
-            
-            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-            AccesoriesForce.Value = GUILayout.HorizontalSlider(AccesoriesForce.Value, 0.1f, 1.0f);
-            GUILayout.Label(AccesoriesForce.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
-
-            draw_seperate();
-// Cloth
-            GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
-            GUILayout.BeginHorizontal();        
-            GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
-            ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.0f, 1.0f);
-            GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(40));
-
-            GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
-            ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 0.0f, 10.0f);
-            GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(40));
-
-            GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-            ClotheForce.Value = GUILayout.HorizontalSlider(ClotheForce.Value, 0.1f, 1.0f);
-            GUILayout.Label(ClotheForce.Value.ToString("0.00"), GUILayout.Width(40));
-            GUILayout.EndHorizontal();
-
-            GUILayout.Space(10);  
-
-            GUILayout.BeginHorizontal();
-            if (ConfigKeyEnableWind.Value == true)
+            if (data != null)
             {
-                if (GUILayout.Button("Deactive")) {
-                    _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;   
-                    ConfigKeyEnableWind.Value = false;
-                }    
-            } else
-            {
-                if (GUILayout.Button("Active")) {
-                    _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value; 
-                    ConfigKeyEnableWind.Value = true;
+
+                // ================= UI =================
+    // Global
+                GUILayout.Label("<color=orange>Global</color>", RichLabel);
+                // Direction
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Direction", "Wind Direction"), GUILayout.Width(80));
+                WindDirection.Value = GUILayout.HorizontalSlider(WindDirection.Value, 0.0f, 359.0f);
+                GUILayout.Label(WindDirection.Value.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();
+
+                // Interval
+                GUILayout.BeginHorizontal();            
+                GUILayout.Label(new GUIContent("Interval", "Wind Interval"), GUILayout.Width(80));
+                WindInterval.Value = GUILayout.HorizontalSlider(WindInterval.Value, 0.0f, 60.0f);
+                GUILayout.Label(WindInterval.Value.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();            
+
+                // Amplitude
+                GUILayout.BeginHorizontal(); 
+                GUILayout.Label(new GUIContent("Amplitude", "Wind Amplitude"),  GUILayout.Width(80));
+                WindAmplitude.Value = GUILayout.HorizontalSlider(WindAmplitude.Value, 1.0f, 10.0f);
+                GUILayout.Label(WindAmplitude.Value.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();
+
+                // Force
+                GUILayout.BeginHorizontal();             
+                GUILayout.Label(new GUIContent("Force", "Wind Force"), GUILayout.Width(80));
+                WindForce.Value = GUILayout.HorizontalSlider(WindForce.Value, 0.1f, 1.0f);
+                GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();
+
+                // Force up
+                GUILayout.BeginHorizontal();              
+                GUILayout.Label(new GUIContent("Force Up", "Wind ForceUp"),  GUILayout.Width(80));
+                WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.0f, 0.5f);
+                GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal(); 
+
+                // Gravity            
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
+                Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
+                GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();
+            
+                draw_seperate();
+    // Hair
+                GUILayout.Label("<color=orange>Hair</color>", RichLabel);
+                GUILayout.BeginHorizontal();            
+                GUILayout.Label(new GUIContent("E", "Elastic"), GUILayout.Width(20));
+                data.HairElastic = GUILayout.HorizontalSlider(data.HairElastic, 0.0f, 1.0f);
+                GUILayout.Label(data.HairElastic.ToString("0.00"), GUILayout.Width(40));
+
+                GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
+                HairForce.Value = GUILayout.HorizontalSlider(HairForce.Value, 0.1f, 1.0f);
+                GUILayout.Label(HairForce.Value.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();
+                
+                draw_seperate();            
+    // Acc
+                GUILayout.Label("<color=orange>Accessory</color>", RichLabel);;
+                GUILayout.BeginHorizontal();
+            
+                GUILayout.Label(new GUIContent("D", "Elastic"), GUILayout.Width(20));
+                data.AccesoriesElastic = GUILayout.HorizontalSlider(data.AccesoriesElastic, 0.0f, 1.0f);
+                GUILayout.Label(data.AccesoriesElastic.ToString("0.00"), GUILayout.Width(40));
+                
+                GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
+                data.AccesoriesForce = GUILayout.HorizontalSlider(data.AccesoriesForce, 0.1f, 1.0f);
+                GUILayout.Label(data.AccesoriesForce.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();
+
+                draw_seperate();
+    // Cloth
+                GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
+                GUILayout.BeginHorizontal();        
+                GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
+                data.ClothDamping = GUILayout.HorizontalSlider(data.ClothDamping, 0.0f, 1.0f);
+                GUILayout.Label(data.ClothDamping.ToString("0.00"), GUILayout.Width(40));
+
+                GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
+                data.ClothStiffness = GUILayout.HorizontalSlider(data.ClothStiffness, 0.0f, 10.0f);
+                GUILayout.Label(data.ClothStiffness.ToString("0.00"), GUILayout.Width(40));
+
+                GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
+                data.ClotheForce = GUILayout.HorizontalSlider(data.ClotheForce, 0.1f, 1.0f);
+                GUILayout.Label(data.ClotheForce.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(10);  
+
+                GUILayout.BeginHorizontal();
+                if (ConfigKeyEnableWind.Value == true)
+                {
+                    if (GUILayout.Button("Deactive")) {
+                        _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;   
+                        ConfigKeyEnableWind.Value = false;
+                    }    
+                } else
+                {
+                    if (GUILayout.Button("Active")) {
+                        _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value; 
+                        ConfigKeyEnableWind.Value = true;
+                    }   
+                }
+
+                if(GUILayout.Button("Default"))
+                {
+                    InitConfig();   
                 }   
-            }
-
-            if(GUILayout.Button("Default"))
-            {
-                InitConfig();   
             }
 
             if (GUILayout.Button("Close")) {
@@ -521,15 +526,11 @@ namespace WindPhysics
             WindInterval.Value = (float)WindInterval.DefaultValue;
             WindAmplitude.Value = (float)WindAmplitude.DefaultValue;
 
-            ClotheForce.Value = (float)ClotheForce.DefaultValue;
-            ClothDamping.Value = (float)ClothDamping.DefaultValue;
-            ClothStiffness.Value = (float)ClothStiffness.DefaultValue;
-
-            HairForce.Value = (float)HairForce.DefaultValue;
-            HairElastic.Value = (float)HairElastic.DefaultValue;
-
-            AccesoriesForce.Value = (float)AccesoriesForce.DefaultValue;
-            AccesoriesElastic.Value = (float)AccesoriesElastic.DefaultValue;
+            var controller = GetCurrentControl();
+            if (controller != null)
+            {
+                controller.ResetWindData();
+            }
         }
 
         private void MgmtInit()
