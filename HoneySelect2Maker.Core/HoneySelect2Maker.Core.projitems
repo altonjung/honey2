@@ -10,12 +10,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2Maker.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2MakerSceneCtr.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2MakerActionCtr.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2MakerChatCtr.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2MakerChatUI.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)HoneySelect2MakerChatScrollUI.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HS2Maker.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HS2MakerSceneController.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HS2MakerChatUIController.cs" />    
+    <Compile Include="$(MSBuildThisFileDirectory)HS2MakerChatController.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HS2MakerActionController.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />
