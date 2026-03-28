@@ -38,9 +38,9 @@ namespace HoneySelect2Maker
 {
     /*
         사용법
-        1) UI 생성: ChatUIController.CreateChatUI(chatController, actionController);
-        2) 텍스트 출력: ChatUIController.AppendChat("System", "메시지");
-        3) UI 해제: ChatUIController.DestroyChatUI();
+        1) UI 생성: var chatUI = new HS2ChatUIController(); chatUI.CreateChatUI(chatController, actionController, user, heroin);
+        2) 텍스트 출력: chatUI.AppendChat("System", "메시지");
+        3) UI 해제: chatUI.DestroyChatUI();
 
         참고
         - 입력창에 메시지를 입력하고 엔터를 치면 로그로 출력됩니다.
@@ -59,33 +59,34 @@ namespace HoneySelect2Maker
             Black
         }
 
-        private static GameObject _chatCanvasGO;
-        private static GameObject _chatRootGO;
-        private static Text _chatLogText;
-        private static InputField _chatInput;
-        private static bool _initialized;
-        private static int _fontSize = 24;
-        private static FontColorOption _userFontColor = FontColorOption.White;
-        private static FontColorOption _systemFontColor = FontColorOption.White;
-        private static HS2ChatController _chatController;
-        private static HS2ActionController _actionController;
-        private static Font _customFont;
-        private static string _customFontResourcePath;
-        private static string[] _customOSFontNames;
+        private GameObject _chatCanvasGO;
+        private GameObject _chatRootGO;
+        private Text _chatLogText;
+        private InputField _chatInput;
+        private bool _initialized;
+        private int _fontSize = 24;
+        private FontColorOption _userFontColor = FontColorOption.White;
+        private FontColorOption _systemFontColor = FontColorOption.White;
+        private HS2ChatController _chatController;
+        private HS2ActionController _actionController;
+        private Font _customFont;
+        private string _customFontResourcePath;
+        private string[] _customOSFontNames;
 
-        private static List<Message> chatHistory = new List<Message>();
+        private ChatUser _user;
+        private ChatUser _heroin;
 
         // Chat UI 생성 함수: 캔버스/패널/로그/입력창을 생성하고 하단에 고정한다.
-        internal static void CreateChatUI(
+        internal void CreateChatUI(
             HS2ChatController chatController,
             HS2ActionController actionController,
+            ChatUser user, 
+            ChatUser heroin,
             int sortingOrder = 19999)
         {
-            chatHistory.Clear();
-
-            ChatUser user = new ChatUser();
-            ChatUser heroin = new ChatUser();
-
+            _user = user;
+            _heroin = heroin;
+           
             if (chatController == null)
                 throw new ArgumentNullException(nameof(chatController));
             if (actionController == null)
@@ -167,7 +168,7 @@ namespace HoneySelect2Maker
         }
 
         // Chat UI 사용자 Prompt 수집 함수: 엔터 입력 시 호출되어 로그에 출력한다.
-        private static void OnSubmitInput(string value)
+        private async void OnSubmitInput(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return;
@@ -179,20 +180,19 @@ namespace HoneySelect2Maker
             }
 
             AppendChat("User", value.Trim());
+            _chatInput.text = "waiting..";
+  
             UnityEngine.Debug.Log($">> User Chat Input: {value.Trim()}");
 
-            _chatController.SendChatAsync(HoneySelect2Maker._HS2_LLM_SERVER, HoneySelect2Maker._HS2_LLM_MODEL, 4096, 0.5f, );
-
-            AppendChat("Assistant", value.Trim());
-            UnityEngine.Debug.Log($">> Assistant Chat Input: {value.Trim()}");
-
-
+            string result = await _chatController.SendChatAsync(HoneySelect2Maker._HS2_LLM_SERVER, HoneySelect2Maker._HS2_LLM_MODEL, 4096, 0.5f, CHAT_EVENT.CHAT_Bump, _user, _heroin, value.Trim());
+            AppendChat("Assistant", result.Trim());
+            
             _chatInput.text = "";
             _chatInput.ActivateInputField();
         }
 
         // Chat UI 내 Prompt 출력 함수: 채팅 로그 텍스트에 한 줄을 추가한다.
-        internal static void AppendChat(string speaker, string message)
+        internal void AppendChat(string speaker, string message)
         {
             if (_chatLogText == null)
                 return;
@@ -213,7 +213,7 @@ namespace HoneySelect2Maker
         }
 
         // Chat UI 해제 함수: 생성된 UI 오브젝트를 제거하고 상태를 초기화한다.
-        internal static void DestroyChatUI()
+        internal void DestroyChatUI()
         {
             if (_chatCanvasGO != null)
             {
@@ -237,20 +237,20 @@ namespace HoneySelect2Maker
         }
 
         // 폰트 크기 설정 함수: 이후 생성되는 메시지/입력 텍스트에 적용된다.
-        internal static void SetFontSize(int fontSize)
+        internal void SetFontSize(int fontSize)
         {
             _fontSize = Mathf.Clamp(fontSize, 10, 40);
         }
 
         // 폰트 색상 설정 함수: 사용자/시스템 각각 흰색/검정 중 선택한다.
-        internal static void SetFontColors(FontColorOption userColor, FontColorOption systemColor)
+        internal void SetFontColors(FontColorOption userColor, FontColorOption systemColor)
         {
             _userFontColor = userColor;
             _systemFontColor = systemColor;
         }
 
         // EventSystem 보장 함수: 없으면 생성한다.
-        private static void EnsureEventSystem()
+        private void EnsureEventSystem()
         {
             if (GameObject.FindObjectOfType<EventSystem>() != null)
                 return;
@@ -262,7 +262,7 @@ namespace HoneySelect2Maker
         }
 
         // 텍스트 자식 생성 함수: InputField 텍스트/플레이스홀더에 사용한다.
-        private static Text CreateTextChild(Transform parent, string name, int fontSize, Color color, TextAnchor anchor, string text = "")
+        private Text CreateTextChild(Transform parent, string name, int fontSize, Color color, TextAnchor anchor, string text = "")
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -285,7 +285,7 @@ namespace HoneySelect2Maker
             return t;
         }
 
-        private static void CreateCloseButton(Transform parent)
+        private void CreateCloseButton(Transform parent)
         {
             var buttonGO = new GameObject("ChatCloseButton");
             buttonGO.transform.SetParent(parent, false);
@@ -307,14 +307,14 @@ namespace HoneySelect2Maker
             text.raycastTarget = false;
         }
 
-        private static Color GetFontColor(bool isUser)
+        private Color GetFontColor(bool isUser)
         {
             var option = isUser ? _userFontColor : _systemFontColor;
             return option == FontColorOption.Black ? Color.black : Color.white;
         }
 
         // 폰트 지정: 유니티 Resources에 포함된 폰트를 경로로 지정한다. (예: "Fonts/NotoSansCJK")
-        internal static void SetFontResourcePath(string resourcePath)
+        internal void SetFontResourcePath(string resourcePath)
         {
             _customFontResourcePath = resourcePath;
             _customFont = null;
@@ -322,7 +322,7 @@ namespace HoneySelect2Maker
         }
 
         // 폰트 지정: 외부에서 로드된 Font를 직접 주입한다.
-        internal static void SetFont(Font font)
+        internal void SetFont(Font font)
         {
             _customFont = font;
             _customFontResourcePath = null;
@@ -330,7 +330,7 @@ namespace HoneySelect2Maker
         }
 
         // 폰트 지정: OS에 설치된 폰트를 사용한다. (예: "Noto Sans CJK KR")
-        internal static void SetFontFromOS(params string[] fontNames)
+        internal void SetFontFromOS(params string[] fontNames)
         {
             _customOSFontNames = fontNames;
             _customFont = null;
@@ -338,7 +338,7 @@ namespace HoneySelect2Maker
         }
 
         // OS 시스템 언어에 맞춰 폰트를 자동 선택한다.
-        internal static void SetFontFromOSBySystemLanguage()
+        internal void SetFontFromOSBySystemLanguage()
         {
             UnityEngine.Debug.Log($"SetFontFromOSBySystemLanguage {Application.systemLanguage}");
 
@@ -362,7 +362,7 @@ namespace HoneySelect2Maker
             }
         }
 
-        private static Font GetFont()
+        private Font GetFont()
         {
             if (_customFont != null)
                 return _customFont;

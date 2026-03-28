@@ -198,7 +198,7 @@ namespace HoneySelect2Maker
 
         /*
             var pngPath = UserData.Path + "/hs2maker/backgrounds/mybg.png";
-            var texture = SceneController.LoadTextureFromPng(pngPath);
+            var texture = HS2SceneController.LoadTextureFromPng(pngPath);
             SceneController.PlaySceneImage(texture);
         */
         internal static void PlaySceneImage(Texture texture, int sortingOrder = -100)
@@ -418,6 +418,32 @@ namespace HoneySelect2Maker
             }
 
             return result;
+        }
+
+        internal static Texture2D LoadTextureFromPng(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                Debug.LogWarning($"PNG not found: {path}");
+                return null;
+            }
+
+            byte[] fileData = File.ReadAllBytes(path);
+
+            // 2x2는 placeholder 사이즈 (LoadImage 호출 시 실제 크기로 변경됨)
+            Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+
+            if (!texture.LoadImage(fileData))
+            {
+                Debug.LogError($"Failed to load PNG: {path}");
+                GameObject.Destroy(texture);
+                return null;
+            }
+
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.filterMode = FilterMode.Bilinear;
+
+            return texture;
         }
 
         internal static void LoadHeroin(string pngPath)

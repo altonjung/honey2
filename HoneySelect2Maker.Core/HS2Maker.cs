@@ -116,6 +116,8 @@ namespace HoneySelect2Maker
 
         internal string _video_title_scene_loop_path = UserData.Path + "/hs2maker/title/loop.hs2m";
 
+        internal string _img_chat_scene_path_file = UserData.Path + "/hs2maker/home/event/chat.png";
+
         internal UnityEngine.Video.VideoPlayer _sceneVideoPlayer;
 
         internal static Canvas _sceneCanvas;
@@ -153,6 +155,8 @@ namespace HoneySelect2Maker
         {
             base.Awake();
 
+            VideoModeActive = Config.Bind("InGame", "Video Play", true, new ConfigDescription("Enable/Disable"));
+
             _self = this;
 
             Logger = base.Logger;
@@ -174,17 +178,15 @@ namespace HoneySelect2Maker
 
             _HS2_LLM_SERVER = Environment.GetEnvironmentVariable("hs2_llm_host");
 
-            if (_HS2_LLM_SERVER.Equals(""))
+            if (_HS2_LLM_SERVER == null || _HS2_LLM_SERVER.Equals(""))
                 _HS2_LLM_SERVER = "http://localhost:11434";
 
             _HS2_LLM_MODEL = Environment.GetEnvironmentVariable("hs2_llm_model");
 
-            if (_HS2_LLM_MODEL.Equals(""))
+            if (_HS2_LLM_MODEL == null || _HS2_LLM_MODEL.Equals(""))
                 _HS2_LLM_MODEL = "realgirl";
 
             UnityEngine.Debug.Log($"> HS2_LLM_Server = {_HS2_LLM_SERVER}, model = {_HS2_LLM_MODEL}");
-
-            VideoModeActive = Config.Bind("InGame", "Video Play", true, new ConfigDescription("Enable/Disable"));
         }
 
         // private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -384,10 +386,42 @@ namespace HoneySelect2Maker
 
             yield return new WaitForEndOfFrame();
             HS2SceneController.PlayVideoWithChat(_self._video_home_evt_scene_folder, true);
-            HS2ChatUIController.SetFontFromOSBySystemLanguage();
-            HS2ChatUIController.CreateChatUI(new HS2ChatController(), new HS2ActionController());
+
+            var texture = HS2SceneController.LoadTextureFromPng(_self._img_chat_scene_path_file);
+
+            HS2SceneController.PlaySceneImage(texture);
+            var chatUI = new HS2ChatUIController();
+            chatUI.SetFontFromOSBySystemLanguage();
+
+            var user = new ChatUser
+            {
+                gender = "boy",
+                name = "Guy",
+                age = 20,
+                nationality = "korean",
+                address = "Seoul",
+                job = "unknown",
+                character1 = "cautious",
+                character2 = "friendly",
+                talking_style = "normal"
+            };
+
+            var heroin = new ChatUser
+            {
+                gender = "girl",
+                name = "Miki",
+                age = 20,
+                nationality = "korean",
+                address = "Seoul",
+                job = "unknown",
+                character1 = "cautious",
+                character2 = "sensitive",
+                talking_style = "short"
+            };
+
+            chatUI.CreateChatUI(new HS2ChatController(), new HS2ActionController(), user, heroin);
             yield return new WaitUntil(() => _videoFinished);
-            HS2ChatUIController.DestroyChatUI();
+            chatUI.DestroyChatUI();
 
             // UnityEngine.Debug.Log($">> WaitHomeSceneCallWithChat videoFinished | {Time.realtimeSinceStartup:F3}");
 
@@ -871,6 +905,9 @@ namespace HoneySelect2Maker
            private static bool Prefix(Manager.BaseMap __instance, int _no, FadeCanvas.Fade fadeType = FadeCanvas.Fade.InOut, bool isForce = false)
            {
                 UnityEngine.SceneManagement.Scene scene = SceneManager.GetActiveScene();
+
+                UnityEngine.Debug.Log($"> ChangeAsync: {scene.name}, {_self}, {VideoModeActive}");
+
 
                 if (!VideoModeActive.Value)
                     return true;

@@ -34,6 +34,7 @@ using System.Text;
 #if AISHOUJO || HONEYSELECT2
 using AIChara;
 #endif
+using Newtonsoft.Json;
 
 /*
  
@@ -57,39 +58,60 @@ namespace HoneySelect2Maker
 {
     public class HS2ChatController
 {
-        internal static List<Message> ManageChatHistory(List<Message> chatHistory)
+        private List<ChatMessage> chatHistory = new List<ChatMessage>();
+
+
+        internal List<ChatMessage> ManageChatHistory(List<ChatMessage> chatHistory)
         {
             int MAX_PAIR_LIMIT = 5;
 
-            if (chatHistory.Count > (MAX_PAIR_LIMIT * 2 + 1))
+            if (chatHistory == null || chatHistory.Count == 0)
+                return chatHistory;
+
+            var newList = new List<ChatMessage>();
+            newList.Add(chatHistory[0]); // system 유지
+
+            int keepCount = MAX_PAIR_LIMIT * 2;
+            int restCount = chatHistory.Count - 1;
+            int startIndex = restCount > keepCount ? (chatHistory.Count - keepCount) : 1;
+            int takeCount = restCount > keepCount ? keepCount : restCount;
+
+            if (takeCount > 0)
             {
-                var newList = new List<Message>();
-                newList.Add(chatHistory[0]); // system 유지
-
-                newList.AddRange(chatHistory.GetRange(
-                    chatHistory.Count - MAX_PAIR_LIMIT * 2,
-                    MAX_PAIR_LIMIT * 2
-                ));
-
-                return newList;
+                newList.AddRange(chatHistory.GetRange(startIndex, takeCount));
             }
 
-            return chatHistory;
+            return newList;
         }
 
-        internal static string ExtractContent(string json)
+        internal string ExtractAnswer(string json)
         {
-            var key = "\"content\":\"";
-            int start = json.IndexOf(key);
-            if (start < 0) return "";
+            try
+            {
+                // 1차 파싱
+                var outer = JsonConvert.DeserializeObject<ChatCompletionResponse>(json);
 
-            start += key.Length;
-            int end = json.IndexOf("\"", start);
+                string content = outer.choices[0].message.content;
 
-            return json.Substring(start, end - start);
-        }        
+                // ```json 제거
+                content = content
+                    .Replace("```json", "")
+                    .Replace("```", "")
+                    .Trim();
 
-        internal static string MakeSystemMsg(ChatUser user, ChatUser heroin)
+                // 2차 파싱
+                var inner = JsonConvert.DeserializeObject<AnswerWrapper>(content);
+
+                return inner.answer;
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogError(e);
+                return "";
+            }
+        }   
+
+        internal string MakeNormalSystemMsg(ChatUser user, ChatUser heroin)
         {
             string SYS_PROMPT = $@"
                     # rule
@@ -116,35 +138,69 @@ namespace HoneySelect2Maker
             return SYS_PROMPT;
         }
 
-        internal static async Task<string> SendChatAsync(
+        internal  string MakeBumpSystemMsg(ChatUser user, ChatUser heroin)
+        {
+            string SYS_PROMPT = $@"
+                    # rule
+                        - chatting must be very natural way in single {user.nationality} language.
+                        - when you hard to respond, just say 'sorry' to user and leave.
+                    # your role
+                        - name is {heroin.name} who {heroin.age} old from {heroin.nationality}, {heroin.gender}.
+                        - live is in {heroin.address}.
+                        - job is {heroin.job}
+                        - character is {heroin.character1} and {heroin.character2}.
+                        - talking style is {heroin.talking_style}.
+                    # chat_state
+                        - stay | leave
+                    # output format
+                    ```json
+                    {{
+                    ""answer"": """",
+                    ""emotion"": """",
+                    ""next_chat_state"": """"
+                    }}
+                    ```";
+
+            return SYS_PROMPT;
+        }        
+
+        internal async Task<string> SendChatAsync(
             string host,
             string model,
             int maxToken,
             float temperature,
-            List<Message> chatHistory,
+            CHAT_EVENT chatEvent,
             ChatUser user,
             ChatUser heroin,
             string message
         )
         {
-            chatHistory = ManageChatHistory(chatHistory);
-
             if (chatHistory.Count == 0)
             {
-                chatHistory.Add(new Message
+                if (chatEvent == CHAT_EVENT.CHAT_Bump)
                 {
-                    role = "system",
-                    content = MakeSystemMsg(user, heroin)
-                });
+                    chatHistory.Add(new ChatMessage
+                    {
+                        role = "system",
+                        content = MakeBumpSystemMsg(user, heroin)
+                    });
+                } else
+                {
+                    chatHistory.Add(new ChatMessage
+                    {
+                        role = "system",
+                        content = MakeNormalSystemMsg(user, heroin)
+                    });                    
+                }
             }
 
-            chatHistory.Add(new Message
+            chatHistory.Add(new ChatMessage
             {
                 role = "user",
                 content = MakeHumanMsg(message)
             });            
 
-            var payloadObj = new Payload
+            var payloadObj = new ChatPayload
             {
                 model = model,
                 messages = chatHistory,
@@ -152,7 +208,19 @@ namespace HoneySelect2Maker
                 temperature = temperature
             };
 
-            string json = UnityEngine.JsonUtility.ToJson(payloadObj);
+            string json = "";
+
+            try
+            {
+                json = JsonConvert.SerializeObject(payloadObj);
+                UnityEngine.Debug.Log(json);
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogError(ex.ToString());
+            }
+
+            // string json = JsonConvert.SerializeObject(payloadObj);
 
             var request = new UnityWebRequest($"{host}/v1/chat/completions", "POST");
             byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
@@ -162,7 +230,7 @@ namespace HoneySelect2Maker
 
             request.SetRequestHeader("Content-Type", "application/json");
 
-            UnityEngine.Debug.Log($"> 요청: {host}/v1/chat/completions");
+            UnityEngine.Debug.Log($"> 요청: {host}/v1/chat/completions,  {json}");
 
             var operation = request.SendWebRequest();
 
@@ -179,9 +247,26 @@ namespace HoneySelect2Maker
             string responseText = request.downloadHandler.text;
 
             // JSON 파싱 (간단 방식)
-            return ExtractContent(responseText);
+            string assistantContent = ExtractAnswer(responseText);
+
+            UnityEngine.Debug.Log($"> assistantContent: {assistantContent}");
+
+            if (!string.IsNullOrEmpty(assistantContent))
+            {
+                chatHistory.Add(new ChatMessage
+                {
+                    role = "assistant",
+                    content = assistantContent
+                });
+            }
+
+            chatHistory = ManageChatHistory(chatHistory);
+
+            UnityEngine.Debug.Log($"> chatHistory: {string.Join(", ", chatHistory.Select(m => $"{m.role}:{m.content}"))}");
+
+            return assistantContent;
         }
-        internal static string MakeHumanMsg(string instruction)
+        internal string MakeHumanMsg(string instruction)
         {
             return instruction;
         }
@@ -202,6 +287,34 @@ namespace HoneySelect2Maker
     }
 
     [Serializable]
+    class ChatMessage
+    {
+        public string role;
+        public string content;
+    }
+
+    [Serializable]
+    class ChatPayload
+    {
+        public string model;
+        public List<ChatMessage> messages;
+        public int max_tokens;
+        public float temperature;
+    }    
+
+    [Serializable]
+    public class ChatCompletionResponse
+    {
+        public Choice[] choices;
+    }
+
+    [Serializable]
+    public class Choice
+    {
+        public Message message;
+    }
+
+    [Serializable]
     public class Message
     {
         public string role;
@@ -209,11 +322,15 @@ namespace HoneySelect2Maker
     }
 
     [Serializable]
-    public class Payload
+    public class AnswerWrapper
     {
-        public string model;
-        public List<Message> messages;
-        public int max_tokens;
-        public float temperature;
-    }    
+        public string answer;
+        public string emotion;
+        public string next_chat_state;
+    }
+
+    enum CHAT_EVENT{
+        CHAT_Normal,
+        CHAT_Bump        
+    }
 }
