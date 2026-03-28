@@ -474,49 +474,50 @@ namespace JointCorrectionSlider
                 {
                     data._prevLeftKnee = data.LeftKneeValue;
                     SetScriptInfo(_currentOCIChar, 2, data.LeftKneeValue);
+                }
 
-                    if (data.RightKneeValue != data._prevRightKnee)
-                    {
-                        data._prevRightKnee = data.RightKneeValue;
-                        SetScriptInfo(_currentOCIChar, 3, data.RightKneeValue);
-                    }
+                if (data.RightKneeValue != data._prevRightKnee)
+                {
+                    data._prevRightKnee = data.RightKneeValue;
+                    SetScriptInfo(_currentOCIChar, 3, data.RightKneeValue);
+                }
 #if FEATURE_KNEE_CORRECTION
-                    if (data.LeftKnee2Value != data._prevLeftKnee2)
-                    {
-                        data._prevLeftKnee2 = data.LeftKnee2Value;
-                        SetScriptInfo(_currentOCIChar, 8, data.LeftKnee2Value);
-                    }
-                    if (data.RightKnee2Value != data._prevRightKnee2)
-                    {
-                        data._prevRightKnee2 = data.RightKnee2Value;
-                        SetScriptInfo(_currentOCIChar, 9, data.RightKnee2Value);
-                    }
+                if (data.LeftKnee2Value != data._prevLeftKnee2)
+                {
+                    data._prevLeftKnee2 = data.LeftKnee2Value;
+                    SetScriptInfo(_currentOCIChar, 8, data.LeftKnee2Value);
+                }
+                if (data.RightKnee2Value != data._prevRightKnee2)
+                {
+                    data._prevRightKnee2 = data.RightKnee2Value;
+                    SetScriptInfo(_currentOCIChar, 9, data.RightKnee2Value);
+                }
 #endif
 #if FEATURE_SHOULDER_CORRECTION
-                    if (data.LeftShoulderValue != data._prevLeftShoulder)
-                    {
-                        data._prevLeftShoulder = data.LeftShoulderValue;
-                        SetScriptInfo(_currentOCIChar, 10, data.LeftShoulderValue);
-                    }
-                    if (data.RightShoulderValue != data._prevRightShoulder)
-                    {
-                        data._prevRightShoulder = data.RightShoulderValue;
-                        SetScriptInfo(_currentOCIChar, 11, data.RightShoulderValue);
-                    }
+                if (data.LeftShoulderValue != data._prevLeftShoulder)
+                {
+                    data._prevLeftShoulder = data.LeftShoulderValue;
+                    SetScriptInfo(_currentOCIChar, 10, data.LeftShoulderValue);
+                }
+                if (data.RightShoulderValue != data._prevRightShoulder)
+                {
+                    data._prevRightShoulder = data.RightShoulderValue;
+                    SetScriptInfo(_currentOCIChar, 11, data.RightShoulderValue);
+                }
 #endif
 #if FEATURE_ELBOW_CORRECTION
-                    if (data.LeftElbowValue != data._prevLeftElbow)
-                    {
-                        data._prevLeftElbow = data.LeftElbowValue;
-                        SetScriptInfo(_currentOCIChar, 12, data.LeftElbowValue);
-                    }
-                    if (data.RightElbowValue != data._prevRightElbow)
-                    {
-                        data._prevRightElbow = data.RightElbowValue;
-                        SetScriptInfo(_currentOCIChar, 13, data.RightElbowValue);
-                    }
-#endif
+                if (data.LeftElbowValue != data._prevLeftElbow)
+                {
+                    data._prevLeftElbow = data.LeftElbowValue;
+                    SetScriptInfo(_currentOCIChar, 12, data.LeftElbowValue);
                 }
+                if (data.RightElbowValue != data._prevRightElbow)
+                {
+                    data._prevRightElbow = data.RightElbowValue;
+                    SetScriptInfo(_currentOCIChar, 13, data.RightElbowValue);
+                }
+#endif
+                
             }
         }
 

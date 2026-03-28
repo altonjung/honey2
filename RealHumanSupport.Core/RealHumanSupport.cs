@@ -83,7 +83,7 @@ namespace RealHumanSupport
     [BepInProcess("CharaStudio")]
 #elif AISHOUJO || HONEYSELECT2
     [BepInProcess("StudioNEOV2")]
-    [BepInProcess("HoneySelect2")]
+    // [BepInProcess("HoneySelect2")]
 #endif
     [BepInDependency("com.bepis.bepinex.extendedsave")]
 #endif
