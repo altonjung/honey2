@@ -91,7 +91,7 @@ namespace JointCorrectionSlider
     {
         #region Constants
         public const string Name = "JointCorrectionSlider";
-        public const string Version = "0.9.0.0";
+        public const string Version = "0.9.0.1";
         public const string GUID = "com.alton.illusionplugins.JointCorrectionSlider";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -395,6 +395,8 @@ namespace JointCorrectionSlider
 #endif
         private void SetScriptInfo(OCIChar ociChar, int categoryId, float value)
         {
+            // UnityEngine.Debug.Log($">> SetScriptInfo {categoryId}, {value}");
+
             foreach (Expression.ScriptInfo scriptInfo in ociChar.charInfo.expression.info)
             {   
                 if (scriptInfo.categoryNo == categoryId) {
@@ -437,7 +439,6 @@ namespace JointCorrectionSlider
 
             if (data != null)
             {
-
                 if (data.LeftArmUpperValue != data._prevLeftArmUp)
                 {
                     data._prevLeftArmUp = data.LeftArmUpperValue;
@@ -481,43 +482,30 @@ namespace JointCorrectionSlider
                     data._prevRightKnee = data.RightKneeValue;
                     SetScriptInfo(_currentOCIChar, 3, data.RightKneeValue);
                 }
-#if FEATURE_KNEE_CORRECTION
-                if (data.LeftKnee2Value != data._prevLeftKnee2)
-                {
-                    data._prevLeftKnee2 = data.LeftKnee2Value;
-                    SetScriptInfo(_currentOCIChar, 8, data.LeftKnee2Value);
-                }
-                if (data.RightKnee2Value != data._prevRightKnee2)
-                {
-                    data._prevRightKnee2 = data.RightKnee2Value;
-                    SetScriptInfo(_currentOCIChar, 9, data.RightKnee2Value);
-                }
-#endif
 #if FEATURE_SHOULDER_CORRECTION
                 if (data.LeftShoulderValue != data._prevLeftShoulder)
                 {
                     data._prevLeftShoulder = data.LeftShoulderValue;
-                    SetScriptInfo(_currentOCIChar, 10, data.LeftShoulderValue);
+                    SetScriptInfo(_currentOCIChar, 8, data.LeftShoulderValue);
                 }
                 if (data.RightShoulderValue != data._prevRightShoulder)
                 {
                     data._prevRightShoulder = data.RightShoulderValue;
-                    SetScriptInfo(_currentOCIChar, 11, data.RightShoulderValue);
+                    SetScriptInfo(_currentOCIChar, 9, data.RightShoulderValue);
                 }
 #endif
 #if FEATURE_ELBOW_CORRECTION
                 if (data.LeftElbowValue != data._prevLeftElbow)
                 {
                     data._prevLeftElbow = data.LeftElbowValue;
-                    SetScriptInfo(_currentOCIChar, 12, data.LeftElbowValue);
+                    SetScriptInfo(_currentOCIChar, 10, data.LeftElbowValue);
                 }
                 if (data.RightElbowValue != data._prevRightElbow)
                 {
                     data._prevRightElbow = data.RightElbowValue;
-                    SetScriptInfo(_currentOCIChar, 13, data.RightElbowValue);
+                    SetScriptInfo(_currentOCIChar, 11, data.RightElbowValue);
                 }
 #endif
-                
             }
         }
 
@@ -680,19 +668,6 @@ namespace JointCorrectionSlider
                 data.RightKneeValue = GUILayout.HorizontalSlider(data.RightKneeValue, -1.0f, 1.0f);
                 GUILayout.Label(data.RightKneeValue.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal();
-    #if FEATURE_KNEE_CORRECTION
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(new GUIContent("Knee(L)", "Front"), GUILayout.Width(60));
-                data.LeftKnee2Value = GUILayout.HorizontalSlider(data.LeftKnee2Value, -1.0f, 1.0f);
-                GUILayout.Label(data.LeftKnee2Value.ToString("0.00"), GUILayout.Width(30));
-                GUILayout.EndHorizontal();
-
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(new GUIContent("Knee(R)", "Front"), GUILayout.Width(60));
-                data.RightKnee2Value = GUILayout.HorizontalSlider(data.RightKnee2Value, -1.0f, 1.0f);
-                GUILayout.Label(data.RightKnee2Value.ToString("0.00"), GUILayout.Width(30));
-                GUILayout.EndHorizontal();
-#endif
 #if FEATURE_DAN_CORRECTION
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(new GUIContent("Dan", "Scale"), GUILayout.Width(60));
@@ -870,7 +845,7 @@ namespace JointCorrectionSlider
             }
         }
 
-#if FEATURE_SHOULDER_CORRECTION
+#if FEATURE_JOINT_CORRECTION
        [HarmonyPatch(typeof(ChaControl), "InitializeExpression", typeof(int), typeof(bool))]
         private static class ChaControl_InitializeExpression_Patches
         {
@@ -918,9 +893,7 @@ namespace JointCorrectionSlider
                     8,
                     9,
                     10,
-                    11,
-                    12,
-                    13
+                    11
                 };
                 for (int i = 0; i < __instance.expression.info.Length; i++)
                 {
@@ -944,7 +917,7 @@ namespace JointCorrectionSlider
                 string prefix = _self._creating_char_sex == 0 ? "cm_" : "cf_";        
                 var rawList = new List<string>
                 {
-                "32\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0",
+                "30\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0",
                 "0\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_ArmUp01_dam_L\tcf_J_ArmUp00_L\tEuler\tYZX\t0.5\t○\t-0.66\t-0.66\t×\t0\t0\t×\t0\t0",
                 "0\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_ArmUp02_dam_L\tcf_J_ArmUp00_L\tEuler\tYZX\t0.5\t○\t-0.33\t-0.33\t×\t0\t0\t×\t0\t0",
                 "0\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_ArmLow02_dam_L\tcf_J_Hand_L\tEuler\tZYX\t0\t○\t0.5\t0.5\t×\t0\t0\t×\t0\t0",
@@ -971,8 +944,6 @@ namespace JointCorrectionSlider
                 "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_LegKnee_dam_R\tcf_J_LegLow01_R\tEuler\tZYX\t0\t○\t0.5\t0.5\t×\t0\t0\t×\t0\t0",
                 "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_LegKnee_back_R\tcf_J_LegLow01_R\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
                 "3\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_SiriDam_R\tcf_J_LegUp00_R\tEuler\tYZX\t0\t○\t0.5\t0.5\t○\t0.2\t0.2\t○\t0.25\t0.25",             
-                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_LegKnee_low_s_L\tcf_J_LegLow01_L\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
-                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_LegKnee_low_s_R\tcf_J_LegLow01_R\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
                 "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_L\tcf_J_Shoulder_L\tEuler\tXZY\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
                 "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_R\tcf_J_Shoulder_R\tEuler\tXZY\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
                 "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_ArmElbo_dam_01_L\tcf_J_ArmLow01_L\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",

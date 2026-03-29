@@ -328,22 +328,28 @@ namespace HoneySelect2Maker
                 // }
             }
             
-
-            // Manager.LobbySceneManager lm = Singleton<Manager.LobbySceneManager>.Instance;
+            Manager.LobbySceneManager lm = Singleton<Manager.LobbySceneManager>.Instance;
                 
-            // if (lm.heroines.Length > 0)
-            // {
-            //     foreach (Actor.Heroine heroin in lm.heroines) {
-            //         if (heroin != null) {
-            //             string heroinName = heroin.chaFile.parameter.fullname;
-            //             UnityEngine.Debug.Log($">> heroine name {heroinName} in LobbyScene | {DateTime.Now:HH:mm:ss.fff}");
+            if (lm != null && lm.heroines.Length > 0)
+            {
+                UnityEngine.Debug.Log($">> LobbySceneManager is not null | {DateTime.Now:HH:mm:ss.fff}");
 
-            //             // 여기서 heroinKey 와 heroinData 추가
-            //             HeroinData heroinData = new HeroinData();
-            //             _self._playingHeroinNames[heroinName] = heroinData;
-            //         }
-            //     }
-            // }
+                foreach (Actor.Heroine heroin in lm.heroines) {
+                    if (heroin != null) {
+                        string heroinName = heroin.chaFile.parameter.fullname;
+                        UnityEngine.Debug.Log($">> heroine name {heroinName} in LobbyScene | {DateTime.Now:HH:mm:ss.fff}");
+
+                        // 여기서 heroinKey 와 heroinData 추가
+                        HeroinData heroinData = new HeroinData();
+                        _self._playingHeroinNames[heroinName] = heroinData;
+
+                        UnityEngine.Debug.Log($">> heroinName {heroinName} | {DateTime.Now:HH:mm:ss.fff}");
+                    }
+                }
+            } else
+            {
+                UnityEngine.Debug.Log($">> LobbySceneManager is null | {DateTime.Now:HH:mm:ss.fff}");
+            }
 
         }
         #endregion
@@ -411,8 +417,14 @@ namespace HoneySelect2Maker
                     //     return true;
                     // }
 
-                    _self.UpdateHeroins();
+                    // _self.UpdateHeroins();
                     _self.StartCoroutine(WaitHomeSceneCallWithChat(__instance));
+                    //if (_self._playingHeroinNames.Count == 0) {
+                    //    _self.StartCoroutine(WaitHomeSceneCallWithChat(__instance));
+                    //} else
+                    //{
+                    //    _self.StartCoroutine(WaitHomeSceneCall(__instance));
+                    //}
                     return false;
                 }
 
@@ -423,12 +435,13 @@ namespace HoneySelect2Maker
         private static IEnumerator WaitHomeSceneCall(HS2.HomeScene __instance)
         {
             string currentSceneName = SceneManager.GetActiveScene().name;
-            // UnityEngine.Debug.Log($">>currentSceneName {currentSceneName} in WaitHomeSceneCall | {Time.realtimeSinceStartup:F3}");
+            UnityEngine.Debug.Log($">>currentSceneName {currentSceneName} in WaitHomeSceneCall | {Time.realtimeSinceStartup:F3}");
 
             yield return new WaitForEndOfFrame();
+            HS2SceneController.PlayVideoRandom(_self._video_home_scene_folder, true);
             yield return new WaitUntil(() => _videoFinished);
 
-            // UnityEngine.Debug.Log($">> WaitHomeSceneCall videoFinished | {Time.realtimeSinceStartup:F3}");
+            UnityEngine.Debug.Log($">> WaitHomeSceneCall videoFinished | {Time.realtimeSinceStartup:F3}");
 
             // 🔥 원 함수 실행
             var method = typeof(HS2.HomeScene)
@@ -459,7 +472,7 @@ namespace HoneySelect2Maker
                 gender = "boy",
                 name = "Honey",
                 age = 20,
-                nationality = "korean",
+                nationality = "English",
                 friendship = "",
                 character1 = "cautious",
                 character2 = "friendly",
@@ -473,14 +486,14 @@ namespace HoneySelect2Maker
                 gender = "girl",
                 name = "Jenny",
                 age = 20,
-                nationality = "korean",
+                nationality = "English",
                 friendship = "unknown",
                 job = "student",
                 character1 = "cautious",
                 character2 = "girlish",
-                talking_style = "short",
-                habit="listen music",
-                love="food,flower"
+                talking_style = "short talking",
+                habit="workout,sing",
+                love="love,book,pet"
             };
 
             chatUI.CreateChatUI(new HS2ChatController(HoneySelect2Maker.ProviderConfig), new HS2ActionController(), user, heroin);
@@ -541,6 +554,9 @@ namespace HoneySelect2Maker
             yield return new WaitForEndOfFrame();
             HS2SceneController.PlayVideoRandom(_self._video_lobby_scene_folder, true);
             yield return new WaitUntil(() => _videoFinished);
+
+
+            _self.UpdateHeroins();
 
             // 🔥 원 함수 실행
             var method = typeof(HS2.LobbyScene)

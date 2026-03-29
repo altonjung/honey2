@@ -3,3 +3,8 @@ C:\share\work\hs2\HSPlugins-main\HoneySelect2Maker.HS2\obj\Release\HoneySelect2M
 C:\share\work\hs2\HSPlugins-main\HoneySelect2Maker.HS2\obj\Release\HoneySelect2Maker.HS2.csproj.CoreCompileInputs.cache
 C:\share\work\hs2\HSPlugins-main\HoneySelect2Maker.HS2\obj\Release\HoneySel.11E9168A.Up2Date
 C:\share\work\hs2\HSPlugins-main\HoneySelect2Maker.HS2\obj\Release\HoneySelect2Maker.dll
+D:\work\hs2\working\hs2plugin\bin\HS2\HoneySelect2Maker.dll
+D:\work\hs2\working\hs2plugin\HoneySelect2Maker.HS2\obj\Release\HoneySelect2Maker.HS2.csproj.AssemblyReference.cache
+D:\work\hs2\working\hs2plugin\HoneySelect2Maker.HS2\obj\Release\HoneySelect2Maker.HS2.csproj.CoreCompileInputs.cache
+D:\work\hs2\working\hs2plugin\HoneySelect2Maker.HS2\obj\Release\HoneySel.11E9168A.Up2Date
+D:\work\hs2\working\hs2plugin\HoneySelect2Maker.HS2\obj\Release\HoneySelect2Maker.dll

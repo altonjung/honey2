@@ -94,7 +94,7 @@ namespace RealHumanSupport
     {
         #region Constants
         public const string Name = "RealGirlSupport";
-        public const string Version = "0.9.1.2";
+        public const string Version = "0.9.1.3";
         public const string GUID = "com.alton.illusionplugins.RealGirl";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -502,10 +502,10 @@ namespace RealHumanSupport
                 if (!_loaded)
                     yield return new WaitForSeconds(0.5f); // 0.5초 대기
 
-                if (Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() > 0)
+                if (Singleton<Studio.Studio>.Instance != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() > 0)
                 {
-                    TreeNodeObject _node = Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Last();
-                    
+                    TreeNodeObject _node = Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Last();                
+
                     if (_node != null)
                     {
                         ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
