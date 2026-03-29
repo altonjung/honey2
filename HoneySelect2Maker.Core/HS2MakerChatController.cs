@@ -14,7 +14,6 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using System.Threading.Tasks;
-using System.Security.Cryptography.X509Certificates;
 using UnityEngine.Networking;
 
 #if AISHOUJO || HONEYSELECT2
@@ -59,6 +58,16 @@ namespace HoneySelect2Maker
     public class HS2ChatController
 {
         private List<ChatMessage> chatHistory = new List<ChatMessage>();
+        private readonly ProviderConfig _providerConfig;
+
+        public HS2ChatController()
+        {
+        }
+
+        public HS2ChatController(ProviderConfig providerConfig)
+        {
+            _providerConfig = providerConfig;
+        }
 
 
         internal List<ChatMessage> ManageChatHistory(List<ChatMessage> chatHistory)
@@ -99,10 +108,19 @@ namespace HoneySelect2Maker
                     .Replace("```", "")
                     .Trim();
 
-                // 2차 파싱
-                var inner = JsonConvert.DeserializeObject<AnswerWrapper>(content);
+                UnityEngine.Debug.Log($">> ExtractAnswer {content} | {Time.realtimeSinceStartup:F3}");
 
-                return inner.answer;
+                // 2차 파싱
+                try
+                {
+                    var inner = JsonConvert.DeserializeObject<AnswerWrapper>(content);
+                    return inner != null ? inner.answer : "";
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($">> ExtractAnswer inner parse failed: {ex.Message}");
+                    return "";
+                }
             }
             catch (Exception e)
             {
@@ -114,26 +132,26 @@ namespace HoneySelect2Maker
         internal string MakeNormalSystemMsg(ChatUser user, ChatUser heroin)
         {
             string SYS_PROMPT = $@"
-                    # rule
-                        - chatting must be very natural way in single {user.nationality} language.
-                        - when you hard to respond, just say 'sorry' to user and leave.
-                    # your role
-                        - name is {heroin.name} who {heroin.age} old from {heroin.nationality}, {heroin.gender}.
-                        - live is in {heroin.address}.
-                        - job is {heroin.job}
-                        - character is {heroin.character1} and {heroin.character2}.
-                        - talking style is {heroin.talking_style}.
-                    # chat_state
-                        - stay | leave
-                    # output format
-                    ```json
-                    {{
-                    ""answer"": """",
-                    ""emotion"": """",
-                    ""emotion_score"": ""-5 to 5"",
-                    ""next_chat_state"": """"
-                    }}
-                    ```";
+            # Role:
+            You are {heroin.name}, {heroin.age}, {heroin.gender}.
+            Job: {heroin.job}.
+            Personality: {heroin.character1}, {heroin.character2}.
+            Relation: {heroin.friendship}.
+            Talk Style: {heroin.talking_style}.
+            Habit: {heroin.habit},
+            Loving: {heroin.love}.
+            # Rules:
+            - reply only in {user.nationality}
+            - natural conversation
+            - when user rude -> next_action: leave
+            - when user gentle -> next_action: stay
+            # output format
+                ```json
+                {{
+                ""answer"": """",
+                ""next_action"": ""stay|leave""
+                }}
+                ```";
 
             return SYS_PROMPT;
         }
@@ -141,32 +159,72 @@ namespace HoneySelect2Maker
         internal  string MakeBumpSystemMsg(ChatUser user, ChatUser heroin)
         {
             string SYS_PROMPT = $@"
-                    # rule
-                        - chatting must be very natural way in single {user.nationality} language.
-                        - when you hard to respond, just say 'sorry' to user and leave.
-                    # your role
-                        - name is {heroin.name} who {heroin.age} old from {heroin.nationality}, {heroin.gender}.
-                        - live is in {heroin.address}.
-                        - job is {heroin.job}
-                        - character is {heroin.character1} and {heroin.character2}.
-                        - talking style is {heroin.talking_style}.
-                    # chat_state
-                        - stay | leave
-                    # output format
-                    ```json
-                    {{
-                    ""answer"": """",
-                    ""emotion"": """",
-                    ""next_chat_state"": """"
-                    }}
-                    ```";
+            # Role:
+            You are {heroin.name}, {heroin.age}, {heroin.gender}.
+            Job: {heroin.job}.
+            Personality: {heroin.character1}, {heroin.character2}.
+            Relation: {heroin.friendship}.
+            Talk Style: {heroin.talking_style}.
+            Habit: {heroin.habit},
+            Loving: {heroin.love}.
+            # Rules:
+            - reply only in {user.nationality}
+            - natural conversation
+            - when user rude -> next_action: leave
+            - when user gentle -> next_action: stay
+            # output format
+                ```json
+                {{
+                ""answer"": """",
+                ""next_action"": ""stay|leave""
+                }}
+                ```";
 
             return SYS_PROMPT;
         }        
 
         internal async Task<string> SendChatAsync(
+            int maxToken,
+            float temperature,
+            CHAT_EVENT chatEvent,
+            ChatUser user,
+            ChatUser heroin,
+            string message
+        )
+        {
+            ResolveProviderSettings(
+                out var provider,
+                out var host,
+                out var model,
+                out var openrouterBaseUrl,
+                out var openrouterApiKey,
+                out var openrouterReferer,
+                out var openrouterTitle);
+
+            return await SendChatAsync(
+                provider,
+                host,
+                model,
+                openrouterBaseUrl,
+                openrouterApiKey,
+                openrouterReferer,
+                openrouterTitle,
+                maxToken,
+                temperature,
+                chatEvent,
+                user,
+                heroin,
+                message);
+        }
+
+        internal async Task<string> SendChatAsync(
+            string provider,
             string host,
             string model,
+            string openrouterBaseUrl,
+            string openrouterApiKey,
+            string openrouterReferer,
+            string openrouterTitle,
             int maxToken,
             float temperature,
             CHAT_EVENT chatEvent,
@@ -222,15 +280,51 @@ namespace HoneySelect2Maker
 
             // string json = JsonConvert.SerializeObject(payloadObj);
 
-            var request = new UnityWebRequest($"{host}/v1/chat/completions", "POST");
+            string endpoint = "";
+            bool useOpenRouter = string.Equals(provider, "openrouter", StringComparison.OrdinalIgnoreCase);
+
+            if (useOpenRouter)
+            {
+                if (string.IsNullOrWhiteSpace(openrouterApiKey))
+                {
+                    UnityEngine.Debug.LogError("OpenRouter API key is missing. Set OPENROUTER_API_KEY or provider.json openrouterApiKey.");
+                    return "";
+                }
+
+                if (string.IsNullOrWhiteSpace(model))
+                {
+                    UnityEngine.Debug.LogError("OpenRouter model is missing. Set OpenRouter Model config or OPENROUTER_MODEL env var.");
+                    return "";
+                }
+
+                var baseUrl = string.IsNullOrWhiteSpace(openrouterBaseUrl) ? "https://openrouter.ai/api/v1" : openrouterBaseUrl.TrimEnd('/');
+                endpoint = $"{baseUrl}/chat/completions";
+            }
+            else
+            {
+                endpoint = $"{host}/v1/chat/completions";
+            }
+
+            var request = new UnityWebRequest(endpoint, "POST");
             byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
 
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
 
             request.SetRequestHeader("Content-Type", "application/json");
+            if (useOpenRouter)
+            {
+                request.SetRequestHeader("Authorization", $"Bearer {openrouterApiKey}");
+            }
+            if (useOpenRouter)
+            {
+                if (!string.IsNullOrWhiteSpace(openrouterReferer))
+                    request.SetRequestHeader("HTTP-Referer", openrouterReferer);
+                if (!string.IsNullOrWhiteSpace(openrouterTitle))
+                    request.SetRequestHeader("X-Title", openrouterTitle);
+            }
 
-            UnityEngine.Debug.Log($"> 요청: {host}/v1/chat/completions,  {json}");
+            UnityEngine.Debug.Log($"> 요청: {endpoint},  {json}");
 
             var operation = request.SendWebRequest();
 
@@ -270,6 +364,44 @@ namespace HoneySelect2Maker
         {
             return instruction;
         }
+
+        private void ResolveProviderSettings(
+            out string provider,
+            out string host,
+            out string model,
+            out string openrouterBaseUrl,
+            out string openrouterApiKey,
+            out string openrouterReferer,
+            out string openrouterTitle)
+        {
+            provider = HoneySelect2Maker._HS2_LLM_PROVIDER;
+            host = HoneySelect2Maker._HS2_LLM_SERVER;
+            model = string.Equals(provider, "openrouter", StringComparison.OrdinalIgnoreCase)
+                ? HoneySelect2Maker._HS2_OPENROUTER_MODEL
+                : HoneySelect2Maker._HS2_LLM_MODEL;
+            openrouterBaseUrl = HoneySelect2Maker._HS2_OPENROUTER_BASE_URL;
+            openrouterApiKey = HoneySelect2Maker._HS2_OPENROUTER_API_KEY;
+            openrouterReferer = HoneySelect2Maker._HS2_OPENROUTER_REFERER;
+            openrouterTitle = HoneySelect2Maker._HS2_OPENROUTER_TITLE;
+
+            if (_providerConfig == null)
+                return;
+
+            if (!string.IsNullOrWhiteSpace(_providerConfig.provider))
+                provider = _providerConfig.provider;
+            if (!string.IsNullOrWhiteSpace(_providerConfig.host))
+                host = _providerConfig.host;
+            if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterBaseUrl))
+                openrouterBaseUrl = _providerConfig.openrouterBaseUrl;
+            if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterApiKey))
+                openrouterApiKey = _providerConfig.openrouterApiKey;
+            if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterModel))
+                model = _providerConfig.openrouterModel;
+            if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterReferer))
+                openrouterReferer = _providerConfig.openrouterReferer;
+            if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterTitle))
+                openrouterTitle = _providerConfig.openrouterTitle;
+        }
     }
 
     class ChatUser
@@ -278,11 +410,13 @@ namespace HoneySelect2Maker
         public string name; // = "";
         public int    age; // = 18;
         public string nationality; // = "korean";
-        public string address; // = "Seoul";
+        public string friendship;
         public string job; // = "studying in high-school";        
         public string character1; // = "cautious and depensive";  // aggressive, submissive, cautious
         public string character2; // = "girlish"; // feminine, girlish
         public string talking_style; // too much talk
+        public string habit;
+        public string love;
 
     }
 
@@ -325,8 +459,8 @@ namespace HoneySelect2Maker
     public class AnswerWrapper
     {
         public string answer;
-        public string emotion;
-        public string next_chat_state;
+        // public string emotion;
+        public string next_action;
     }
 
     enum CHAT_EVENT{

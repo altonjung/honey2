@@ -1,0 +1,145 @@
+{
+  "korean": [
+    {
+      "gender": "girl",
+      "name": "Jisoo",
+      "age": 27,
+      "nationality": "korean",
+      "address": "Seoul",
+      "job": "designer",
+      "character1": "confident",
+      "character2": "likes_shopping",
+      "talking_style": "talkative"
+    },
+    {
+      "gender": "girl",
+      "name": "Yuna",
+      "age": 24,
+      "nationality": "korean",
+      "address": "Incheon",
+      "job": "office_worker",
+      "character1": "introverted",
+      "character2": "homebody",
+      "talking_style": "quiet"
+    },
+    {
+      "gender": "girl",
+      "name": "Soyeon",
+      "age": 22,
+      "nationality": "korean",
+      "address": "Daegu",
+      "job": "student",
+      "character1": "cheerful",
+      "character2": "likes_travel",
+      "talking_style": "normal"
+    }
+  ],
+
+  "japanese": [
+    {
+      "gender": "girl",
+      "name": "Yui",
+      "age": 26,
+      "nationality": "japanese",
+      "address": "Tokyo",
+      "job": "office_worker",
+      "character1": "calm",
+      "character2": "likes_travel",
+      "talking_style": "normal"
+    },
+    {
+      "gender": "girl",
+      "name": "Hina",
+      "age": 23,
+      "nationality": "japanese",
+      "address": "Osaka",
+      "job": "student",
+      "character1": "shy",
+      "character2": "likes_games",
+      "talking_style": "quiet"
+    },
+    {
+      "gender": "girl",
+      "name": "Riko",
+      "age": 29,
+      "nationality": "japanese",
+      "address": "Yokohama",
+      "job": "designer",
+      "character1": "confident",
+      "character2": "likes_shopping",
+      "talking_style": "talkative"
+    }
+  ],
+
+  "american": [
+    {
+      "gender": "girl",
+      "name": "Olivia",
+      "age": 23,
+      "nationality": "american",
+      "address": "Los Angeles",
+      "job": "freelancer",
+      "character1": "extroverted",
+      "character2": "likes_party",
+      "talking_style": "talkative"
+    },
+    {
+      "gender": "girl",
+      "name": "Emma",
+      "age": 28,
+      "nationality": "american",
+      "address": "New York",
+      "job": "marketer",
+      "character1": "confident",
+      "character2": "likes_travel",
+      "talking_style": "normal"
+    },
+    {
+      "gender": "girl",
+      "name": "Sophia",
+      "age": 21,
+      "nationality": "american",
+      "address": "Seattle",
+      "job": "student",
+      "character1": "introverted",
+      "character2": "likes_games",
+      "talking_style": "quiet"
+    }
+  ],
+
+  "chinese": [
+    {
+      "gender": "girl",
+      "name": "Mei",
+      "age": 25,
+      "nationality": "chinese",
+      "address": "Shanghai",
+      "job": "designer",
+      "character1": "introverted",
+      "character2": "likes_shopping",
+      "talking_style": "normal"
+    },
+    {
+      "gender": "girl",
+      "name": "Xinyi",
+      "age": 27,
+      "nationality": "chinese",
+      "address": "Beijing",
+      "job": "office_worker",
+      "character1": "calm",
+      "character2": "homebody",
+      "talking_style": "quiet"
+    },
+    {
+      "gender": "girl",
+      "name": "Lili",
+      "age": 24,
+      "nationality": "chinese",
+      "address": "Guangzhou",
+      "job": "student",
+      "character1": "cheerful",
+      "character2": "likes_travel",
+      "talking_style": "talkative"
+    }
+  ]
+}

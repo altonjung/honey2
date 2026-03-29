@@ -26,8 +26,8 @@ using IllusionUtility.GetUtility;
 using KKAPI.Studio;
 using KKAPI.Maker;
 using System.Text;
-
 #endif
+using Newtonsoft.Json;
 
 #if AISHOUJO || HONEYSELECT2
 using AIChara;
@@ -37,6 +37,35 @@ namespace HoneySelect2Maker
 {
     public class HS2SceneController
     {
+
+#if FEATURE_PUBLIC_RELEASE
+        internal const int VIDEO_MAX_COUNT = 10;
+#else
+        internal const int VIDEO_MAX_COUNT = 30;
+#endif
+
+        internal static UnityEngine.Video.VideoPlayer _sceneVideoPlayer;
+
+        internal static Canvas _sceneCanvas;
+        internal static RenderTexture _sceneRT;
+        internal static GameObject _overlayCanvasGO;
+        internal static UnityEngine.UI.RawImage _rawImage;
+
+        internal static Action _onSceneVideoCompleted;
+
+        internal static void Initialize()
+        {
+            GameObject videoObj = new GameObject("sceneVideoPlayer");
+            GameObject.DontDestroyOnLoad(videoObj);
+            _sceneVideoPlayer = videoObj.AddComponent<UnityEngine.Video.VideoPlayer>();
+
+        }
+
+        internal static UnityEngine.Video.VideoPlayer GetVideoPlayer()
+        {
+            return _sceneVideoPlayer;   
+        }
+
         internal static List<string> GetVideoFiles(string folderPath, string pattern = null)
         {
             List<string> mp4List = new List<string>();
@@ -65,42 +94,70 @@ namespace HoneySelect2Maker
 
             return mp4List;
         }
+
+        internal static List<string> GetPngFiles(string folderPath, string pattern = null)
+        {
+            List<string> pngList = new List<string>();
+
+            if (!Directory.Exists(folderPath))
+                return pngList;
+
+            // 모든 mp4 파일 가져오기
+            string[] files = Directory.GetFiles(folderPath)
+                              .Where(f =>
+                                  f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                              .ToArray();
+
+            foreach (string filePath in files)
+            {
+                string fileName = Path.GetFileName(filePath);
+
+                // pattern 이 null 또는 빈값이면 전체 반환
+                if (string.IsNullOrWhiteSpace(pattern) ||
+                    fileName.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    pngList.Add(fileName);
+                }
+            }
+
+            return pngList;
+        }        
         
         internal static void EnsureOverlayCanvas(int sortingOrder)
         {
-            if (HoneySelect2Maker._overlayCanvasGO != null)
+            if (_overlayCanvasGO != null)
             {
-                HoneySelect2Maker._sceneCanvas.enabled = true;
-                HoneySelect2Maker._sceneCanvas.sortingOrder = sortingOrder;
+                _sceneCanvas.enabled = true;
+                _sceneCanvas.sortingOrder = sortingOrder;
                 return;
             }
 
-            HoneySelect2Maker._overlayCanvasGO = new GameObject("SceneVideoCanvas");
-            GameObject.DontDestroyOnLoad(HoneySelect2Maker._overlayCanvasGO);
+            _overlayCanvasGO = new GameObject("SceneVideoCanvas");
+            GameObject.DontDestroyOnLoad(_overlayCanvasGO);
 
-            var canvas = HoneySelect2Maker._overlayCanvasGO.AddComponent<Canvas>();
+            var canvas = _overlayCanvasGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = sortingOrder; // 최상단
 
-            HoneySelect2Maker._sceneCanvas = canvas;
+            _sceneCanvas = canvas;
 
-            HoneySelect2Maker._overlayCanvasGO.AddComponent<UnityEngine.UI.CanvasScaler>();
-            HoneySelect2Maker._overlayCanvasGO.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+            _overlayCanvasGO.AddComponent<UnityEngine.UI.CanvasScaler>();
+            _overlayCanvasGO.AddComponent<UnityEngine.UI.GraphicRaycaster>();
 
             // RawImage
             GameObject rawGO = new GameObject("SceneVideoRawImage");
-            rawGO.transform.SetParent(HoneySelect2Maker._overlayCanvasGO.transform, false);
+            rawGO.transform.SetParent(_overlayCanvasGO.transform, false);
 
-            HoneySelect2Maker._rawImage = rawGO.AddComponent<UnityEngine.UI.RawImage>();
-            HoneySelect2Maker._rawImage.raycastTarget = false;
+            _rawImage = rawGO.AddComponent<UnityEngine.UI.RawImage>();
+            _rawImage.raycastTarget = false;
 
-            var rect = HoneySelect2Maker._rawImage.rectTransform;
+            var rect = _rawImage.rectTransform;
             rect.anchorMin = Vector2.zero;
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
 
-            HoneySelect2Maker._rawImage.color = Color.white;
+            _rawImage.color = Color.white;
         }
 
         private static string ConvertHs2mToTempMp4(string hs2mPath)
@@ -135,11 +192,11 @@ namespace HoneySelect2Maker
             Action callback = null)
         {
 
-            //UnityEngine.Debug.Log($">> PlaySceneVideo {path} | loop {loop} | audio {audio} | sortingOrder {sortingOrder} | {DateTime.Now:HH:mm:ss.fff}");
+            UnityEngine.Debug.Log($">> PlaySceneVideo {path} | loop {loop} | audio {audio} | sortingOrder {sortingOrder} | {DateTime.Now:HH:mm:ss.fff}");
 
             EnsureOverlayCanvas(sortingOrder);
 
-            var vp = HoneySelect2Maker._self._sceneVideoPlayer;
+            var vp = _sceneVideoPlayer;
 
             vp.Stop();
 
@@ -148,20 +205,20 @@ namespace HoneySelect2Maker
                 vp.loopPointReached -= OnVideoCompleted;
 
             // RenderTexture 생성
-            if (HoneySelect2Maker._sceneRT != null)
+            if (_sceneRT != null)
             {
-                HoneySelect2Maker._sceneRT.Release();
-                UnityEngine.Object.Destroy(HoneySelect2Maker._sceneRT);
+                _sceneRT.Release();
+                UnityEngine.Object.Destroy(_sceneRT);
             }
 
-            HoneySelect2Maker._sceneRT = new RenderTexture(Screen.width, Screen.height, 0);
-            HoneySelect2Maker._sceneRT.Create();
+            _sceneRT = new RenderTexture(Screen.width, Screen.height, 0);
+            _sceneRT.Create();
 
             vp.renderMode = UnityEngine.Video.VideoRenderMode.RenderTexture;
-            vp.targetTexture = HoneySelect2Maker._sceneRT;
+            vp.targetTexture = _sceneRT;
 
-            HoneySelect2Maker._rawImage.texture = HoneySelect2Maker._sceneRT;
-            HoneySelect2Maker._rawImage.enabled = true;
+            _rawImage.texture = _sceneRT;
+            _rawImage.enabled = true;
 
             vp.source = UnityEngine.Video.VideoSource.Url;
 
@@ -186,7 +243,7 @@ namespace HoneySelect2Maker
             else
                 vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None;
             
-            HoneySelect2Maker._onSceneVideoCompleted = callback;
+            _onSceneVideoCompleted = callback;
 
             vp.prepareCompleted += OnPrepared;
 
@@ -201,25 +258,25 @@ namespace HoneySelect2Maker
             var texture = HS2SceneController.LoadTextureFromPng(pngPath);
             SceneController.PlaySceneImage(texture);
         */
-        internal static void PlaySceneImage(Texture texture, int sortingOrder = -100)
+        internal static void PlaySceneImage(Texture texture, int sortingOrder = 9999)
         {
             if (texture == null)
                 return;
 
             EnsureOverlayCanvas(sortingOrder);
 
-            var vp = HoneySelect2Maker._self._sceneVideoPlayer;
+            var vp = _sceneVideoPlayer;
             vp.Stop();
 
-            if (HoneySelect2Maker._sceneRT != null)
+            if (_sceneRT != null)
             {
-                HoneySelect2Maker._sceneRT.Release();
-                UnityEngine.Object.Destroy(HoneySelect2Maker._sceneRT);
-                HoneySelect2Maker._sceneRT = null;
+                _sceneRT.Release();
+                UnityEngine.Object.Destroy(_sceneRT);
+                _sceneRT = null;
             }
-
-            HoneySelect2Maker._rawImage.texture = texture;
-            HoneySelect2Maker._rawImage.enabled = true;
+            
+            _rawImage.texture = texture;
+            _rawImage.enabled = true;
         }
 
         internal static void OnPrepared(UnityEngine.Video.VideoPlayer vp)
@@ -241,11 +298,11 @@ namespace HoneySelect2Maker
             vp.loopPointReached -= OnVideoCompleted;
             vp.Stop();
 
-            if (HoneySelect2Maker._rawImage != null)
-                HoneySelect2Maker._rawImage.enabled = false;
+            if (_rawImage != null)
+                _rawImage.enabled = false;
 
-            HoneySelect2Maker._onSceneVideoCompleted?.Invoke();
-            HoneySelect2Maker._onSceneVideoCompleted = null;
+            _onSceneVideoCompleted?.Invoke();
+            _onSceneVideoCompleted = null;
             HoneySelect2Maker._videoFinished = true;
         }
         internal static bool IsVideoFileExists(string videoPath)
@@ -257,8 +314,9 @@ namespace HoneySelect2Maker
         }
         internal static void PlayVideo(string video_path, bool isLoop=false, bool isAudio=false, int sortingOrder = 9999)
         {
-            
             HoneySelect2Maker._videoFinished = false;
+
+            UnityEngine.Debug.Log($">> PlayVideo() | video_path {video_path}, exist {IsVideoFileExists(video_path)}| {Time.realtimeSinceStartup:F3}");
 
             if (IsVideoFileExists(video_path))
             {
@@ -298,88 +356,129 @@ namespace HoneySelect2Maker
 
         internal static void PlayVideoRandom(string video_folder, bool isAudio=false, int sortingOrder = 9999)
         {
-                HoneySelect2Maker._videoFinished = false;
+            HoneySelect2Maker._videoFinished = false;
 
-                List<string> video_files  = new List<string>();
-                bool isLoop=false;
+            List<string> video_files  = new List<string>();
+            bool isLoop=false;
 
-                video_files = GetVideoFiles(video_folder);
+            video_files = GetVideoFiles(video_folder);
 
-                if (video_files.Count > 0)
+            if (video_files.Count > 0)
+            {
+                int idx = UnityEngine.Random.Range(0, Mathf.Min(VIDEO_MAX_COUNT, video_files.Count));
+                string path = video_folder + video_files[idx];
+
+                if (path.Contains("loop"))
                 {
-                    int idx = UnityEngine.Random.Range(0, Mathf.Min(HoneySelect2Maker.VIDEO_MAX_COUNT, video_files.Count));
-                    string path = video_folder + video_files[idx];
-
-                    if (path.Contains("loop"))
-                    {
-                        isLoop = true;
-                    }
-
-                    if (isLoop)
-                    {
-                        PlaySceneVideo(
-                            path,
-                            isLoop,
-                            isAudio,
-                            sortingOrder
-                        );   
-                    } 
-                    else
-                    {
-
-                        PlaySceneVideo(
-                            path,
-                            isLoop,
-                            isAudio,
-                            sortingOrder,
-                            () =>
-                            {
-                                if (sortingOrder == 9999)
-                                { 
-                                    // 컷신용 제거
-                                    StopSceneVideo();
-                                }
-                            }
-                        );
-                    }
+                    isLoop = true;
                 }
+
+                if (isLoop)
+                {
+                    PlaySceneVideo(
+                        path,
+                        isLoop,
+                        isAudio,
+                        sortingOrder
+                    );   
+                } 
                 else
                 {
-                    HoneySelect2Maker._videoFinished = true;
-                } 
+
+                    PlaySceneVideo(
+                        path,
+                        isLoop,
+                        isAudio,
+                        sortingOrder,
+                        () =>
+                        {
+                            if (sortingOrder == 9999)
+                            { 
+                                // 컷신용 제거
+                                StopSceneVideo();
+                            }
+                        }
+                    );
+                }
+            }
+            else
+            {
+                HoneySelect2Maker._videoFinished = true;
+            } 
         }
 
         internal static void PlayVideoWithChat(string video_folder, bool isAudio=false, int sortingOrder = 9999)
         {
-                HoneySelect2Maker._videoFinished = false;
+            HoneySelect2Maker._videoFinished = false;
 
-                List<string> video_files  = new List<string>();
-                bool isLoop=true;
+            List<string> video_files  = new List<string>();
+            bool isLoop=true;
 
-                video_files = GetVideoFiles(video_folder);
+            video_files = GetVideoFiles(video_folder);
 
-                if (video_files.Count > 0)
-                {
-                    int idx = UnityEngine.Random.Range(0, Mathf.Min(HoneySelect2Maker.VIDEO_MAX_COUNT, video_files.Count));
-                    string path = video_folder + video_files[idx];
+            if (video_files.Count > 0)
+            {
+                int idx = UnityEngine.Random.Range(0, Mathf.Min(VIDEO_MAX_COUNT, video_files.Count));
+                string path = video_folder + video_files[idx];
 
-                    PlaySceneVideo(
-                            path,
-                            isLoop,
-                            isAudio,
-                            sortingOrder
-                        );  
-                }
-                else
-                {
-                    HoneySelect2Maker._videoFinished = true;
-                } 
+                PlaySceneVideo(
+                        path,
+                        isLoop,
+                        isAudio,
+                        sortingOrder
+                    );  
+            }
+            else
+            {
+                HoneySelect2Maker._videoFinished = true;
+            } 
         }        
+
+
+        internal static void PlayImageRandom(string png_folder, int sortingOrder = 9999)
+        {
+            HoneySelect2Maker._videoFinished = false;
+
+            List<string> png_files  = new List<string>();                
+
+            png_files = GetPngFiles(png_folder);
+
+            UnityEngine.Debug.Log($">> PlayImageRandom {png_files.Count} | {Time.realtimeSinceStartup:F3}");
+
+            if (png_files.Count > 0)
+            {
+                int idx = UnityEngine.Random.Range(0, Mathf.Min(VIDEO_MAX_COUNT, png_files.Count));
+                string path = png_folder + png_files[idx];
+
+                var texture = LoadTextureFromPng(path);
+
+                PlaySceneImage(
+                    texture,
+                    sortingOrder
+                );   
+
+            }
+            else
+            {
+                HoneySelect2Maker._videoFinished = true;
+            } 
+        }        
+
+        internal static void DestroyCurrentRender()
+        {
+            _sceneVideoPlayer.Stop();
+            if (_rawImage != null)
+                _rawImage.enabled = false;
+
+            _onSceneVideoCompleted?.Invoke();
+            _onSceneVideoCompleted = null;
+            HoneySelect2Maker._videoFinished = true;
+        }
 
         internal static void StopSceneVideo()
         {
-            HoneySelect2Maker._self._sceneVideoPlayer.Stop();
-            HoneySelect2Maker._sceneCanvas.enabled = false;
+            _sceneVideoPlayer.Stop();
+            _sceneCanvas.enabled = false;
         }
 
         internal static void UnlockAchivementAll()
@@ -424,7 +523,7 @@ namespace HoneySelect2Maker
         {
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
-                Debug.LogWarning($"PNG not found: {path}");
+                UnityEngine.Debug.LogWarning($"PNG not found: {path}");
                 return null;
             }
 
@@ -435,7 +534,7 @@ namespace HoneySelect2Maker
 
             if (!texture.LoadImage(fileData))
             {
-                Debug.LogError($"Failed to load PNG: {path}");
+                UnityEngine.Debug.LogError($"Failed to load PNG: {path}");
                 GameObject.Destroy(texture);
                 return null;
             }
@@ -444,6 +543,30 @@ namespace HoneySelect2Maker
             texture.filterMode = FilterMode.Bilinear;
 
             return texture;
+        }
+
+        internal static Dictionary<string, List<ChatUser>> LoadHeroinProfile(string jsonPath)
+        {
+            if (!File.Exists(jsonPath))
+            {
+                UnityEngine.Debug.LogWarning($"file not found: {jsonPath}");
+                return new Dictionary<string, List<ChatUser>>();
+            }
+
+            try
+            {
+                string json = File.ReadAllText(jsonPath);
+
+                var result =
+                    JsonConvert.DeserializeObject<Dictionary<string, List<ChatUser>>>(json);
+
+                return result ?? new Dictionary<string, List<ChatUser>>();
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogError(ex);
+                return new Dictionary<string, List<ChatUser>>();
+            }
         }
 
         internal static void LoadHeroin(string pngPath)
@@ -455,7 +578,13 @@ namespace HoneySelect2Maker
             chaControl.ChangeNowCoordinate(false, true);
             chaControl.releaseCustomInputTexture = false;
             chaControl.Load(false);
-        }        
+        }
+
+        internal static SystemLanguage GetSystemLanguage()
+        {
+            UnityEngine.Debug.Log($"SetFontFromOSBySystemLanguage {Application.systemLanguage}");
+            return Application.systemLanguage;
+        }
     }
 
     class HeroinData

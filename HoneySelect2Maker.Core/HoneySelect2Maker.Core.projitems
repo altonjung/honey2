@@ -13,6 +13,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)HS2Maker.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HS2MakerSceneController.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HS2MakerChatUIController.cs" />    
+    <Compile Include="$(MSBuildThisFileDirectory)HS2MakerChatSUIController.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HS2MakerChatController.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HS2MakerActionController.cs" />
   </ItemGroup>

@@ -179,13 +179,19 @@ namespace HoneySelect2Maker
                 return;
             }
 
-            AppendChat("User", value.Trim());
+            AppendChat("You", value.Trim());
             _chatInput.text = "waiting..";
   
             UnityEngine.Debug.Log($">> User Chat Input: {value.Trim()}");
 
-            string result = await _chatController.SendChatAsync(HoneySelect2Maker._HS2_LLM_SERVER, HoneySelect2Maker._HS2_LLM_MODEL, 4096, 0.5f, CHAT_EVENT.CHAT_Bump, _user, _heroin, value.Trim());
-            AppendChat("Assistant", result.Trim());
+            string result = await _chatController.SendChatAsync(
+                4096,
+                0.2f,
+                CHAT_EVENT.CHAT_Bump,
+                _user,
+                _heroin,
+                value.Trim());
+            AppendChat(_heroin.name, result.Trim());
             
             _chatInput.text = "";
             _chatInput.ActivateInputField();
@@ -197,17 +203,11 @@ namespace HoneySelect2Maker
             if (_chatLogText == null)
                 return;
 
-            bool isUser = string.Equals(speaker, "User", StringComparison.OrdinalIgnoreCase);
+            bool isUser = string.Equals(speaker, "You", StringComparison.OrdinalIgnoreCase);
             _chatLogText.color = GetFontColor(isUser);
 
             if (_chatLogText.text.Length > 0)
                 _chatLogText.text += "\n";
-
-            if (speaker.Equals("User")) {
-                speaker = "You";
-            } else {
-                speaker = "Heroin";
-            }
 
             _chatLogText.text += $"[{speaker}] {message}";
         }
@@ -227,13 +227,8 @@ namespace HoneySelect2Maker
             _chatController = null;
             _actionController = null;
             _initialized = false;
-            HoneySelect2Maker._self._sceneVideoPlayer.Stop();
-            if (HoneySelect2Maker._rawImage != null)
-                HoneySelect2Maker._rawImage.enabled = false;
 
-            HoneySelect2Maker._onSceneVideoCompleted?.Invoke();
-            HoneySelect2Maker._onSceneVideoCompleted = null;
-            HoneySelect2Maker._videoFinished = true;
+            HS2SceneController.DestroyCurrentRender();
         }
 
         // 폰트 크기 설정 함수: 이후 생성되는 메시지/입력 텍스트에 적용된다.

@@ -41,6 +41,7 @@ using Manager;
 #if AISHOUJO || HONEYSELECT2
 using AIChara;
 #endif
+using Newtonsoft.Json;
 
 /*
     해야 할 일:        
@@ -79,11 +80,6 @@ namespace HoneySelect2Maker
         public const string Version = "0.9.1.2";
         public const string GUID = "com.alton.illusionplugins.HoneySelect2Maker";
         internal const string _ownerId = "Alton";
-#if FEATURE_PUBLIC_RELEASE
-        internal const int VIDEO_MAX_COUNT = 10;
-#else
-        internal const int VIDEO_MAX_COUNT = 30;
-#endif
 
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
@@ -104,31 +100,33 @@ namespace HoneySelect2Maker
         internal static new ManualLogSource Logger;
         internal static HoneySelect2Maker _self;
 
+// Video
+        internal string _provider_config_path = UserData.Path + "/hs2maker/system/config/provider.json";
+        internal string _fallback_config_path = UserData.Path + "/hs2maker/system/message/fallback.json";
+
         internal string _video_title_scene_folder = UserData.Path + "/hs2maker/title/";
+        internal string _video_title_scene_loop_path = UserData.Path + "/hs2maker/title/loop.hs2m";
         internal string _video_home_scene_folder = UserData.Path + "/hs2maker/home/";
         internal string _video_home_evt_scene_folder = UserData.Path + "/hs2maker/home/event/";
         internal string _video_home_sleep_scene_folder = UserData.Path + "/hs2maker/home/sleep/";
         internal string _video_lobby_scene_folder = UserData.Path + "/hs2maker/lobby/";
-        internal string _video_concierge_scene_folder = UserData.Path + "/hs2maker/concierge/";
-     
-        internal string _video_adv_japaneses_scene_folder = UserData.Path + "/hs2maker/adv/japanese";
-        internal string _video_adv_lobby_scene_folder = UserData.Path + "/hs2maker/adv/lobby";
+        internal string _video_concierge_scene_folder = UserData.Path + "/hs2maker/concierge/";     
+        internal string _video_adv_japaneses_scene_folder = UserData.Path + "/hs2maker/adv/japanese/";
+        internal string _video_adv_lobby_scene_folder = UserData.Path + "/hs2maker/adv/lobby/";
 
-        internal string _video_title_scene_loop_path = UserData.Path + "/hs2maker/title/loop.hs2m";
+// Image
+        internal string _img_chat_scene_folder = UserData.Path + "/hs2maker/home/event/chat/";
 
-        internal string _img_chat_scene_path_file = UserData.Path + "/hs2maker/home/event/chat.png";
-
-        internal UnityEngine.Video.VideoPlayer _sceneVideoPlayer;
-
-        internal static Canvas _sceneCanvas;
-        internal static RenderTexture _sceneRT;
-        internal static GameObject _overlayCanvasGO;
-        internal static UnityEngine.UI.RawImage _rawImage;
-
-        internal static Action _onSceneVideoCompleted;
+// LLM
         internal static bool _videoFinished = false;
         internal static string _HS2_LLM_SERVER = "";
         internal static string _HS2_LLM_MODEL = "";
+        internal static string _HS2_LLM_PROVIDER = "";
+        internal static string _HS2_OPENROUTER_MODEL = "";
+        internal static string _HS2_OPENROUTER_BASE_URL = "";
+        internal static string _HS2_OPENROUTER_API_KEY = "";
+        internal static string _HS2_OPENROUTER_REFERER = "";
+        internal static string _HS2_OPENROUTER_TITLE = "";
 
         internal bool _isAbleTitleVideo;
        
@@ -143,10 +141,15 @@ namespace HoneySelect2Maker
 
         private AssetBundle _bundle;
         #endregion
+        private static ProviderConfig _providerConfig;
+        internal static ProviderConfig ProviderConfig => _providerConfig;
 
 
         #region Accessors
         internal static ConfigEntry<bool> VideoModeActive { get; private set; }
+        internal static ConfigEntry<string> LLMProvider { get; private set; }
+        internal static ConfigEntry<string> OpenRouterModel { get; private set; }
+        internal static ConfigEntry<string> OpenRouterBaseUrl { get; private set; }
         #endregion
 
 
@@ -156,19 +159,21 @@ namespace HoneySelect2Maker
             base.Awake();
 
             VideoModeActive = Config.Bind("InGame", "Video Play", true, new ConfigDescription("Enable/Disable"));
+            LLMProvider = Config.Bind("LLM", "Provider", "ollama", new ConfigDescription("LLM provider: ollama | openrouter"));
+            OpenRouterModel = Config.Bind("LLM", "OpenRouter Model", "openai/gpt-4o", new ConfigDescription("OpenRouter model id."));
+            OpenRouterBaseUrl = Config.Bind("LLM", "OpenRouter Base URL", "https://openrouter.ai/api/v1", new ConfigDescription("OpenRouter API base URL"));
 
             _self = this;
 
             Logger = base.Logger;
 
             _assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-            GameObject videoObj = new GameObject("sceneVideoPlayer");
-            GameObject.DontDestroyOnLoad(videoObj);
-            _sceneVideoPlayer = videoObj.AddComponent<UnityEngine.Video.VideoPlayer>();
-
+            _providerConfig = LoadProviderConfig(_provider_config_path);
+            
             var harmonyInstance = HarmonyExtensions.CreateInstance(GUID);
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
+
+            HS2SceneController.Initialize();
 
             // title
             if (HS2SceneController.GetVideoFiles(_self._video_title_scene_folder).Count > 0)
@@ -186,7 +191,64 @@ namespace HoneySelect2Maker
             if (_HS2_LLM_MODEL == null || _HS2_LLM_MODEL.Equals(""))
                 _HS2_LLM_MODEL = "realgirl";
 
-            UnityEngine.Debug.Log($"> HS2_LLM_Server = {_HS2_LLM_SERVER}, model = {_HS2_LLM_MODEL}");
+            _HS2_LLM_PROVIDER = Environment.GetEnvironmentVariable("hs2_llm_provider");
+            if (string.IsNullOrWhiteSpace(_HS2_LLM_PROVIDER))
+                _HS2_LLM_PROVIDER = LLMProvider.Value;
+
+            _HS2_OPENROUTER_MODEL = Environment.GetEnvironmentVariable("OPENROUTER_MODEL");
+            if (string.IsNullOrWhiteSpace(_HS2_OPENROUTER_MODEL))
+                _HS2_OPENROUTER_MODEL = OpenRouterModel.Value;
+
+            _HS2_OPENROUTER_BASE_URL = Environment.GetEnvironmentVariable("OPENROUTER_BASE_URL");
+            if (string.IsNullOrWhiteSpace(_HS2_OPENROUTER_BASE_URL))
+                _HS2_OPENROUTER_BASE_URL = OpenRouterBaseUrl.Value;
+
+            _HS2_OPENROUTER_API_KEY = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY");
+            _HS2_OPENROUTER_REFERER = Environment.GetEnvironmentVariable("OPENROUTER_REFERER");
+            _HS2_OPENROUTER_TITLE = Environment.GetEnvironmentVariable("OPENROUTER_TITLE");
+
+            if (_providerConfig != null)
+            {
+                if (!string.IsNullOrWhiteSpace(_providerConfig.provider))
+                    _HS2_LLM_PROVIDER = _providerConfig.provider;
+                if (!string.IsNullOrWhiteSpace(_providerConfig.host))
+                    _HS2_LLM_SERVER = _providerConfig.host;
+                if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterBaseUrl))
+                    _HS2_OPENROUTER_BASE_URL = _providerConfig.openrouterBaseUrl;
+                if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterApiKey))
+                    _HS2_OPENROUTER_API_KEY = _providerConfig.openrouterApiKey;
+                if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterModel))
+                    _HS2_OPENROUTER_MODEL = _providerConfig.openrouterModel;
+                if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterReferer))
+                    _HS2_OPENROUTER_REFERER = _providerConfig.openrouterReferer;
+                if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterTitle))
+                    _HS2_OPENROUTER_TITLE = _providerConfig.openrouterTitle;
+            }
+
+            UnityEngine.Debug.Log($"> LLM provider = {_HS2_LLM_PROVIDER}, ollama = {_HS2_LLM_SERVER}, ollama model = {_HS2_LLM_MODEL}, base = {_HS2_OPENROUTER_BASE_URL}, model = {_HS2_OPENROUTER_MODEL}");
+        }
+
+        private static ProviderConfig LoadProviderConfig(string configPath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(configPath))
+                    return null;
+
+                if (!File.Exists(configPath))
+                    return null;
+
+                var json = File.ReadAllText(configPath);
+                if (string.IsNullOrWhiteSpace(json))
+                    return null;
+
+                return JsonConvert.DeserializeObject<ProviderConfig>(json);
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogWarning($"> Failed to read provider.json: {e.Message}");
+                return null;
+            }
         }
 
         // private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -293,7 +355,7 @@ namespace HoneySelect2Maker
         {
             private static void Postfix(HS2.TitleScene __instance)
             {
-                // UnityEngine.Debug.Log($">> Start in Title | {DateTime.Now:HH:mm:ss.fff}");
+                UnityEngine.Debug.Log($">> Start in Title | {DateTime.Now:HH:mm:ss.fff}");
 
                 if (_self.IsAvailableVideo(_self._video_title_scene_folder)) {
                     //HS2SceneController.PlayVideo(_self._video_title_scene_folder);
@@ -310,6 +372,8 @@ namespace HoneySelect2Maker
             yield return new WaitUntil(() => _videoFinished);
 
             string currentSceneName = SceneManager.GetActiveScene().name;
+            
+            UnityEngine.Debug.Log($">> currentSceneName {currentSceneName} | {DateTime.Now:HH:mm:ss.fff}");
 
             if (currentSceneName.Equals("Title"))
             {
@@ -382,46 +446,48 @@ namespace HoneySelect2Maker
         private static IEnumerator WaitHomeSceneCallWithChat(HS2.HomeScene __instance)
         {
             string currentSceneName = SceneManager.GetActiveScene().name;
-            // UnityEngine.Debug.Log($">>currentSceneName {currentSceneName} in WaitHomeSceneCall | {Time.realtimeSinceStartup:F3}");
+            UnityEngine.Debug.Log($">>currentSceneName {currentSceneName} in WaitHomeSceneCallWithChat | {Time.realtimeSinceStartup:F3}");
 
-            yield return new WaitForEndOfFrame();
-            HS2SceneController.PlayVideoWithChat(_self._video_home_evt_scene_folder, true);
+            yield return new WaitForEndOfFrame();            
 
-            var texture = HS2SceneController.LoadTextureFromPng(_self._img_chat_scene_path_file);
-
-            HS2SceneController.PlaySceneImage(texture);
-            var chatUI = new HS2ChatUIController();
+             //var chatUI = new HS2ChatUIController();
+            var chatUI = new HS2ChatSUIController();
             chatUI.SetFontFromOSBySystemLanguage();
 
             var user = new ChatUser
             {
                 gender = "boy",
-                name = "Guy",
+                name = "Honey",
                 age = 20,
                 nationality = "korean",
-                address = "Seoul",
-                job = "unknown",
+                friendship = "",
                 character1 = "cautious",
                 character2 = "friendly",
-                talking_style = "normal"
+                talking_style = "normal",
+                habit="",
+                love=""
             };
 
             var heroin = new ChatUser
             {
                 gender = "girl",
-                name = "Miki",
+                name = "Jenny",
                 age = 20,
                 nationality = "korean",
-                address = "Seoul",
-                job = "unknown",
+                friendship = "unknown",
+                job = "student",
                 character1 = "cautious",
-                character2 = "sensitive",
-                talking_style = "short"
+                character2 = "girlish",
+                talking_style = "short",
+                habit="listen music",
+                love="food,flower"
             };
 
-            chatUI.CreateChatUI(new HS2ChatController(), new HS2ActionController(), user, heroin);
+            chatUI.CreateChatUI(new HS2ChatController(HoneySelect2Maker.ProviderConfig), new HS2ActionController(), user, heroin);
+            HS2SceneController.PlayImageRandom(_self._img_chat_scene_folder);
             yield return new WaitUntil(() => _videoFinished);
             chatUI.DestroyChatUI();
+            
 
             // UnityEngine.Debug.Log($">> WaitHomeSceneCallWithChat videoFinished | {Time.realtimeSinceStartup:F3}");
 
@@ -810,9 +876,9 @@ namespace HoneySelect2Maker
                 if (!VideoModeActive.Value)
                     return;
 
-                if (_self._sceneVideoPlayer.isPlaying)
+                if (HS2SceneController.GetVideoPlayer().isPlaying)
                 {
-                    _self._sceneVideoPlayer.Pause();
+                    HS2SceneController.GetVideoPlayer().Pause();
                 }
 
                 HS2SceneController.StopSceneVideo();
@@ -827,9 +893,9 @@ namespace HoneySelect2Maker
                 if (!VideoModeActive.Value)
                     return;
 
-               if (_self._sceneVideoPlayer.isPlaying)
+               if (HS2SceneController.GetVideoPlayer().isPlaying)
                {
-                  _self._sceneVideoPlayer.Pause();
+                    HS2SceneController.GetVideoPlayer().Pause();
                }
            }
         }
@@ -842,9 +908,9 @@ namespace HoneySelect2Maker
                 if (!VideoModeActive.Value)
                     return;
 
-               if (_self._sceneVideoPlayer.isPlaying)
+               if (HS2SceneController.GetVideoPlayer().isPlaying)
                {
-                  _self._sceneVideoPlayer.Pause();
+                    HS2SceneController.GetVideoPlayer().Pause();
                } 
            }
         }
@@ -857,9 +923,9 @@ namespace HoneySelect2Maker
                 if (!VideoModeActive.Value)
                     return;
 
-               if (_self._sceneVideoPlayer.isPlaying)
+               if (HS2SceneController.GetVideoPlayer().isPlaying)
                {
-                  _self._sceneVideoPlayer.Pause();
+                    HS2SceneController.GetVideoPlayer().Pause();
                }     
            }
         }
@@ -872,9 +938,9 @@ namespace HoneySelect2Maker
                 if (!VideoModeActive.Value)
                     return;
 
-                if (_self._sceneVideoPlayer.isPlaying)
+                if (HS2SceneController.GetVideoPlayer().isPlaying)
                 {
-                    _self._sceneVideoPlayer.Pause();
+                    HS2SceneController.GetVideoPlayer().Pause();
                 }
 
                 HS2SceneController.StopSceneVideo();
@@ -889,9 +955,9 @@ namespace HoneySelect2Maker
                 if (!VideoModeActive.Value)
                     return;
 
-                if (_self._sceneVideoPlayer.isPlaying)
+                if (HS2SceneController.GetVideoPlayer().isPlaying)
                 {
-                    _self._sceneVideoPlayer.Pause();
+                    HS2SceneController.GetVideoPlayer().Pause();
                 }
 
                 HS2SceneController.StopSceneVideo();
@@ -905,9 +971,6 @@ namespace HoneySelect2Maker
            private static bool Prefix(Manager.BaseMap __instance, int _no, FadeCanvas.Fade fadeType = FadeCanvas.Fade.InOut, bool isForce = false)
            {
                 UnityEngine.SceneManagement.Scene scene = SceneManager.GetActiveScene();
-
-                UnityEngine.Debug.Log($"> ChangeAsync: {scene.name}, {_self}, {VideoModeActive}");
-
 
                 if (!VideoModeActive.Value)
                     return true;
@@ -953,4 +1016,16 @@ namespace HoneySelect2Maker
     }
 
     #endregion
+
+    [Serializable]
+    public class ProviderConfig
+    {
+        public string provider;
+        public string host;
+        public string openrouterBaseUrl;
+        public string openrouterApiKey;
+        public string openrouterModel;
+        public string openrouterReferer;
+        public string openrouterTitle;
+    }
 }
