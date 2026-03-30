@@ -257,22 +257,51 @@ namespace ClothTransformSlider
 
         private void SceneRead(XmlNode node, List<OCIChar> ociChars)
         {
+            UnityEngine.Debug.Log($">> SceneRead in ClothTransformSlider");
+
+            var ociCharByDicKey = new Dictionary<int, OCIChar>();
+            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
+            {
+                var oci = kvp.Value as OCIChar;
+                if (oci != null)
+                    ociCharByDicKey[kvp.Key] = oci;
+            }
+
+            var ociCharByHash = new Dictionary<int, OCIChar>();
+            foreach (var oci in ociChars)
+            {
+                if (oci == null)
+                    continue;
+                int hash = oci.GetChaControl().GetHashCode();
+                if (!ociCharByHash.ContainsKey(hash))
+                    ociCharByHash.Add(hash, oci);
+            }
+
+            int restoredChars = 0;
+            int restoredTransfers = 0;
+
             foreach (XmlNode charNode in node.SelectNodes("character"))
             {
-                string hash = charNode.Attributes["hash"]?.Value;
-                if (string.IsNullOrEmpty(hash))
-                    continue;
-                if (!int.TryParse(hash, out int hashValue))
-                    continue;
+                OCIChar ociChar = null;
 
-                OCIChar ociChar = ociChars.FirstOrDefault(c => c.GetChaControl().GetHashCode() == hashValue);
+                string dicKeyText = charNode.Attributes["dicKey"]?.Value;
+                if (!string.IsNullOrEmpty(dicKeyText) && int.TryParse(dicKeyText, out int dicKeyValue))
+                    ociChar = FindOciCharByDicKey(ociCharByDicKey, dicKeyValue);
+
+                if (ociChar == null)
+                {
+                    string hash = charNode.Attributes["hash"]?.Value;
+                    if (!string.IsNullOrEmpty(hash) && int.TryParse(hash, out int hashValue))
+                        ociCharByHash.TryGetValue(hashValue, out ociChar);
+                }
+
                 if (ociChar == null)
                     continue;
 
                 var saved = new Dictionary<string, SavedAdjustment>();
                 foreach (XmlNode transferNode in charNode.SelectNodes("transfer"))
                 {
-                    string boneName = transferNode.Attributes["name"]?.Value;
+                    string boneName = NormalizeBoneName(transferNode.Attributes["name"]?.Value);
                     if (string.IsNullOrEmpty(boneName))
                         continue;
 
@@ -291,27 +320,60 @@ namespace ClothTransformSlider
                     saved[boneName] = adj;
                 }
 
+                int dicKey;
+                bool hasDicKey = TryGetDicKey(ociChar.GetChaControl(), out dicKey);
+                UnityEngine.Debug.Log($">> SceneRead char dicKey={(hasDicKey ? dicKey.ToString() : "not-found")} savedTransfers={saved.Count}");
+
                 AutoMapWithSaved(ociChar.GetChaControl(), saved);
                 StoreAdjustmentsFor(ociChar.GetChaControl(), saved);
+
+                restoredChars++;
+                restoredTransfers += saved.Count;
             }
+
+            UnityEngine.Debug.Log($">> SceneRead summary chars={restoredChars} transfers={restoredTransfers}");
         }
 
         private void SceneWrite(string path, XmlTextWriter writer)
         {
+            UnityEngine.Debug.Log($">> SceneWrite in ClothTransformSlider");
+
             var dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
-            var ociChars = dic.Values.Select(v => v as OCIChar).Where(c => c != null).ToList();
-            var activeHashes = new HashSet<int>(ociChars.Select(c => c.GetChaControl().GetHashCode()));
+            var ociCharByDicKey = dic
+                .Where(kv => kv.Value is OCIChar)
+                .ToDictionary(kv => kv.Key, kv => kv.Value as OCIChar);
+            var activeDicKeys = new HashSet<int>(ociCharByDicKey.Keys);
+
+            UnityEngine.Debug.Log($">> SceneWrite adjustments chars={_perCharAdjustments.Count} activeChars={activeDicKeys.Count}");
 
             foreach (var kvp in _perCharAdjustments)
             {
-                if (!activeHashes.Contains(kvp.Key))
-                    continue;
+                OCIChar ociChar = null;
+                int dicKey = kvp.Key;
+
+                if (!activeDicKeys.Contains(dicKey))
+                {
+                    // Fallback for legacy keys: try to match by ChaControl hash
+                    ociChar = ociCharByDicKey.Values.FirstOrDefault(c => c != null && c.GetChaControl().GetHashCode() == kvp.Key);
+                    if (ociChar == null)
+                        continue;
+                    dicKey = ociCharByDicKey.First(kv => kv.Value == ociChar).Key;
+                }
+                else
+                {
+                    ociChar = ociCharByDicKey[dicKey];
+                }
+
                 var map = kvp.Value;
                 if (map == null || map.Count == 0)
                     continue;
 
+                UnityEngine.Debug.Log($">> SceneWrite char dicKey={dicKey} transfers={map.Count}");
+
                 writer.WriteStartElement("character");
-                writer.WriteAttributeString("hash", kvp.Key.ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("dicKey", dicKey.ToString(CultureInfo.InvariantCulture));
+                if (ociChar != null)
+                    writer.WriteAttributeString("hash", ociChar.GetChaControl().GetHashCode().ToString(CultureInfo.InvariantCulture));
 
                 foreach (var entry in map)
                 {
@@ -418,7 +480,7 @@ namespace ClothTransformSlider
 
                         StoreAdjustmentsFor(chaCtrl, CaptureCurrentAdjustments());
 
-                        if (GUILayout.Button("Reset Selected"))
+                        if (GUILayout.Button("Reset"))
                         {
                             entry.transfer.localPosition = Vector3.zero;
                             entry.transfer.localScale = Vector3.one;
@@ -502,22 +564,50 @@ namespace ClothTransformSlider
 
             SkinnedMeshRenderer bodyRenderer = GetBodyRenderer(chaCtrl);
             if (bodyRenderer == null)
+            {
+                UnityEngine.Debug.Log($">> AutoMapWithSaved: bodyRenderer null");
                 return;
+            }
 
             var bodyBonesByName = new Dictionary<string, Transform>();
-            foreach (var bone in bodyRenderer.bones)
+            // Prefer full body hierarchy to avoid missing bones when renderer bones list is limited.
+            if (chaCtrl.objBody != null)
             {
-                if (bone == null)
-                    continue;
-                if (!bodyBonesByName.ContainsKey(bone.name))
-                    bodyBonesByName.Add(bone.name, bone);
+                var all = chaCtrl.objBody.GetComponentsInChildren<Transform>(true);
+                if (all != null)
+                {
+                    foreach (var bone in all)
+                    {
+                        if (bone == null)
+                            continue;
+                        string boneName = NormalizeBoneName(bone.name);
+                        if (string.IsNullOrEmpty(boneName))
+                            continue;
+                        if (!bodyBonesByName.ContainsKey(boneName))
+                            bodyBonesByName.Add(boneName, bone);
+                    }
+                }
             }
+            UnityEngine.Debug.Log($">> AutoMapWithSaved: bodyBones={bodyBonesByName.Count}");
 
             var clothRenderers = GetActiveClothRenderers(chaCtrl);
             if (clothRenderers.Count == 0)
+            {
+                UnityEngine.Debug.Log($">> AutoMapWithSaved: no cloth renderers");
                 return;
+            }
+
+            int savedCount = saved != null ? saved.Count : 0;
+            UnityEngine.Debug.Log($">> AutoMapWithSaved: clothRenderers={clothRenderers.Count} savedTransfers={savedCount}");
+
+            if (saved != null && savedCount > 0)
+            {
+                string[] sampleSaved = saved.Keys.Take(5).ToArray();
+                UnityEngine.Debug.Log($">> AutoMapWithSaved: saved sample={string.Join(",", sampleSaved)}");
+            }
 
             var transferByName = new Dictionary<string, TransferEntry>();
+            int applied = 0;
 
             foreach (var renderer in clothRenderers)
             {
@@ -530,14 +620,18 @@ namespace ClothTransformSlider
                     if (clothBone == null)
                         continue;
 
-                    Transform bodyBone;
-                    if (!bodyBonesByName.TryGetValue(clothBone.name, out bodyBone))
+                    string clothBoneName = NormalizeBoneName(clothBone.name);
+                    if (string.IsNullOrEmpty(clothBoneName))
                         continue;
 
+                    Transform bodyBone;
+                    if (!bodyBonesByName.TryGetValue(clothBoneName, out bodyBone))
+                        bodyBone = clothBone;
+
                     TransferEntry entry;
-                    if (!transferByName.TryGetValue(clothBone.name, out entry))
+                    if (!transferByName.TryGetValue(clothBoneName, out entry))
                     {
-                        var transferGO = new GameObject(clothBone.name + "_CTS");
+                        var transferGO = new GameObject(clothBoneName + "_CTS");
                         var transferTr = transferGO.transform;
                         transferTr.SetParent(bodyBone, false);
                         transferTr.localPosition = Vector3.zero;
@@ -546,14 +640,16 @@ namespace ClothTransformSlider
 
                         entry = new TransferEntry
                         {
-                            boneName = clothBone.name,
+                            boneName = clothBoneName,
                             bodyBone = bodyBone,
                             transfer = transferTr
                         };
-                        transferByName.Add(clothBone.name, entry);
+                        transferByName.Add(clothBoneName, entry);
                         _transferEntries.Add(entry);
                     }
 
+                    if (saved != null && saved.ContainsKey(entry.boneName))
+                        applied++;
                     ApplySavedAdjustment(entry, saved);
 
                     entry.refs.Add(new RendererBoneRef
@@ -573,6 +669,43 @@ namespace ClothTransformSlider
                 }
             }
 
+            if (transferByName.Count > 0)
+            {
+                string[] sampleTransfer = transferByName.Keys.Take(5).ToArray();
+                UnityEngine.Debug.Log($">> AutoMapWithSaved: transfer sample={string.Join(",", sampleTransfer)}");
+            }
+
+            int matched = 0;
+            if (saved != null && savedCount > 0)
+            {
+                var savedSet = new HashSet<string>(saved.Keys);
+                matched = transferByName.Keys.Count(k => savedSet.Contains(k));
+            }
+            UnityEngine.Debug.Log($">> AutoMapWithSaved: appliedTransfers={applied} matchedByName={matched} totalTransfers={_transferEntries.Count}");
+
+            if (saved != null && savedCount > 0)
+            {
+                string sampleSaved = saved.Keys.FirstOrDefault();
+                UnityEngine.Debug.Log($">> AutoMapWithSaved: saved name detail={DescribeName(sampleSaved)}");
+            }
+            if (transferByName.Count > 0)
+            {
+                string sampleTransfer = transferByName.Keys.FirstOrDefault();
+                UnityEngine.Debug.Log($">> AutoMapWithSaved: transfer name detail={DescribeName(sampleTransfer)}");
+            }
+
+            UnityEngine.Debug.Log($">> saved: {saved}: savedCount: {savedCount}, transferByName.Count: {transferByName.Count}");
+
+            if (saved != null && savedCount > 0 && transferByName.Count > 0)
+            {
+                string sampleSaved = saved.Keys.FirstOrDefault();
+                string sampleTransfer = transferByName.Keys.FirstOrDefault();
+                bool eq = string.Equals(sampleSaved, sampleTransfer, StringComparison.Ordinal);
+                bool savedHasTransfer = saved.ContainsKey(sampleTransfer);
+                bool transferHasSaved = transferByName.ContainsKey(sampleSaved);
+                UnityEngine.Debug.Log($">> AutoMapWithSaved: compare eq={eq} savedHasTransfer={savedHasTransfer} transferHasSaved={transferHasSaved}");
+            }
+
             _selectedTransferIndex = _transferEntries.Count > 0 ? 0 : -1;
             StoreAdjustmentsFor(chaCtrl, CaptureCurrentAdjustments());
         }
@@ -584,7 +717,10 @@ namespace ClothTransformSlider
             {
                 if (entry == null || entry.transfer == null || string.IsNullOrEmpty(entry.boneName))
                     continue;
-                map[entry.boneName] = new SavedAdjustment
+                string name = NormalizeBoneName(entry.boneName);
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                map[name] = new SavedAdjustment
                 {
                     position = entry.transfer.localPosition,
                     scale = entry.transfer.localScale
@@ -639,7 +775,45 @@ namespace ClothTransformSlider
         {
             if (chaCtrl == null || map == null)
                 return;
-            _perCharAdjustments[chaCtrl.GetHashCode()] = map;
+            if (TryGetDicKey(chaCtrl, out int dicKey))
+                _perCharAdjustments[dicKey] = map;
+            else
+                _perCharAdjustments[chaCtrl.GetHashCode()] = map;
+        }
+
+        private bool TryGetDicKey(ChaControl chaCtrl, out int dicKey)
+        {
+            dicKey = 0;
+            if (chaCtrl == null)
+                return false;
+
+            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
+            {
+                var oci = kvp.Value as OCIChar;
+                if (oci == null)
+                    continue;
+                if (oci.GetChaControl() == chaCtrl)
+                {
+                    dicKey = kvp.Key;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private OCIChar FindOciCharByDicKey(Dictionary<int, OCIChar> map, int savedDicKey)
+        {
+            if (map.TryGetValue(savedDicKey, out var oci))
+                return oci;
+
+            // Handle scene import where dicKeys are remapped (new -> old).
+            foreach (var pair in SceneInfo_Import_Patches._newToOldKeys)
+            {
+                if (pair.Value == savedDicKey && map.TryGetValue(pair.Key, out oci))
+                    return oci;
+            }
+
+            return null;
         }
 
         private SkinnedMeshRenderer GetBodyRenderer(ChaControl chaCtrl)
@@ -714,6 +888,44 @@ namespace ClothTransformSlider
             return fallback;
         }
 
+        private string NormalizeBoneName(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return name;
+            // Remove control characters and trim whitespace.
+            char[] buffer = new char[name.Length];
+            int idx = 0;
+            for (int i = 0; i < name.Length; i++)
+            {
+                char c = name[i];
+                if (c <= 0x1F || c == 0x7F)
+                    continue;
+                buffer[idx++] = c;
+            }
+            string cleaned = new string(buffer, 0, idx).Trim();
+            if (string.IsNullOrEmpty(cleaned))
+                return cleaned;
+            // Strip transfer/clone suffixes so saved names match live bones.
+            const string transferSuffix = "_CTS";
+            const string cloneToken = "_CTClone_";
+            if (cleaned.EndsWith(transferSuffix, StringComparison.Ordinal))
+                cleaned = cleaned.Substring(0, cleaned.Length - transferSuffix.Length);
+            int cloneIndex = cleaned.IndexOf(cloneToken, StringComparison.Ordinal);
+            if (cloneIndex >= 0)
+                cleaned = cleaned.Substring(0, cloneIndex);
+            return cleaned;
+        }
+
+        private string DescribeName(string name)
+        {
+            if (name == null)
+                return "null";
+            var codes = new List<string>(name.Length);
+            for (int i = 0; i < name.Length; i++)
+                codes.Add(((int)name[i]).ToString(CultureInfo.InvariantCulture));
+            return $"len={name.Length} text='{name}' codes=[{string.Join(",", codes)}]";
+        }
+
         private class RendererBoneRef
         {
             public SkinnedMeshRenderer renderer;
@@ -739,6 +951,17 @@ namespace ClothTransformSlider
     }
 
 #region Patches
+    [HarmonyPatch(typeof(SceneInfo), "Import", new[] { typeof(BinaryReader), typeof(Version) })]
+    internal static class SceneInfo_Import_Patches //This is here because I fucked up the save format making it impossible to import scenes correctly
+    {
+        internal static readonly Dictionary<int, int> _newToOldKeys = new Dictionary<int, int>();
+
+        private static void Prefix()
+        {
+            _newToOldKeys.Clear();
+        }
+    }
+    
     [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
     internal static class WorkspaceCtrl_OnSelectSingle_Patches
     {
