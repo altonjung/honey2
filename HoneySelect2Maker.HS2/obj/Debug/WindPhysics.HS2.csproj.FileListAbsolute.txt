@@ -1,6 +1,0 @@
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\WindPhysics.HS2\obj\Debug\WindPhysics.HS2.csproj.AssemblyReference.cache
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\WindPhysics.HS2\obj\Debug\WindPhysics.HS2.csproj.CoreCompileInputs.cache
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\WindPhysics.dll
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\WindPhysics.pdb
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\WindPhysics.HS2\obj\Debug\WindPhysics.dll
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\WindPhysics.HS2\obj\Debug\WindPhysics.pdb

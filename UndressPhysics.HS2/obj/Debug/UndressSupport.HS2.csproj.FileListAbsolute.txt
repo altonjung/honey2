@@ -1,6 +1,0 @@
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\UndressSupport.HS2\obj\Debug\UndressSupport.HS2.csproj.AssemblyReference.cache
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\UndressSupport.HS2\obj\Debug\UndressSupport.HS2.csproj.CoreCompileInputs.cache
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\UndressSupport.dll
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\UndressSupport.pdb
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\UndressSupport.HS2\obj\Debug\UndressSupport.dll
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\UndressSupport.HS2\obj\Debug\UndressSupport.pdb

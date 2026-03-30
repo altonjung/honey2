@@ -1,8 +1,0 @@
-D:\작업\github\work\hs2\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTransformSlider.HS2.csproj.AssemblyReference.cache
-D:\작업\github\work\hs2\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTransformSlider.HS2.csproj.CoreCompileInputs.cache
-D:\작업\github\work\hs2\HSPlugins-main\bin\HS2\ClothTransformSlider.dll
-D:\작업\github\work\hs2\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTransformSlider.dll
-C:\share\timeline\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTransformSlider.HS2.csproj.AssemblyReference.cache
-C:\share\timeline\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTransformSlider.HS2.csproj.CoreCompileInputs.cache
-C:\share\timeline\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTransformSlider.dll
-C:\share\timeline\HSPlugins-main\bin\HS2\ClothTransformSlider.dll

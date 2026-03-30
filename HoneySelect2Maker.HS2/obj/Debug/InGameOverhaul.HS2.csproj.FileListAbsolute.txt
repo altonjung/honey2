@@ -1,6 +1,0 @@
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\InGameOverhaul.HS2\obj\Debug\InGameOverhaul.HS2.csproj.AssemblyReference.cache
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\InGameOverhaul.HS2\obj\Debug\InGameOverhaul.HS2.csproj.CoreCompileInputs.cache
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\InGameOverhaul.dll
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\InGameOverhaul.pdb
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\InGameOverhaul.HS2\obj\Debug\InGameOverhaul.dll
-C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\InGameOverhaul.HS2\obj\Debug\InGameOverhaul.pdb
