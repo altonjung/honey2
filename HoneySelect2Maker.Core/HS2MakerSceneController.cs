@@ -465,31 +465,32 @@ namespace HoneySelect2Maker
         }        
 
         // StartCoroutine(PlayBGSoundRandom("C:/temp/test.mp3"));
-        internal static void PlayBGSound(string path, AudioSource audioSource)
-        {
-            string url = "file://" + path;
+        //internal static void PlayBGSound(string path, AudioSource audioSource)
+        //{
+        //    string url = "file://" + path;
 
-            if (audioSource != null)
-            {
-                using (UnityWebRequest req =
-                    UnityWebRequestMultimedia.GetAudioClip(url, AudioType.MPEG))
-                {
-                    yield return req.SendWebRequest();
+        //    if (audioSource != null)
+        //    {
+        //        using (UnityWebRequest req =
+        //            UnityWebRequestMultimedia.GetAudioClip(url, AudioType.MPEG))
+        //        {
+        //            yield return req.SendWebRequest();
 
-                    if (req.result != UnityWebRequest.Result.Success)
-                    {
-                        Debug.LogError(req.error);
-                        yield break;
-                    }
+        //            if (req.result != UnityWebRequest.Result.Success)
+        //            {
+        //                Debug.LogError(req.error);
+        //                yield break;
+        //            }
 
-                    AudioClip clip =
-                        DownloadHandlerAudioClip.GetContent(req);
+        //            AudioClip clip =
+        //                DownloadHandlerAudioClip.GetContent(req);
 
-                    audioSource.clip = clip;
-                    audioSource.Play();
-                }                
-            }
-        }    
+        //            audioSource.clip = clip;
+        //            audioSource.Play();
+        //        }                
+        //    }
+        //}
+
         internal static void StopBGSound(AudioSource audioSource)
         {
             if (audioSource != null)
@@ -621,7 +622,7 @@ namespace HoneySelect2Maker
 
     class HeroinData
     {
-        public string name = "";
+        public string fullname = "";
 	    public int birthMonth = 1;
 		public int birthDay = 1;
         public int personality = 0;                		

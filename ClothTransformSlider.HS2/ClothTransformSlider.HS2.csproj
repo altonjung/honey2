@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{BEFEC27B-424A-4E89-AB56-48A7E42AE7B6}</ProjectGuid>
+    <ProjectGuid>{22D80D01-7EF4-4BE2-84DC-FC016F631020}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ClothTransformSlider</RootNamespace>

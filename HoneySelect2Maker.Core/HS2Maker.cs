@@ -317,20 +317,21 @@ namespace HoneySelect2Maker
                 int item2 = valueTuple.Item2;
                 
                 UnityEngine.Debug.Log($">> item {item} | item2 {item} |  {DateTime.Now:HH:mm:ss.fff}");
-                ChaFileControl charFileControl = new ChaFileControl().LoadCharaFile(item, 1, false, true);
+                ChaFileControl charFileControl = new ChaFileControl();
+                charFileControl.LoadCharaFile(item, 1, false, true);
                 UnityEngine.Debug.Log($">> charaFileName {charFileControl.charaFileName} |  {DateTime.Now:HH:mm:ss.fff}");
 
                 // 여기서 heroinKey 와 heroinData 추가
                 HeroinData heroinData = new HeroinData();
 
-                heroinData.fullname = charFileControl.charFile.parameter.fullname;
-                heroinData.personality = charFileControl.charFile.parameter.personality ;
-                heroinData.birthMonth = charFileControl.charFile.parameter.birthMonth;
-                heroinData.birthDay = charFileControl.charFile.parameter.birthDay;
-                heroinData.voiceRate = charFileControl.charFile.parameter2.voiceRate;
-                heroinData.trait = charFileControl.charFile.parameter2.trait;
-                heroinData.mind = charFileControl.charFile.parameter2.mind;
-                heroinData.hAttribute = charFileControl.charFile.parameter2.hAttribute;
+                heroinData.fullname = charFileControl.parameter.fullname;
+                heroinData.personality = charFileControl.parameter.personality ;
+                heroinData.birthMonth = charFileControl.parameter.birthMonth;
+                heroinData.birthDay = charFileControl.parameter.birthDay;
+                heroinData.voiceRate = charFileControl.parameter2.voiceRate;
+                heroinData.trait = charFileControl.parameter2.trait;
+                heroinData.mind = charFileControl.parameter2.mind;
+                heroinData.hAttribute = charFileControl.parameter2.hAttribute;
                 heroinData.age = 20;
 
                 _self._playingHeroinNames[charFileControl.charaFileName] = heroinData;

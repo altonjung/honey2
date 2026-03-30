@@ -3,7 +3,7 @@
   <PropertyGroup>
     <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
-    <SharedGUID>e9a8dfae-8470-4ab1-b5a7-6f2c9b42a3d6</SharedGUID>
+    <SharedGUID>a9a8dfae-8470-4ab1-b5a7-6f2c9b42a3d6</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
     <Import_RootNamespace>ClothTransformSlider.Core</Import_RootNamespace>

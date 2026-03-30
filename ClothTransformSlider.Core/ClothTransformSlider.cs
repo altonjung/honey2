@@ -102,15 +102,15 @@ namespace ClothTransformSlider
         private static bool _ShowUI = false;
         private static SimpleToolbarToggle _toolbarButton;
 		
-        private const int _uniqueId = ('J' << 24) | ('T' << 16) | ('C' << 8) | 'S';
+        private const int _uniqueId = ('C' << 24) | ('T' << 16) | ('F' << 8) | 'S';
 
         private Rect _windowRect = new Rect(140, 10, 300, 10);
 
-        private OCIChar _currentOCIChar = null;
+        internal OCIChar _currentOCIChar = null;
         private Vector2 _transferScroll;
         private int _selectedTransferIndex = -1;
         private readonly List<TransferEntry> _transferEntries = new List<TransferEntry>();
-        private readonly HashSet<int> _pendingAutoRemap = new HashSet<int>();
+        internal readonly HashSet<int> _pendingAutoRemap = new HashSet<int>();
         private readonly Dictionary<int, Dictionary<string, SavedAdjustment>> _perCharAdjustments =
             new Dictionary<int, Dictionary<string, SavedAdjustment>>();
     
@@ -147,6 +147,7 @@ namespace ClothTransformSlider
 
             var harmonyInstance = HarmonyExtensions.CreateInstance(GUID);
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
+#if FEATURE_SCENE_SAVE
 #if HONEYSELECT
             HSExtSave.HSExtSave.RegisterHandler("timeline", null, null, this.SceneLoad, this.SceneImport, this.SceneWrite, null, null);
 #else
@@ -154,7 +155,7 @@ namespace ClothTransformSlider
             ExtensibleSaveFormat.ExtendedSave.SceneBeingImported += OnSceneImport;
             ExtensibleSaveFormat.ExtendedSave.SceneBeingSaved += OnSceneSave;
 #endif
-
+#endif
             _toolbarButton = new SimpleToolbarToggle(
                 "Open window",
                 "Open ClothTransform window",
@@ -454,7 +455,7 @@ namespace ClothTransformSlider
             _loaded = true;
         }
 
-        private float SliderRow(string label, float value, float min, float max)
+        internal float SliderRow(string label, float value, float min, float max)
         {
             GUILayout.BeginHorizontal();
             GUILayout.Label(label, GUILayout.Width(60));
@@ -464,7 +465,7 @@ namespace ClothTransformSlider
             return value;
         }
 
-        private IEnumerator AutoMapDelayed(ChaControl chaCtrl, int key)
+        internal IEnumerator AutoMapDelayed(ChaControl chaCtrl, int key)
         {
             int frameCount = 15;
             for (int i = 0; i < frameCount; i++)
@@ -480,14 +481,14 @@ namespace ClothTransformSlider
             }
         }
 
-        private ChaControl GetCurrentChaControl()
+        internal ChaControl GetCurrentChaControl()
         {
             if (_currentOCIChar == null)
                 return null;
             return _currentOCIChar.GetChaControl();
         }
 
-        private void AutoMap(ChaControl chaCtrl)
+        internal void AutoMap(ChaControl chaCtrl)
         {
             var saved = CaptureCurrentAdjustments();
             ClearMappings();
