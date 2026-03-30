@@ -36,7 +36,7 @@ namespace RealHumanSupport
     public class RealHumanSupportController: CharaCustomFunctionController
     {
         internal RealHumanData realHumanData;
-        internal int status;// 0: init, 1: pause, 2: play
+        internal Status status;// 0: init, 1: pause, 2: play
 
 
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
@@ -458,7 +458,7 @@ namespace RealHumanSupport
                     }
 
                     // 영역 데이터가 변경된 경우만 업데이트
-                    if (realHumanData.areas.Count > 0)
+                    if (realHumanData.areas.Count > 0 && realHumanData.body_areaBuffer != null)
                     {
                         realHumanData.body_areaBuffer.SetData(realHumanData.areas.ToArray());
                         // 셰이더 파라미터 설정
@@ -525,7 +525,7 @@ namespace RealHumanSupport
                         }        
 
                     // 영역 데이터가 변경된 경우만 업데이트
-                        if (areas.Count > 0)
+                        if (areas.Count > 0 && realHumanData.head_areaBuffer != null)
                         {
                             realHumanData.head_areaBuffer.SetData(areas.ToArray());
                             // 셰이더 파라미터 설정
@@ -965,7 +965,7 @@ namespace RealHumanSupport
         {
             if (realHumanData != null)
             {
-                foreach (var fbsTarget in realHumanData.charControl.fbsCtrl.EyesCtrl.FBSTarget)
+                foreach (var fbsTarget in realHumanData.chaCtrl.fbsCtrl.EyesCtrl.FBSTarget)
                 {
                     SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
                     var mesh = srender.sharedMesh;
@@ -1000,7 +1000,7 @@ namespace RealHumanSupport
                     }
                 }
 
-                foreach (var fbsTarget in realHumanData.charControl.fbsCtrl.MouthCtrl.FBSTarget)
+                foreach (var fbsTarget in realHumanData.chaCtrl.fbsCtrl.MouthCtrl.FBSTarget)
                 {
                     SkinnedMeshRenderer srender = fbsTarget.GetSkinnedMeshRenderer();
                     var mesh = srender.sharedMesh;
@@ -1040,7 +1040,7 @@ namespace RealHumanSupport
         {
             if (realHumanData != null)
             {
-                SkinnedMeshRenderer[] bodyRenderers = realHumanData.charControl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
+                SkinnedMeshRenderer[] bodyRenderers = realHumanData.chaCtrl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
                 foreach (SkinnedMeshRenderer render in bodyRenderers.ToList())
                 {
                     var mesh = render.sharedMesh;
@@ -1101,11 +1101,11 @@ namespace RealHumanSupport
             if (realHumanData != null)
             {
                 string bone_prefix_str = "cf_";
-                if (realHumanData.charControl.sex == 0)
+                if (realHumanData.chaCtrl.sex == 0)
                     bone_prefix_str = "cm_";
 
-                realHumanData.nose_wing_l_tr = realHumanData.charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_NoseWing_tx_L");
-                realHumanData.nose_wing_r_tr = realHumanData.charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_NoseWing_tx_R");
+                realHumanData.nose_wing_l_tr = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str + "J_NoseWing_tx_L");
+                realHumanData.nose_wing_r_tr = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str + "J_NoseWing_tx_R");
                 if (realHumanData.nose_wing_l_tr != null)
                 {
                     realHumanData.noseBaseScale = new Vector3(1.0f, 1.0f, 1.0f);
@@ -1131,10 +1131,10 @@ namespace RealHumanSupport
             if (realHumanData != null)
             {
                 string bone_prefix_str = "cf_";
-                if (realHumanData.charControl.sex == 0)
+                if (realHumanData.chaCtrl.sex == 0)
                     bone_prefix_str = "cm_";
 
-                Transform danObject = realHumanData.charControl.objBodyBone.transform.FindLoop(bone_prefix_str + "J_dan_top");
+                Transform danObject = realHumanData.chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str + "J_dan_top");
 
                 if (danObject != null)
                 {
@@ -1189,12 +1189,12 @@ namespace RealHumanSupport
         {
             // UnityEngine.Debug.Log($">> SetCollisionOnOnKosi {realHumanData}");
 
-            if (realHumanData != null && realHumanData.charControl.sex == 1)
+            if (realHumanData != null && realHumanData.chaCtrl.sex == 1)
             {
                 string bone_prefix_str = "cf_";
                 string childName = "RGTriggerCollision";
 
-                Transform kosiObject = realHumanData.charControl.objBodyBone.transform.FindLoop(bone_prefix_str + "J_Kokan");
+                Transform kosiObject = realHumanData.chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str + "J_Kokan");
 
                 if (kosiObject != null)
                 {
@@ -1592,7 +1592,7 @@ namespace RealHumanSupport
             return tex;
         }
 
-        internal static RealHumanData AllocateBumpMap(ChaControl charControl, RealHumanData realHumanData)
+        internal static RealHumanData AllocateBumpMap(ChaControl chaCtrl, RealHumanData realHumanData)
         {
             // Cache original bump textures only once; reuse on re-init to avoid cumulative blending.
             if (realHumanData.headOriginTexture == null)
@@ -1691,177 +1691,218 @@ namespace RealHumanSupport
                 BumpBooster = bumpBooster
             };
         }
-
+        
         internal RealHumanData InitRealHumanData(ChaControl chaCtrl)
         {
-            // UnityEngine.Debug.Log($">> InitRealHumanData {chaCtrl}");
-
+            
             if (realHumanData == null)
             {
                 realHumanData = new RealHumanData();
-                realHumanData.charControl = chaCtrl;
-
-                if (chaCtrl.sex == 1)
-                {
-                    status = 0;
-                    realHumanData.head_areaBuffer = new ComputeBuffer(20, sizeof(float) * 6);
-                    realHumanData.body_areaBuffer = new ComputeBuffer(30, sizeof(float) * 6);
-
-#if FEATURE_TEARDROP_SUPPORT
-                    realHumanData.tearDropRate = realHumanData.TearDropLevel;
-#endif
-                    realHumanData.c_m_eye.Clear();
-
-                    realHumanData = GetMaterials(chaCtrl, realHumanData);
-
-                    realHumanData.pregnancyController = chaCtrl.GetComponent<KK_PregnancyPlus.PregnancyPlusCharaController>();
-
-                    if (realHumanData.m_skin_body != null && realHumanData.m_skin_body.GetTexture("_BumpMap2") != null)
-                    {
-                        realHumanData.body_bumpmap_type = "_BumpMap2";
-                        realHumanData.m_skin_body.SetFloat("_BumpScale2", 0.80f);
-                    } 
-                    else if (realHumanData.m_skin_body != null && realHumanData.m_skin_body.GetTexture("_BumpMap") != null)
-                    {
-                        realHumanData.body_bumpmap_type = "_BumpMap";
-                    }
-                    else
-                    {
-                        realHumanData.body_bumpmap_type = "";
-                    }
-                    
-                    if (realHumanData.m_skin_head != null && realHumanData.m_skin_head.GetTexture("_BumpMap2") != null)
-                    {
-                        realHumanData.head_bumpmap_type = "_BumpMap2";
-                        realHumanData.m_skin_head.SetFloat("_BumpScale2", 0.80f);
-                    }
-                    else if (realHumanData.m_skin_head != null && realHumanData.m_skin_head.GetTexture("_BumpMap") != null)
-                    {
-                        realHumanData.head_bumpmap_type = "_BumpMap";
-                    }
-                    else
-                    {
-                        realHumanData.head_bumpmap_type = "";
-                    }
-
-                    if (!realHumanData.body_bumpmap_type.Contains("_BumpMap2"))
-                        return null;
-                    else
-                    {
-                        realHumanData.hairDynamicBones.Clear();
-                        
-                        string bone_prefix_str = "cf_";
-                        if (chaCtrl.sex == 0)
-                            bone_prefix_str = "cm_";
-
-                        realHumanData.root_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Root");
-                        realHumanData.head_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Head");
-                        realHumanData.neck_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Neck");      
-
-                        if (realHumanData.head_bone)
-                        {
-                            DynamicBone[] hairbones = realHumanData.head_bone.GetComponentsInChildren<DynamicBone>(true);  
-                            realHumanData.hairDynamicBones = hairbones.ToList();
-                        }
-
-                        if (StudioAPI.InsideStudio) {
-                            OCIChar ociChar = chaCtrl.GetOCIChar();
-
-                            realHumanData = AllocateBumpMap(chaCtrl, realHumanData);
-                            
-                            foreach (OCIChar.BoneInfo bone in ociChar.listBones)
-                            {
-                                if (bone.guideObject != null && bone.guideObject.transformTarget != null) {
-
-                                    if (bone.guideObject.transformTarget.name.Contains("_J_Hips"))
-                                    {
-                                        realHumanData.fk_hip_bone = bone; // 하단
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_Spine01"))
-                                    {
-                                        realHumanData.fk_spine01_bone = bone; // 하단
-                                    }
-                                    else if(bone.guideObject.transformTarget.name.Contains("_J_Spine02"))
-                                    {
-                                        realHumanData.fk_spine02_bone = bone; // 상단
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_L"))
-                                    {
-                                        realHumanData.fk_left_shoulder_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_R"))
-                                    {
-                                        realHumanData.fk_right_shoulder_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_L"))
-                                    {
-                                        realHumanData.fk_left_armup_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_R"))
-                                    {
-                                        realHumanData.fk_right_armup_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_L"))
-                                    {
-                                        realHumanData.fk_left_armdown_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_R"))
-                                    {
-                                        realHumanData.fk_right_armdown_bone = bone;
-                                    }                                                                        
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_LegUp00_L"))
-                                    {
-                                        realHumanData.fk_left_thigh_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_LegUp00_R"))
-                                    {
-                                        realHumanData.fk_right_thigh_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_LegLow01_L"))
-                                    {
-                                        realHumanData.fk_left_knee_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_LegLow01_R"))
-                                    {
-                                        realHumanData.fk_right_knee_bone = bone;
-                                    }                        
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_Head"))
-                                    {
-                                        realHumanData.fk_head_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_Neck"))
-                                    {
-                                        realHumanData.fk_neck_bone = bone;
-                                    }
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_Foot01_L"))
-                                    {
-                                        realHumanData.fk_left_foot_bone = bone;
-                                    }   
-                                    else if (bone.guideObject.transformTarget.name.Contains("_J_Foot01_R"))
-                                    {
-                                        realHumanData.fk_right_foot_bone = bone;
-                                    }
-                                }
-                            }
-                        }
-                    }   
-                }
-
-                SupportExtraDynamicBones(chaCtrl, realHumanData);
-                SupportBlendShapes(chaCtrl, realHumanData);
-                SupportTearDrop(chaCtrl, realHumanData);
-                SupportStrapOn(chaCtrl, realHumanData);
-                SupportEyeFastBlinkEffect(chaCtrl, realHumanData);
-                SupportBodyBumpEffect(chaCtrl, realHumanData);
-                SupportFaceBumpEffect(chaCtrl, realHumanData);
-
-                status = 2;
-                realHumanData.coroutine = chaCtrl.StartCoroutine(CoroutineProcess(realHumanData));                   
             }
 
+            realHumanData.chaCtrl = chaCtrl;
             return realHumanData;
         }
 
+        internal void UpdateRealHumanData()
+        {
+            // UnityEngine.Debug.Log($">> InitRealHumanData {chaCtrl}");
+            if (realHumanData.chaCtrl != null && realHumanData.chaCtrl.sex == 1)
+            {
+                if (realHumanData.coroutine != null)
+                {
+                    realHumanData.chaCtrl.StopCoroutine(realHumanData.coroutine);
+                    realHumanData.coroutine = null;
+                }
+                if (realHumanData.head_areaBuffer != null)
+                {
+                    realHumanData.head_areaBuffer.Release();
+                    realHumanData.head_areaBuffer = null;
+                }
+                if (realHumanData.body_areaBuffer != null)
+                {
+                    realHumanData.body_areaBuffer.Release();
+                    realHumanData.body_areaBuffer = null;
+                }
+                status = Status.INIT;
+                realHumanData.head_areaBuffer = new ComputeBuffer(20, sizeof(float) * 6);
+                realHumanData.body_areaBuffer = new ComputeBuffer(30, sizeof(float) * 6);
+
+#if FEATURE_TEARDROP_SUPPORT
+                realHumanData.tearDropRate = realHumanData.TearDropLevel;
+#endif
+                realHumanData.c_m_eye.Clear();
+
+                realHumanData = GetMaterials(realHumanData.chaCtrl, realHumanData);
+
+                realHumanData.pregnancyController = realHumanData.chaCtrl.GetComponent<KK_PregnancyPlus.PregnancyPlusCharaController>();
+
+                if (realHumanData.m_skin_body != null && realHumanData.m_skin_body.GetTexture("_BumpMap2") != null)
+                {
+                    realHumanData.body_bumpmap_type = "_BumpMap2";
+                    realHumanData.m_skin_body.SetFloat("_BumpScale2", 0.80f);
+                } 
+                else if (realHumanData.m_skin_body != null && realHumanData.m_skin_body.GetTexture("_BumpMap") != null)
+                {
+                    realHumanData.body_bumpmap_type = "_BumpMap";
+                }
+                else
+                {
+                    realHumanData.body_bumpmap_type = "";
+                }
+                
+                if (realHumanData.m_skin_head != null && realHumanData.m_skin_head.GetTexture("_BumpMap2") != null)
+                {
+                    realHumanData.head_bumpmap_type = "_BumpMap2";
+                    realHumanData.m_skin_head.SetFloat("_BumpScale2", 0.80f);
+                }
+                else if (realHumanData.m_skin_head != null && realHumanData.m_skin_head.GetTexture("_BumpMap") != null)
+                {
+                    realHumanData.head_bumpmap_type = "_BumpMap";
+                }
+                else
+                {
+                    realHumanData.head_bumpmap_type = "";
+                }
+
+                if (!realHumanData.body_bumpmap_type.Contains("_BumpMap2"))
+                    return;
+                else
+                {
+                    realHumanData.hairDynamicBones.Clear();
+                    
+                    string bone_prefix_str = "cf_";
+                    if (realHumanData.chaCtrl.sex == 0)
+                        bone_prefix_str = "cm_";
+
+                    realHumanData.root_bone = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Root");
+                    realHumanData.head_bone = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Head");
+                    realHumanData.neck_bone = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Neck");      
+
+                    if (realHumanData.head_bone)
+                    {
+                        DynamicBone[] hairbones = realHumanData.head_bone.GetComponentsInChildren<DynamicBone>(true);  
+                        realHumanData.hairDynamicBones = hairbones.ToList();
+                    }
+
+                    if (StudioAPI.InsideStudio) {
+                        OCIChar ociChar = realHumanData.chaCtrl.GetOCIChar();
+
+                        realHumanData = AllocateBumpMap(realHumanData.chaCtrl, realHumanData);
+                        
+                        foreach (OCIChar.BoneInfo bone in ociChar.listBones)
+                        {
+                            if (bone.guideObject != null && bone.guideObject.transformTarget != null) {
+
+                                if (bone.guideObject.transformTarget.name.Contains("_J_Hips"))
+                                {
+                                    realHumanData.fk_hip_bone = bone; // 하단
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_Spine01"))
+                                {
+                                    realHumanData.fk_spine01_bone = bone; // 하단
+                                }
+                                else if(bone.guideObject.transformTarget.name.Contains("_J_Spine02"))
+                                {
+                                    realHumanData.fk_spine02_bone = bone; // 상단
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_L"))
+                                {
+                                    realHumanData.fk_left_shoulder_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_R"))
+                                {
+                                    realHumanData.fk_right_shoulder_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_L"))
+                                {
+                                    realHumanData.fk_left_armup_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_R"))
+                                {
+                                    realHumanData.fk_right_armup_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_L"))
+                                {
+                                    realHumanData.fk_left_armdown_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_R"))
+                                {
+                                    realHumanData.fk_right_armdown_bone = bone;
+                                }                                                                        
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_LegUp00_L"))
+                                {
+                                    realHumanData.fk_left_thigh_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_LegUp00_R"))
+                                {
+                                    realHumanData.fk_right_thigh_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_LegLow01_L"))
+                                {
+                                    realHumanData.fk_left_knee_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_LegLow01_R"))
+                                {
+                                    realHumanData.fk_right_knee_bone = bone;
+                                }                        
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_Head"))
+                                {
+                                    realHumanData.fk_head_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_Neck"))
+                                {
+                                    realHumanData.fk_neck_bone = bone;
+                                }
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_Foot01_L"))
+                                {
+                                    realHumanData.fk_left_foot_bone = bone;
+                                }   
+                                else if (bone.guideObject.transformTarget.name.Contains("_J_Foot01_R"))
+                                {
+                                    realHumanData.fk_right_foot_bone = bone;
+                                }
+                            }
+                        }
+                    }
+                }   
+
+                SupportExtraDynamicBones(realHumanData.chaCtrl, realHumanData);
+                SupportBlendShapes(realHumanData.chaCtrl, realHumanData);
+#if FEATURE_TEARDROP_SUPPORT
+                SupportTearDrop(realHumanData.chaCtrl, realHumanData);
+#endif
+#if FEATURE_STRAPON_SUPPORT
+                SupportStrapOn(realHumanData.chaCtrl, realHumanData);
+#endif
+                SupportEyeFastBlinkEffect(realHumanData.chaCtrl, realHumanData);
+                SupportBodyBumpEffect(realHumanData.chaCtrl, realHumanData);
+                SupportFaceBumpEffect(realHumanData.chaCtrl, realHumanData);
+
+                status = Status.RUN;
+                if (realHumanData.coroutine == null)
+                    realHumanData.coroutine = realHumanData.chaCtrl.StartCoroutine(CoroutineProcess(realHumanData));
+            }
+        }
+
+        internal IEnumerator ExecuteRealHumanDelayed()
+        {
+            int frameCount = 10;
+            for (int i = 0; i < frameCount; i++)
+                yield return null;
+
+            UpdateRealHumanData();
+        }     
+
+        internal void ExecuteRealHumanEffect(ChaControl chaControl)
+        {
+            // UnityEngine.Debug.Log($">> ExecuteWindEffect {chaControl}");
+
+            if (chaControl != null) {
+                realHumanData = InitRealHumanData(chaControl);
+                chaControl.StartCoroutine(ExecuteRealHumanDelayed());
+            }            
+        }
         internal static float Remap(float value, float inMin, float inMax, float outMin, float outMax)
         {
             return outMin + (value - inMin) * (outMax - outMin) / (inMax - inMin);
@@ -1904,22 +1945,23 @@ namespace RealHumanSupport
                 SetBodyBlendShapes();
 #endif
         }
+
+#if FEATURE_TEARDROP_SUPPORT
         internal void SupportTearDrop(ChaControl chaCtrl, RealHumanData realHumanData) 
         {
             if (chaCtrl.sex == 0)
                 return;
-#if FEATURE_TEARDROP_SUPPORT
             SetTearDrops();
-#endif
         }
+#endif
 
+#if FEATURE_STRAPON_SUPPORT
         internal void SupportStrapOn(ChaControl chaCtrl, RealHumanData realHumanData) 
         {
-#if FEATURE_STRAPON_SUPPORT
             SetRigidBodyOnDan();
             SetCollisionOnOnKosi();
-#endif
         }
+#endif
 
         internal static void SupportEyeFastBlinkEffect(ChaControl chaCtrl, RealHumanData realHumanData) 
         {
@@ -1931,11 +1973,9 @@ namespace RealHumanSupport
        {
            float tearValue = 0;
            float noseValue = 0;
-           float refValue = 0;
            bool tearIncreasing = true;
            bool noseIncreasing = true;
-           bool refIncreasing = true;
-
+           
            float previosBellySize = 0.0f;
            float initBellySize = 0.0f;
 
@@ -1944,7 +1984,7 @@ namespace RealHumanSupport
 
            while (true)
            {
-                if (status == 2) // play
+                if (status == Status.RUN) // play
                 {
                    float time = Time.time;
                    if (RealHumanSupport.EyeShakeActive.Value)
@@ -2155,7 +2195,7 @@ namespace RealHumanSupport
 
     class RealHumanData
     {
-        public ChaControl charControl;
+        public ChaControl chaCtrl;
         public Coroutine coroutine;
 
         // 코루틴 제어
@@ -2301,7 +2341,12 @@ namespace RealHumanSupport
 #endif
         }     
     }
-
+    enum Status
+    {
+        INIT,
+        PAUSE,
+        RUN
+    }
 #if FEATURE_STRAPON_SUPPORT
     public class CapsuleTrigger : MonoBehaviour
     {

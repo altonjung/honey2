@@ -44,14 +44,14 @@ namespace WindPhysics
         {
             if (windData != null)
             {
-                windData.ClotheForce = 1.0f;
+                //windData.ClotheForce = 1.0f;
                 windData.ClothDamping = 0.5f;
                 windData.ClothStiffness = 7.0f;
                 // hair
-                windData.HairForce = 1.0f;
+                //windData.HairForce = 1.0f;
                 windData.HairElastic = 0.15f;
                 // accesories
-                windData.AccesoriesForce = 1.0f;
+                //windData.AccesoriesForce = 1.0f;
                 windData.AccesoriesElastic = 0.7f;
             }
         }
@@ -77,42 +77,48 @@ namespace WindPhysics
             // 새로 자원 할당
             if (windData.chaCtrl != null)
             {
-                windData.wind_status = Status.RUN;
-                // Hair
                 string bone_prefix_str = "cf_";
                 if (windData.chaCtrl.sex == 0)
                     bone_prefix_str = "cm_";                
 
+                // Hair                
                 DynamicBone[] bones = windData.chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Head").GetComponentsInChildren<DynamicBone>(true);
                 windData.hairDynamicBones = bones.ToList();
 
                 // Accesories
+                var newAccesories = new List<DynamicBone>();
                 foreach (var accessory in windData.chaCtrl.objAccessory)
                 {
                     if (accessory != null && accessory.GetComponentsInChildren<DynamicBone>().Length > 0)
                     {
-                        windData.accesoriesDynamicBones.Add(accessory.GetComponentsInChildren<DynamicBone>()[0]);
+                        newAccesories.Add(accessory.GetComponentsInChildren<DynamicBone>()[0]);
                     }
                 }
+                windData.accesoriesDynamicBones = newAccesories;
 
                 // Cloth
                 Cloth[] clothes = windData.chaCtrl.transform.GetComponentsInChildren<Cloth>(true);
-
                 windData.clothes = clothes.ToList();
 
                 if (windData.clothes.Count != 0 || windData.hairDynamicBones.Count != 0 || windData.accesoriesDynamicBones.Count != 0)
                 {
                     // Coroutine
-                    windData.coroutine = windData.chaCtrl.StartCoroutine(WindRoutine());
+                    if (windData.coroutine == null) {
+                        windData.wind_status = Status.RUN;
+                        windData.coroutine = windData.chaCtrl.StartCoroutine(WindRoutine());
+                    }
+                } else
+                {
+                    windData.wind_status = Status.STOP;
                 }
 
-                // UnityEngine.Debug.Log($">> windData.clothes.Count {windData.clothes.Count}, windData.hairDynamicBones.Count {windData.hairDynamicBones.Count}");
+                // UnityEngine.Debug.Log($">> windData.wind_status {windData.wind_status}, {windData}");
             } 
         }
 
         internal IEnumerator ExecuteWindEffectDelayed()
         {
-            int frameCount = 15;
+            int frameCount = 10;
             for (int i = 0; i < frameCount; i++)
                 yield return null;
 
@@ -126,7 +132,7 @@ namespace WindPhysics
             if (chaControl != null) {
                 windData = InitWindData(chaControl);
                 if (WindPhysics.ConfigKeyEnableWind.Value) {
-                    windData.wind_status = Status.STOP; // 일단 기존 coroutine 종료
+                    // windData.wind_status = Status.STOP; // 일단 기존 coroutine 종료
                     chaControl.StartCoroutine(ExecuteWindEffectDelayed());
                 }
             }            
@@ -206,18 +212,18 @@ namespace WindPhysics
             {
                 if (windData == null) {            
                     windData = new WindData();
-
-                    windData.chaCtrl = chaCtrl;
-                    string bone_prefix_str = "cf_";
-                    if (chaCtrl.sex == 0)
-                        bone_prefix_str = "cm_";
-
-                    windData.root_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Root");
-                    windData.head_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Head");
-                    windData.neck_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Neck");                 
                 }
             }
 
+            windData.chaCtrl = chaCtrl;
+            string bone_prefix_str = "cf_";
+            if (chaCtrl.sex == 0)
+                bone_prefix_str = "cm_";
+
+            windData.root_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Root");
+            windData.head_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Head");
+            windData.neck_bone = chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Neck");                 
+        
             return windData;
         }
 
@@ -233,34 +239,34 @@ namespace WindPhysics
             float windUpForce = WindPhysics.WindUpForce.Value;
 
             float hairElastic = windData.HairElastic;
-            float hairForce = windData.HairForce;
+            //float hairForce = windData.HairForce;
 
             float accessoriesElastic = windData.AccesoriesElastic;
-            float accessoriesForce = windData.AccesoriesForce;
+            //float accessoriesForce = windData.AccesoriesForce;
 
             float clothDamping = windData.ClothDamping;
             float clothStiffness = windData.ClothStiffness;
-            float clothForce = windData.ClotheForce;
+            //float clothForce = windData.ClotheForce;
 
             float windWave = Mathf.Max(Mathf.Sin(time * WindPhysics.WindAmplitude.Value), 0f);
             float upWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(windWave, 0f));
             float downWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(-windWave, 0f));
 
-            Vector3 hairFinalWind = windEffect * windForce * hairForce;
+            Vector3 hairFinalWind = windEffect * windForce;
             hairFinalWind.y += windWave * windUpForce * factor;
 
-            Vector3 accessoriesFinalWind = windEffect * windForce * accessoriesForce;
+            Vector3 accessoriesFinalWind = windEffect * windForce;
             accessoriesFinalWind.y += windWave * windUpForce * factor;
 
             Vector3 baseWind = windEffect.sqrMagnitude > 0f ? windEffect.normalized : Vector3.zero;
-            Vector3 externalWind = baseWind * windForce * clothForce;
+            Vector3 externalWind = baseWind * windForce;
             float noise = (Mathf.PerlinNoise(time * 0.8f, 0f) - 0.5f) * 2f;
 
             const float upBoost = 5.0f;
             const float downReduce = 0.15f;
 
             Vector3 randomWind =
-                baseWind * noise * windForce * clothForce +
+                baseWind * noise * windForce +
                 Vector3.up * (upWave * windUpForce * upBoost - downWave * windUpForce * downReduce);
 
             Vector3 clothExternalUp = Vector3.up * gravity;
@@ -296,7 +302,9 @@ namespace WindPhysics
                 float sideAmount = hairFinalWind.magnitude * UnityEngine.Random.Range(0.001f, 0.5f);
                 Vector3 sideWind = headTr != null ? headTr.right * sideSign * sideAmount : Vector3.zero;
 
-                hairBone.m_Elasticity = hairElastic + UnityEngine.Random.Range(-0.2f, 0.2f);
+                hairBone.m_Elasticity = hairElastic;
+                hairBone.m_Damping = 0.015f;
+                hairBone.m_Stiffness = 0.2f;
 
                 // ---- FORCE (world -> local)
                 Vector3 worldForce = hairFinalWind + sideWind;
@@ -557,14 +565,14 @@ namespace WindPhysics
 
 
             // clothes
-        public float ClotheForce = 1.0f;
+        // public float ClotheForce = 1.0f;
         public float ClothDamping = 0.5f;
         public float ClothStiffness = 7.0f;
         // hair
-        public float HairForce = 1.0f;
+        // public float HairForce = 1.0f;
         public float HairElastic = 0.15f;
         // accesories
-        public float AccesoriesForce = 1.0f;
+        // public float AccesoriesForce = 1.0f;
         public float AccesoriesElastic = 0.7f;
 
         public WindData()

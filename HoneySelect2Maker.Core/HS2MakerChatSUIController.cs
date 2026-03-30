@@ -499,14 +499,26 @@ namespace HoneySelect2Maker
             textLayout.flexibleWidth = 0.0f;
 
             const float MaxBubbleWidth = 360.0f;
-            var textWidth = text.preferredWidth;
-            var targetBubbleWidth = Mathf.Min(MaxBubbleWidth, textWidth + (BubblePaddingX * 2.0f));
-            textLayout.preferredWidth = Mathf.Max(0.0f, targetBubbleWidth - (BubblePaddingX * 2.0f));
+            var maxTextWidth = Mathf.Max(0.0f, MaxBubbleWidth - (BubblePaddingX * 2.0f));
+
+            var measureSettings = text.GetGenerationSettings(new Vector2(10000f, 0f));
+            measureSettings.horizontalOverflow = HorizontalWrapMode.Overflow;
+            measureSettings.verticalOverflow = VerticalWrapMode.Overflow;
+            var rawTextWidth = text.cachedTextGeneratorForLayout.GetPreferredWidth(text.text, measureSettings) / text.pixelsPerUnit;
+
+            var targetTextWidth = Mathf.Min(maxTextWidth, rawTextWidth);
+            textLayout.preferredWidth = targetTextWidth;
+            textRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, targetTextWidth);
+
+            var heightSettings = text.GetGenerationSettings(new Vector2(targetTextWidth, 0f));
+            heightSettings.horizontalOverflow = HorizontalWrapMode.Wrap;
+            heightSettings.verticalOverflow = VerticalWrapMode.Overflow;
+            var textHeight = text.cachedTextGeneratorForLayout.GetPreferredHeight(text.text, heightSettings) / text.pixelsPerUnit;
+            textRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, textHeight);
+
+            var targetBubbleWidth = targetTextWidth + (BubblePaddingX * 2.0f);
             bubbleLayout.preferredWidth = Mathf.Max(bubbleLayout.minWidth, targetBubbleWidth);
 
-            textRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, textLayout.preferredWidth);
-            var textHeight = text.preferredHeight;
-            textRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, textHeight);
             var bubbleHeight = textHeight + (BubblePaddingY * 2.0f);
             bubbleLayout.preferredHeight = bubbleHeight;
             bubbleLayout.minHeight = bubbleHeight;

@@ -17,6 +17,8 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using System.Threading.Tasks;
 using System.Numerics;
+using System.Xml;
+using System.Globalization;
 
 #if IPA
 using Harmony;
@@ -91,7 +93,7 @@ namespace JointCorrectionSlider
     {
         #region Constants
         public const string Name = "JointCorrectionSlider";
-        public const string Version = "0.9.0.1";
+        public const string Version = "0.9.0.2";
         public const string GUID = "com.alton.illusionplugins.JointCorrectionSlider";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -164,6 +166,16 @@ namespace JointCorrectionSlider
 
             _assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
+#if IPA
+            HSExtSave.HSExtSave.RegisterHandler("rendererEditor", null, null, this.OnSceneLoad, this.OnSceneImport, this.OnSceneSave, null, null);
+#elif BEPINEX
+// #if !FEATURE_PUBLIC
+//             ExtendedSave.SceneBeingLoaded += this.OnSceneLoad;
+//             ExtendedSave.SceneBeingImported += this.OnSceneImport;
+//             ExtendedSave.SceneBeingSaved += this.OnSceneSave;
+// #endif
+#endif
+
             var harmonyInstance = HarmonyExtensions.CreateInstance(GUID);
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
 
@@ -188,211 +200,214 @@ namespace JointCorrectionSlider
         }
 #endif
 
-#if FEATURE_SCENE_SAVE
-        private void OnSceneLoad(string path)
-        {
-            SceneInit();
-            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
-            if (data == null)
-                return;
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml((string)data.data["sceneInfo"]);
-            XmlNode node = doc.FirstChild;
-            if (node == null)
-                return;
-            SceneLoad(path, node);
-        }
+//         private void OnSceneLoad(string path)
+//         {
+//             SceneInit();
+//             PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
+//             if (data == null)
+//                 return;
+//             XmlDocument doc = new XmlDocument();
+//             doc.LoadXml((string)data.data["sceneInfo"]);
+//             XmlNode node = doc.FirstChild;
+//             if (node == null)
+//                 return;
+//             SceneLoad(path, node);
+//         }
 
-        private void OnSceneImport(string path)
-        {
-            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
-            if (data == null)
-                return;
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml((string)data.data["sceneInfo"]);
-            XmlNode node = doc.FirstChild;
-            if (node == null)
-                return;
-            SceneImport(path, node);
-        }
+//         private void OnSceneImport(string path)
+//         {
+//             PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
+//             if (data == null)
+//                 return;
+//             XmlDocument doc = new XmlDocument();
+//             doc.LoadXml((string)data.data["sceneInfo"]);
+//             XmlNode node = doc.FirstChild;
+//             if (node == null)
+//                 return;
+//             SceneImport(path, node);
+//         }
 
-        private void OnSceneSave(string path)
-        {
-            using (StringWriter stringWriter = new StringWriter())
-            using (XmlTextWriter xmlWriter = new XmlTextWriter(stringWriter))
-            {
-                xmlWriter.WriteStartElement("root");
-                SceneWrite(path, xmlWriter);
-                xmlWriter.WriteEndElement();
+//         private void OnSceneSave(string path)
+//         {
+//             using (StringWriter stringWriter = new StringWriter())
+//             using (XmlTextWriter xmlWriter = new XmlTextWriter(stringWriter))
+//             {
+//                 xmlWriter.WriteStartElement("root");
+//                 SceneWrite(path, xmlWriter);
+//                 xmlWriter.WriteEndElement();
 
-                PluginData data = new PluginData();
-                data.version = ClothCollideVisualizer._saveVersion;
-                data.data.Add("sceneInfo", stringWriter.ToString());
+//                 PluginData data = new PluginData();
+//                 data.version = _saveVersion;
+//                 data.data.Add("sceneInfo", stringWriter.ToString());
 
-                ExtendedSave.SetSceneExtendedDataById(_extSaveKey, data);
-            }
-        }
+//                 ExtendedSave.SetSceneExtendedDataById(_extSaveKey, data);
+//             }
+//         }
 
-        private void SceneLoad(string path, XmlNode node)
-        {
-            if (node == null)
-                return;
-            this.ExecuteDelayed2(() =>
-            {
-                List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
+//         private void SceneLoad(string path, XmlNode node)
+//         {
+//             if (node == null)
+//                 return;
+//             this.ExecuteDelayed2(() =>
+//             {
+//                 List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
 
-                List<OCIChar> ociChars = dic
-                    .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo → OCIChar
-                    .Where(c => c != null)               // null 제거 (OCIChar가 아닌 경우 스킵)
-                    .ToList();
+//                 List<OCIChar> ociChars = dic
+//                     .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo → OCIChar
+//                     .Where(c => c != null)               // null 제거 (OCIChar가 아닌 경우 스킵)
+//                     .ToList();
 
-                SceneRead(node, ociChars);
-            }, 20);
-        }
+//                 SceneRead(node, ociChars);
+//             }, 20);
+//         }
 
-        private void SceneImport(string path, XmlNode node)
-        {
-            Dictionary<int, ObjectCtrlInfo> toIgnore = new Dictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
-            this.ExecuteDelayed2(() =>
-            {
-                List<KeyValuePair<int, ObjectCtrlInfo>> dic = Studio.Studio.Instance.dicObjectCtrl.Where(e => toIgnore.ContainsKey(e.Key) == false).OrderBy(e => SceneInfo_Import_Patches._newToOldKeys[e.Key]).ToList();
+//         private void SceneImport(string path, XmlNode node)
+//         {
+//             Dictionary<int, ObjectCtrlInfo> toIgnore = new Dictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
+//             this.ExecuteDelayed2(() =>
+//             {
+//                 List<KeyValuePair<int, ObjectCtrlInfo>> dic = Studio.Studio.Instance.dicObjectCtrl
+//                     .Where(e => toIgnore.ContainsKey(e.Key) == false)
+//                     .OrderBy(e =>
+//                     {
+//                         int oldKey;
+//                         return (SceneInfo_Import_Patches._newToOldKeys != null &&
+//                                 SceneInfo_Import_Patches._newToOldKeys.TryGetValue(e.Key, out oldKey))
+//                             ? oldKey
+//                             : e.Key;
+//                     })
+//                     .ToList();
 
-                List<OCIChar> ociChars = dic
-                    .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo → OCIChar
-                    .Where(c => c != null)               // null 제거 (OCIChar가 아닌 경우 스킵)
-                    .ToList();
+//                 List<OCIChar> ociChars = dic
+//                     .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo → OCIChar
+//                     .Where(c => c != null)               // null 제거 (OCIChar가 아닌 경우 스킵)
+//                     .ToList();
 
-                SceneRead(node, ociChars);
-            }, 20);
-        }
+//                 SceneRead(node, ociChars);
+//             }, 20);
+//         }
 
-        private void SceneRead(XmlNode node, List<OCIChar> ociChars)
-        {            
-            foreach (XmlNode charNode in node.SelectNodes("character"))
-            {
-                string hash = charNode.Attributes["hash"]?.Value;
-                if (string.IsNullOrEmpty(hash)) continue;
+//         private void SceneRead(XmlNode node, List<OCIChar> ociChars)
+//         {            
+//             // xml 조회는  character 하단에 config 하단에  각 bone 속성이 존재            
+//             foreach (XmlNode charNode in node.SelectNodes("character"))
+//             {
+//                 string hash = charNode.Attributes["hash"]?.Value;
+//                 if (string.IsNullOrEmpty(hash)) continue;
+//                 if (!int.TryParse(hash, out int hashValue)) continue;
 
-                // 이름으로 ociChar 찾기
-                OCIChar ociChar = ociChars.FirstOrDefault(c => c.GetChaControl().GetHashCode() == hash);
-                if (ociChar == null)
-                {
-                    continue;
-                }            
+//                 // 이름으로 ociChar 찾기
+//                 OCIChar ociChar = ociChars.FirstOrDefault(c => c.GetChaControl().GetHashCode() == hashValue);
+//                 if (ociChar == null)
+//                 {
+//                     continue;
+//                 }
 
-                // bone 노드 순회
-                foreach (XmlNode boneNode in charNode.SelectNodes("config"))
-                {
-                    string configName = boneNode.Attributes["name"]?.Value;
-                    if (string.IsNullOrEmpty(colliderName)) continue;
+//                 JointCorrectionSliderData data = GetData(ociChar);
+//                 if (data == null)
+//                     continue;
+
+//                 // bone 노드 순회
+//                 foreach (XmlNode boneNode in charNode.SelectNodes("config"))
+//                 {
+//                     string configName = boneNode.Attributes["name"]?.Value;
+//                     if (string.IsNullOrEmpty(configName)) continue;
+//                     if (!string.Equals(configName, "correction", StringComparison.OrdinalIgnoreCase))
+//                         continue;
     
-                    // position
-                    XmlNode posNode = boneNode.SelectSingleNode("leftArmTop");
-                    if (posNode != null)
-                    {
-                        posNode.Attributes["value"]?.Value;
-                    }
-
-                    // rotation
-                    XmlNode rotNode = boneNode.SelectSingleNode("rightArmTop");
-                    if (rotNode != null)
-                    {
-                        posNode.Attributes["value"]?.Value;                        
-                    }
-                }
-            }
-        }
-
-        // 유틸: 안전한 float 파싱
-        private float ParseFloat(string value)
-        {
-            if (float.TryParse(value, out float result))
-                return result;
-            return 0f;
-        }
-
-        private void SceneWrite(string path, XmlTextWriter writer)
-        {
-            foreach (TreeNodeObject treeNode in Singleton<Studio.Studio>.Instance.treeNodeCtrl.m_TreeNodeObject)
-            {
-                ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-                OCIChar ociChar = objectCtrlInfo as OCIChar;
-
-                if (ociChar) {
-                    writer.WriteStartElement("character");
-                    writer.WriteAttributeString("hash", "" + ociChar.GetChaControl().GetHashCode());
-                
-                    writer.WriteStartElement("config");
-                    writer.WriteAttributeString("name", "correction");
-
-                    writer.WriteStartElement("leftArmTop");
-                    writer.WriteAttributeString("value", LeftArmUpperConfig.Value.ToString());
-                    writer.WriteEndElement();
-
-                    writer.WriteStartElement("rightArmTop");
-                    writer.WriteAttributeString("value", RightArmUpperConfig.Value.ToString());
-                    writer.WriteEndElement();
-
-//                     writer.WriteStartElement("leftArmLower");
-//                     writer.WriteAttributeString("value", LeftArmLowerConfig.Value.ToString());
-//                     writer.WriteEndElement();
-
-//                     writer.WriteStartElement("rightArmLower");
-//                     writer.WriteAttributeString("value", RightArmLowerConfig.Value.ToString());
-//                     writer.WriteEndElement();                                                                     
-
 // #if FEATURE_SHOULDER_CORRECTION
-//                     writer.WriteStartElement("rightShoulder");
-//                     writer.WriteAttributeString("value", LeftShoulderConfig.Value.ToString());
-//                     writer.WriteEndElement();                                     
-
-//                     writer.WriteStartElement("leftShoulder");
-//                     writer.WriteAttributeString("value", RightShoulderConfig.Value.ToString());
-//                     writer.WriteEndElement();                                     
+//                     data.LeftShoulderValue = ReadFloat(boneNode, "leftShoulder", data.LeftShoulderValue);
+//                     data.RightShoulderValue = ReadFloat(boneNode, "rightShoulder", data.RightShoulderValue);
 // #endif
-
+//                     data.LeftArmUpperValue = ReadFloat(boneNode, "leftArm", data.LeftArmUpperValue);
+//                     data.RightArmUpperValue = ReadFloat(boneNode, "rightArm", data.RightArmUpperValue);
+//                     data.LeftArmLowerValue = ReadFloat(boneNode, "leftArmLower", data.LeftArmLowerValue);
+//                     data.RightArmLowerValue = ReadFloat(boneNode, "rightArmLower", data.RightArmLowerValue);
 // #if FEATURE_ELBOW_CORRECTION
-//                     writer.WriteStartElement("rightElbow");
-//                     writer.WriteAttributeString("value", LeftElbowConfig.Value.ToString());
-//                     writer.WriteEndElement();                                     
-
-//                     writer.WriteStartElement("leftElbow");
-//                     writer.WriteAttributeString("value", RightElbowConfig.Value.ToString());
-//                     writer.WriteEndElement();
+//                     data.LeftElbowValue = ReadFloat(boneNode, "leftElbow", data.LeftElbowValue);
+//                     data.RightElbowValue = ReadFloat(boneNode, "rightElbow", data.RightElbowValue);
 // #endif
+//                     data.LeftLegValue = ReadFloat(boneNode, "leftLeg", data.LeftLegValue);
+//                     data.RightLegValue = ReadFloat(boneNode, "rightLeg", data.RightLegValue);
+//                     data.LeftKneeValue = ReadFloat(boneNode, "leftKnee", data.LeftKneeValue);
+//                     data.RightKneeValue = ReadFloat(boneNode, "rightKnee", data.RightKneeValue);
+// #if FEATURE_DAN_CORRECTION
+//                     data.DanScaleValue = ReadFloat(boneNode, "danScale", data.DanScaleValue);
+//                     data.DanLengthValue = ReadFloat(boneNode, "danLength", data.DanLengthValue);
+// #endif        
+//                 }
+//             }
+//         }
 
-//                     writer.WriteStartElement("leftKnee");
-//                     writer.WriteAttributeString("value", LeftKneeConfig.Value.ToString());
-//                     writer.WriteEndElement();
+//         private void SceneWrite(string path, XmlTextWriter writer)
+//         {
+//             foreach (TreeNodeObject treeNode in Singleton<Studio.Studio>.Instance.treeNodeCtrl.m_TreeNodeObject)
+//             {
+//                 ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(treeNode);
+//                 OCIChar ociChar = objectCtrlInfo as OCIChar;
 
-//                     writer.WriteStartElement("rightKnee");
-//                     writer.WriteAttributeString("value", RightKneeConfig.Value.ToString());
-//                     writer.WriteEndElement();     
+//                 JointCorrectionSliderData data = GetData(ociChar);
 
-//                     writer.WriteStartElement("leftLeg");
-//                     writer.WriteAttributeString("value", LeftLegConfig.Value.ToString());
-//                     writer.WriteEndElement();
+//                 // n개의 character 에 대해 아래 JointCorrectionSliderData 값을 xml 로 저장
+//                 // xml 저장은  character 하단에 config 하단에  각 bone 속성이 존재
+//                 if (ociChar != null && data != null) {
+//                     writer.WriteStartElement("character");
+//                     writer.WriteAttributeString("hash", "" + ociChar.GetChaControl().GetHashCode());
 
-//                     writer.WriteStartElement("rightLeg");
-//                     writer.WriteAttributeString("value", RightLegConfig.Value.ToString());
-//                     writer.WriteEndElement();   
+//                     writer.WriteStartElement("config");
+//                     writer.WriteAttributeString("name", "correction");
+// #if FEATURE_SHOULDER_CORRECTION
+//                     WriteValueNode(writer, "leftShoulder", data.LeftShoulderValue);
 
-// #if FEATURE_KNEE_CORRECTION
-//                     writer.WriteStartElement("rightKnee2");
-//                     writer.WriteAttributeString("value", LeftKnee2Config.Value.ToString());
-//                     writer.WriteEndElement();                                     
-
-//                     writer.WriteStartElement("leftKnee2");
-//                     writer.WriteAttributeString("value", RightKnee2Config.Value.ToString());
-//                     writer.WriteEndElement();
+//                     WriteValueNode(writer, "rightShoulder", data.RightShoulderValue);
 // #endif
-                    writer.WriteEndElement(); // config
+//                     WriteValueNode(writer, "leftArm", data.LeftArmUpperValue);
+//                     WriteValueNode(writer, "rightArm", data.RightArmUpperValue);
+
+//                     WriteValueNode(writer, "leftArmLower", data.LeftArmLowerValue);
+//                     WriteValueNode(writer, "rightArmLower", data.RightArmLowerValue);
+// #if FEATURE_ELBOW_CORRECTION
+//                     WriteValueNode(writer, "leftElbow", data.LeftElbowValue);
+//                     WriteValueNode(writer, "rightElbow", data.RightElbowValue);
+// #endif
+//                     WriteValueNode(writer, "leftLeg", data.LeftLegValue);
+//                     WriteValueNode(writer, "rightLeg", data.RightLegValue);
+//                     WriteValueNode(writer, "leftKnee", data.LeftKneeValue);
+//                     WriteValueNode(writer, "rightKnee", data.RightKneeValue);
+// #if FEATURE_DAN_CORRECTION
+//                     WriteValueNode(writer, "danScale", data.DanScaleValue);
+//                     WriteValueNode(writer, "danLength", data.DanLengthValue);
+// #endif
+//                     writer.WriteEndElement(); // config
                 
-                    writer.WriteEndElement(); // character
-                }
-            }             
-        }
-#endif
+//                     writer.WriteEndElement(); // character
+//                 }
+//             }             
+//         }
+
+//         // 유틸: 안전한 float 파싱
+//         private float ParseFloat(string value)
+//         {
+//             if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float result))
+//                 return result;
+//             return 0f;
+//         }        
+
+//         private float ReadFloat(XmlNode parent, string nodeName, float fallback)
+//         {
+//             XmlNode valueNode = parent.SelectSingleNode(nodeName);
+//             if (valueNode == null)
+//                 return fallback;
+//             return ParseFloat(valueNode.Attributes["value"]?.Value);
+//         }
+
+//         private void WriteValueNode(XmlTextWriter writer, string nodeName, float value)
+//         {
+//             writer.WriteStartElement(nodeName);
+//             writer.WriteAttributeString("value", value.ToString(CultureInfo.InvariantCulture));
+//             writer.WriteEndElement();
+//         }
+
         private void SetScriptInfo(OCIChar ociChar, int categoryId, float value)
         {
             // UnityEngine.Debug.Log($">> SetScriptInfo {categoryId}, {value}");
@@ -408,7 +423,6 @@ namespace JointCorrectionSlider
                     // scriptInfo.correct.charmRate = CharmRateConfig.Value;
                     // scriptInfo.correct.rotOrder = (Correct.RotationOrder)RoTOrderConfig.Value;
 #endif
-
                     if(scriptInfo.correct.useRX)
                     {
                         scriptInfo.correct.valRXMin = value;
@@ -537,15 +551,29 @@ namespace JointCorrectionSlider
             } 
 
             return null;
-
         }
+
+        private JointCorrectionSliderData GetData(OCIChar ociChar)
+        {
+            if (ociChar != null && ociChar.GetChaControl() != null) {
+                var controller = ociChar.GetChaControl().GetComponent<JointCorrectionSliderController>();
+                if (controller == null)
+                    return null;
+
+                JointCorrectionSliderData data = controller.GetData();                
+                return data;
+            } 
+
+            return null;
+        }
+
 
         private JointCorrectionSliderController GetCurrentControl()
         {
             if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
                 return _currentOCIChar.GetChaControl().GetComponent<JointCorrectionSliderController>();         
             }
-             
+
             return null;   
         }   
 
@@ -562,9 +590,14 @@ namespace JointCorrectionSlider
         {
             if (_ShowUI == false)
                 return;
-
+#if FEATURE_PUBLIC
             if (StudioAPI.InsideStudio)
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "JointCorrection" + Version);
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "JointCorrection(Public) " + Version);
+#else 
+            if (StudioAPI.InsideStudio)
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "JointCorrection " + Version);
+#endif
+
         }
         private void WindowFunc(int id)
         {
@@ -586,9 +619,23 @@ namespace JointCorrectionSlider
             JointCorrectionSliderData data = GetCurrentData();
             if (data != null)
             {
-    #if FEATURE_SHOULDER_CORRECTION
+#if FEATURE_SHOULDER_CORRECTION
                 // UnityEngine.Debug.Log($">> data.LeftShoulderValue  {data.LeftShoulderValue}");
+#if FEATURE_PUBLIC
+                GUILayout.Label("<color=red>scene save not support in public ver</color>", RichLabel);
+                GUILayout.Label("<color=grey>Shoulder</color>", RichLabel);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Shdr(L)", "Left"), GUILayout.Width(60));
+                data.LeftShoulderValue = GUILayout.HorizontalSlider(data.LeftShoulderValue, 0.0f, 0.0f);
+                GUILayout.Label(data.LeftShoulderValue.ToString("0.00"), GUILayout.Width(30));
+                GUILayout.EndHorizontal();
 
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Shdr(R)", "Right"), GUILayout.Width(60));
+                data.RightShoulderValue = GUILayout.HorizontalSlider(data.RightShoulderValue, 0.0f, 0.0f);
+                GUILayout.Label(data.RightShoulderValue.ToString("0.00"), GUILayout.Width(30));
+                GUILayout.EndHorizontal();
+#else 
                 GUILayout.Label("<color=orange>Shoulder</color>", RichLabel);
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(new GUIContent("Shdr(L)", "Left"), GUILayout.Width(60));
@@ -601,7 +648,8 @@ namespace JointCorrectionSlider
                 data.RightShoulderValue = GUILayout.HorizontalSlider(data.RightShoulderValue, -1.0f, 1.0f);
                 GUILayout.Label(data.RightShoulderValue.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal();
-    #endif            
+#endif
+#endif            
                 // Top
                 GUILayout.Label("<color=orange>Arm_Up</color>", RichLabel);
                 GUILayout.BeginHorizontal();
@@ -628,7 +676,7 @@ namespace JointCorrectionSlider
                 data.RightArmLowerValue = GUILayout.HorizontalSlider(data.RightArmLowerValue, -1.0f, 1.0f);
                 GUILayout.Label(data.RightArmLowerValue.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal();
-    #if FEATURE_ELBOW_CORRECTION
+#if FEATURE_ELBOW_CORRECTION
                 GUILayout.Label("<color=orange>Elbow</color>", RichLabel);
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(new GUIContent("Elbow(L)", "Left"), GUILayout.Width(60));
@@ -641,7 +689,7 @@ namespace JointCorrectionSlider
                 data.RightElbowValue = GUILayout.HorizontalSlider(data.RightElbowValue, -1.0f, 1.0f);
                 GUILayout.Label(data.RightElbowValue.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal();
-    #endif
+#endif
                 // Bottom
                 GUILayout.Label("<color=orange>Thigh</color>", RichLabel);            
                 GUILayout.BeginHorizontal();
@@ -681,6 +729,7 @@ namespace JointCorrectionSlider
                 GUILayout.Label(data.DanLengthValue.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal();
 #endif
+
                 draw_seperate();  
                 if (GUILayout.Button("Default"))
                     InitConfig();
@@ -727,7 +776,7 @@ namespace JointCorrectionSlider
         }
 #endregion
 
-#if FEATURE_SHOULDER_CORRECTION || FEATURE_KNEE_CORRECTION
+#if FEATURE_SHOULDER_CORRECTION
         private const float Shoulder02PosXRange = 0.8f;
         private const float Shoulder02ScaleMin = 0.5f;
         private const float Shoulder02ScaleMax = 1.5f;
@@ -845,6 +894,17 @@ namespace JointCorrectionSlider
             }
         }
 
+        [HarmonyPatch(typeof(SceneInfo), "Import", new[] { typeof(BinaryReader), typeof(Version) })]
+        private static class SceneInfo_Import_Patches //This is here because I fucked up the save format making it impossible to import scenes correctly
+        {
+            internal static readonly Dictionary<int, int> _newToOldKeys = new Dictionary<int, int>();
+
+            private static void Prefix()
+            {
+                _newToOldKeys.Clear();
+            }
+        }
+
 #if FEATURE_JOINT_CORRECTION
        [HarmonyPatch(typeof(ChaControl), "InitializeExpression", typeof(int), typeof(bool))]
         private static class ChaControl_InitializeExpression_Patches
@@ -893,12 +953,17 @@ namespace JointCorrectionSlider
                     8,
                     9,
                     10,
-                    11
+                    11,
                 };
                 for (int i = 0; i < __instance.expression.info.Length; i++)
                 {
                     __instance.expression.info[i].categoryNo = array[i];
                 }
+                for (int i = __instance.expression.info.Length - 4 ; i < __instance.expression.info.Length; i++)
+                {
+                    __instance.expression.info[i].enable = false;
+                }
+
                 __instance.expression.SetCharaTransform(__instance.objRoot.transform);
                 __instance.expression.Initialize();
                 __instance.expression.enable = _enable;
@@ -947,7 +1012,7 @@ namespace JointCorrectionSlider
                 "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_L\tcf_J_Shoulder_L\tEuler\tXZY\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
                 "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_Shoulder02_s_R\tcf_J_Shoulder_R\tEuler\tXZY\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
                 "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_ArmElbo_dam_01_L\tcf_J_ArmLow01_L\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
-                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_ArmElbo_dam_01_R\tcf_J_ArmLow01_R\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",                 
+                "4\t×\t0\t0\tZ\t0\tY\tY\tNone\tYXZ\t0\t0\t○\tcf_J_ArmElbo_dam_01_R\tcf_J_ArmLow01_R\tEuler\tZYX\t0\t○\t1\t1\t○\t1\t1\t○\t1\t1",
                 };
 
                 var _slist = rawList

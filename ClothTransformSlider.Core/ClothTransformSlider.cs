@@ -1,0 +1,779 @@
+using Studio;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using BepInEx.Logging;
+using ToolBox;
+using ToolBox.Extensions;
+using UILib;
+
+using UILib.EventHandlers;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
+using UnityEngine.Rendering;
+using System.Threading.Tasks;
+using System.Numerics;
+using System.Xml;
+using System.Globalization;
+
+#if IPA
+using Harmony;
+using IllusionPlugin;
+#elif BEPINEX
+using BepInEx;
+using BepInEx.Configuration;
+using HarmonyLib;
+#endif
+#if AISHOUJO || HONEYSELECT2
+using CharaUtils;
+using ExtensibleSaveFormat;
+using AIChara;
+using System.Security.Cryptography;
+using ADV.Commands.Camera;
+using KKAPI.Studio;
+using IllusionUtility.GetUtility;
+using ADV.Commands.Object;
+#endif
+using RootMotion.FinalIK;
+
+#if AISHOUJO || HONEYSELECT2
+using AIChara;
+using static Illusion.Utils;
+using System.Runtime.Remoting.Messaging;
+#endif
+using KKAPI.Studio;
+using KKAPI.Studio.UI.Toolbars;
+using KKAPI.Utilities;
+using KKAPI.Chara;
+using static CharaUtils.Expression;
+
+namespace ClothTransformSlider
+{
+#if BEPINEX
+    [BepInPlugin(GUID, Name, Version)]
+#if KOIKATSU || SUNSHINE
+    [BepInProcess("CharaStudio")]
+#elif AISHOUJO || HONEYSELECT2
+    [BepInProcess("StudioNEOV2")]
+#endif
+    [BepInDependency("com.bepis.bepinex.extendedsave")]
+#endif
+    public class ClothTransformSlider : GenericPlugin
+#if IPA
+                            , IEnhancedPlugin
+#endif
+    {
+        #region Constants
+        public const string Name = "ClothTransformSlider";
+        public const string Version = "0.9.0.0";
+        public const string GUID = "com.alton.illusionplugins.clothtransformslider";
+        internal const string _ownerId = "Alton";
+#if KOIKATSU || AISHOUJO || HONEYSELECT2
+        private const int _saveVersion = 0;
+        private const string _extSaveKey = "cloth_transform_slider";
+#endif
+        #endregion
+
+#if IPA
+        public override string Name { get { return _name; } }
+        public override string Version { get { return _version; } }
+        public override string[] Filter { get { return new[] { "StudioNEO_32", "StudioNEO_64" }; } }
+#endif
+
+        #region Private Types
+
+        enum WinkState { Idle, Playing }
+        #endregion
+
+        #region Private Variables
+
+        internal static new ManualLogSource Logger;
+        internal static ClothTransformSlider _self;
+
+        private static string _assemblyLocation;
+        internal bool _loaded = false;
+
+        private AssetBundle _bundle;
+
+        private static bool _ShowUI = false;
+        private static SimpleToolbarToggle _toolbarButton;
+		
+        private const int _uniqueId = ('J' << 24) | ('T' << 16) | ('C' << 8) | 'S';
+
+        private Rect _windowRect = new Rect(140, 10, 300, 10);
+
+        private OCIChar _currentOCIChar = null;
+        private Vector2 _transferScroll;
+        private int _selectedTransferIndex = -1;
+        private readonly List<TransferEntry> _transferEntries = new List<TransferEntry>();
+        private readonly HashSet<int> _pendingAutoRemap = new HashSet<int>();
+        private readonly Dictionary<int, Dictionary<string, SavedAdjustment>> _perCharAdjustments =
+            new Dictionary<int, Dictionary<string, SavedAdjustment>>();
+    
+        private GUIStyle _richLabel;
+
+        private GUIStyle RichLabel
+        {
+            get
+            {
+                if (_richLabel == null)
+                {
+                    _richLabel = new GUIStyle(GUI.skin.label);
+                    _richLabel.richText = true;
+                }
+                return _richLabel;
+            }
+        }
+        // Config
+
+        #region Accessors
+        #endregion
+
+
+        #region Unity Methods
+        protected override void Awake()
+        {
+            base.Awake();
+
+            _self = this;
+
+            Logger = base.Logger;
+
+            _assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+            var harmonyInstance = HarmonyExtensions.CreateInstance(GUID);
+            harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
+#if HONEYSELECT
+            HSExtSave.HSExtSave.RegisterHandler("timeline", null, null, this.SceneLoad, this.SceneImport, this.SceneWrite, null, null);
+#else
+            ExtensibleSaveFormat.ExtendedSave.SceneBeingLoaded += OnSceneLoad;
+            ExtensibleSaveFormat.ExtendedSave.SceneBeingImported += OnSceneImport;
+            ExtensibleSaveFormat.ExtendedSave.SceneBeingSaved += OnSceneSave;
+#endif
+
+            _toolbarButton = new SimpleToolbarToggle(
+                "Open window",
+                "Open ClothTransform window",
+                () => ResourceUtils.GetEmbeddedResource("toolbar_icon.png", typeof(ClothTransformSlider).Assembly).LoadTexture(),
+                false, this, val => _ShowUI = val);
+            ToolbarManager.AddLeftToolbarControl(_toolbarButton);        
+
+            Logger.LogMessage($"{Name} {Version}.. by unbreakable dreamer");      
+        }
+
+#if SUNSHINE || HONEYSELECT2 || AISHOUJO
+        protected override void LevelLoaded(Scene scene, LoadSceneMode mode)
+        {
+            base.LevelLoaded(scene, mode);
+            if (mode == LoadSceneMode.Single && scene.buildIndex == 2)
+                Init();
+        }
+#endif
+
+#if FEATURE_SCENE_SAVE
+        private void OnSceneLoad(string path)
+        {
+            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
+            if (data == null)
+                return;
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml((string)data.data["sceneInfo"]);
+            XmlNode node = doc.FirstChild;
+            if (node == null)
+                return;
+            SceneLoad(path, node);
+        }
+
+        private void OnSceneImport(string path)
+        {
+            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
+            if (data == null)
+                return;
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml((string)data.data["sceneInfo"]);
+            XmlNode node = doc.FirstChild;
+            if (node == null)
+                return;
+            SceneImport(path, node);
+        }
+
+        private void OnSceneSave(string path)
+        {
+            using (StringWriter stringWriter = new StringWriter())
+            using (XmlTextWriter xmlWriter = new XmlTextWriter(stringWriter))
+            {
+                xmlWriter.WriteStartElement("root");
+                SceneWrite(path, xmlWriter);
+                xmlWriter.WriteEndElement();
+
+                PluginData data = new PluginData();
+                data.version = _saveVersion;
+                data.data.Add("sceneInfo", stringWriter.ToString());
+
+                ExtendedSave.SetSceneExtendedDataById(_extSaveKey, data);
+            }
+        }
+
+        private void SceneLoad(string path, XmlNode node)
+        {
+            if (node == null)
+                return;
+            this.ExecuteDelayed2(() =>
+            {
+                List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
+
+                List<OCIChar> ociChars = dic
+                    .Select(kv => kv.Value as OCIChar)
+                    .Where(c => c != null)
+                    .ToList();
+
+                SceneRead(node, ociChars);
+            }, 20);
+        }
+
+        private void SceneImport(string path, XmlNode node)
+        {
+            Dictionary<int, ObjectCtrlInfo> toIgnore = new Dictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
+            this.ExecuteDelayed2(() =>
+            {
+                List<KeyValuePair<int, ObjectCtrlInfo>> dic = Studio.Studio.Instance.dicObjectCtrl
+                    .Where(e => toIgnore.ContainsKey(e.Key) == false)
+                    .OrderBy(e => SceneInfo_Import_Patches._newToOldKeys[e.Key])
+                    .ToList();
+
+                List<OCIChar> ociChars = dic
+                    .Select(kv => kv.Value as OCIChar)
+                    .Where(c => c != null)
+                    .ToList();
+
+                SceneRead(node, ociChars);
+            }, 20);
+        }
+
+        private void SceneRead(XmlNode node, List<OCIChar> ociChars)
+        {
+            foreach (XmlNode charNode in node.SelectNodes("character"))
+            {
+                string hash = charNode.Attributes["hash"]?.Value;
+                if (string.IsNullOrEmpty(hash))
+                    continue;
+                if (!int.TryParse(hash, out int hashValue))
+                    continue;
+
+                OCIChar ociChar = ociChars.FirstOrDefault(c => c.GetChaControl().GetHashCode() == hashValue);
+                if (ociChar == null)
+                    continue;
+
+                var saved = new Dictionary<string, SavedAdjustment>();
+                foreach (XmlNode transferNode in charNode.SelectNodes("transfer"))
+                {
+                    string boneName = transferNode.Attributes["name"]?.Value;
+                    if (string.IsNullOrEmpty(boneName))
+                        continue;
+
+                    var adj = new SavedAdjustment
+                    {
+                        position = new Vector3(
+                            ReadFloat(transferNode, "posX"),
+                            ReadFloat(transferNode, "posY"),
+                            ReadFloat(transferNode, "posZ")),
+                        scale = new Vector3(
+                            ReadFloat(transferNode, "scaleX", 1f),
+                            ReadFloat(transferNode, "scaleY", 1f),
+                            ReadFloat(transferNode, "scaleZ", 1f))
+                    };
+
+                    saved[boneName] = adj;
+                }
+
+                AutoMapWithSaved(ociChar.GetChaControl(), saved);
+                StoreAdjustmentsFor(ociChar.GetChaControl(), saved);
+            }
+        }
+
+        private void SceneWrite(string path, XmlTextWriter writer)
+        {
+            var dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
+            var ociChars = dic.Values.Select(v => v as OCIChar).Where(c => c != null).ToList();
+            var activeHashes = new HashSet<int>(ociChars.Select(c => c.GetChaControl().GetHashCode()));
+
+            foreach (var kvp in _perCharAdjustments)
+            {
+                if (!activeHashes.Contains(kvp.Key))
+                    continue;
+                var map = kvp.Value;
+                if (map == null || map.Count == 0)
+                    continue;
+
+                writer.WriteStartElement("character");
+                writer.WriteAttributeString("hash", kvp.Key.ToString(CultureInfo.InvariantCulture));
+
+                foreach (var entry in map)
+                {
+                    writer.WriteStartElement("transfer");
+                    writer.WriteAttributeString("name", entry.Key);
+                    writer.WriteAttributeString("posX", entry.Value.position.x.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("posY", entry.Value.position.y.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("posZ", entry.Value.position.z.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("scaleX", entry.Value.scale.x.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("scaleY", entry.Value.scale.y.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("scaleZ", entry.Value.scale.z.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteEndElement();
+                }
+
+                writer.WriteEndElement();
+            }
+        }
+#endif
+
+        protected override void Update()
+        {
+            if (_loaded == false)
+                return;
+        }
+
+        protected override void LateUpdate()
+        {
+        }
+
+        protected override void OnGUI()
+        {
+            if (_ShowUI == false)
+                return;
+
+            if (StudioAPI.InsideStudio)
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "ClothTransformSlider " + Version);
+        }
+        private void WindowFunc(int id)
+        {
+            var studio = Studio.Studio.Instance;
+
+            bool guiUsingMouse = GUIUtility.hotControl != 0;
+            bool mouseInWindow = _windowRect.Contains(Event.current.mousePosition);
+
+            if (guiUsingMouse || mouseInWindow)
+            {
+                studio.cameraCtrl.noCtrlCondition = () => true;
+            }
+            else
+            {
+                studio.cameraCtrl.noCtrlCondition = null;
+            }
+
+            var chaCtrl = GetCurrentChaControl();
+            if (chaCtrl == null)
+            {
+                GUILayout.Label("<color=white>Nothing to select</color>", RichLabel);
+            }
+            else
+            {
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Auto Map", GUILayout.Width(120)))
+                {
+                    AutoMap(chaCtrl);
+                }
+                if (GUILayout.Button("Clear", GUILayout.Width(120)))
+                {
+                    ClearMappings();
+                }
+                GUILayout.EndHorizontal();
+
+                draw_seperate();
+
+                _transferScroll = GUILayout.BeginScrollView(_transferScroll, GUI.skin.box, GUILayout.Height(180));
+                for (int i = 0; i < _transferEntries.Count; i++)
+                {
+                    var entry = _transferEntries[i];
+                    string label = entry != null ? entry.boneName : "(null)";
+                    if (GUILayout.Toggle(_selectedTransferIndex == i, label, GUI.skin.button))
+                    {
+                        _selectedTransferIndex = i;
+                    }
+                }
+                GUILayout.EndScrollView();
+
+                if (_selectedTransferIndex >= 0 && _selectedTransferIndex < _transferEntries.Count)
+                {
+                    var entry = _transferEntries[_selectedTransferIndex];
+                    if (entry != null && entry.transfer != null)
+                    {
+                        GUILayout.Label("<color=orange>Position</color>", RichLabel);
+                        Vector3 pos = entry.transfer.localPosition;
+                        pos.x = SliderRow("Pos X", pos.x, -1.0f, 1.0f);
+                        pos.y = SliderRow("Pos Y", pos.y, -1.0f, 1.0f);
+                        pos.z = SliderRow("Pos Z", pos.z, -1.0f, 1.0f);
+                        entry.transfer.localPosition = pos;
+
+                        GUILayout.Label("<color=orange>Scale</color>", RichLabel);
+                        Vector3 scale = entry.transfer.localScale;
+                        scale.x = SliderRow("Scale X", scale.x, 0.2f, 2.0f);
+                        scale.y = SliderRow("Scale Y", scale.y, 0.2f, 2.0f);
+                        scale.z = SliderRow("Scale Z", scale.z, 0.2f, 2.0f);
+                        entry.transfer.localScale = scale;
+
+                        StoreAdjustmentsFor(chaCtrl, CaptureCurrentAdjustments());
+
+                        if (GUILayout.Button("Reset Selected"))
+                        {
+                            entry.transfer.localPosition = Vector3.zero;
+                            entry.transfer.localScale = Vector3.one;
+                            StoreAdjustmentsFor(chaCtrl, CaptureCurrentAdjustments());
+                        }
+                    }
+                }
+            }
+
+            if (GUILayout.Button("Close")) {
+                Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+                _ShowUI = false;
+            }
+
+            // ⭐ Tooltip
+            if (!string.IsNullOrEmpty(GUI.tooltip))
+            {
+                Vector2 mousePos = Event.current.mousePosition;
+                GUI.Label(new Rect(mousePos.x + 10, mousePos.y + 10, 150, 20), GUI.tooltip, GUI.skin.box);
+            }
+
+            GUI.DragWindow();
+        }
+        private void draw_seperate()
+        {
+            GUILayout.Space(5);
+            Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.3f));
+            GUI.Box(rect, GUIContent.none);
+            GUILayout.Space(10);
+        }
+
+        private void Init()
+        {
+            _loaded = true;
+        }
+
+        private float SliderRow(string label, float value, float min, float max)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(60));
+            value = GUILayout.HorizontalSlider(value, min, max);
+            GUILayout.Label(value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.EndHorizontal();
+            return value;
+        }
+
+        private IEnumerator AutoMapDelayed(ChaControl chaCtrl, int key)
+        {
+            int frameCount = 15;
+            for (int i = 0; i < frameCount; i++)
+                yield return null;
+
+            try
+            {
+                AutoMap(chaCtrl);
+            }
+            finally
+            {
+                _pendingAutoRemap.Remove(key);
+            }
+        }
+
+        private ChaControl GetCurrentChaControl()
+        {
+            if (_currentOCIChar == null)
+                return null;
+            return _currentOCIChar.GetChaControl();
+        }
+
+        private void AutoMap(ChaControl chaCtrl)
+        {
+            var saved = CaptureCurrentAdjustments();
+            ClearMappings();
+            AutoMapWithSaved(chaCtrl, saved);
+        }
+
+        private void AutoMapWithSaved(ChaControl chaCtrl, Dictionary<string, SavedAdjustment> saved)
+        {
+            if (chaCtrl == null)
+                return;
+
+            SkinnedMeshRenderer bodyRenderer = GetBodyRenderer(chaCtrl);
+            if (bodyRenderer == null)
+                return;
+
+            var bodyBonesByName = new Dictionary<string, Transform>();
+            foreach (var bone in bodyRenderer.bones)
+            {
+                if (bone == null)
+                    continue;
+                if (!bodyBonesByName.ContainsKey(bone.name))
+                    bodyBonesByName.Add(bone.name, bone);
+            }
+
+            var clothRenderers = GetActiveClothRenderers(chaCtrl);
+            if (clothRenderers.Count == 0)
+                return;
+
+            var transferByName = new Dictionary<string, TransferEntry>();
+
+            foreach (var renderer in clothRenderers)
+            {
+                var bones = renderer.bones;
+                bool changed = false;
+
+                for (int i = 0; i < bones.Length; i++)
+                {
+                    Transform clothBone = bones[i];
+                    if (clothBone == null)
+                        continue;
+
+                    Transform bodyBone;
+                    if (!bodyBonesByName.TryGetValue(clothBone.name, out bodyBone))
+                        continue;
+
+                    TransferEntry entry;
+                    if (!transferByName.TryGetValue(clothBone.name, out entry))
+                    {
+                        var transferGO = new GameObject(clothBone.name + "_CTS");
+                        var transferTr = transferGO.transform;
+                        transferTr.SetParent(bodyBone, false);
+                        transferTr.localPosition = Vector3.zero;
+                        transferTr.localRotation = Quaternion.identity;
+                        transferTr.localScale = Vector3.one;
+
+                        entry = new TransferEntry
+                        {
+                            boneName = clothBone.name,
+                            bodyBone = bodyBone,
+                            transfer = transferTr
+                        };
+                        transferByName.Add(clothBone.name, entry);
+                        _transferEntries.Add(entry);
+                    }
+
+                    ApplySavedAdjustment(entry, saved);
+
+                    entry.refs.Add(new RendererBoneRef
+                    {
+                        renderer = renderer,
+                        boneIndex = i,
+                        originalBone = clothBone
+                    });
+
+                    bones[i] = entry.transfer;
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    renderer.bones = bones;
+                }
+            }
+
+            _selectedTransferIndex = _transferEntries.Count > 0 ? 0 : -1;
+            StoreAdjustmentsFor(chaCtrl, CaptureCurrentAdjustments());
+        }
+
+        private Dictionary<string, SavedAdjustment> CaptureCurrentAdjustments()
+        {
+            var map = new Dictionary<string, SavedAdjustment>();
+            foreach (var entry in _transferEntries)
+            {
+                if (entry == null || entry.transfer == null || string.IsNullOrEmpty(entry.boneName))
+                    continue;
+                map[entry.boneName] = new SavedAdjustment
+                {
+                    position = entry.transfer.localPosition,
+                    scale = entry.transfer.localScale
+                };
+            }
+            return map;
+        }
+
+        private void ApplySavedAdjustment(TransferEntry entry, Dictionary<string, SavedAdjustment> saved)
+        {
+            if (entry == null || entry.transfer == null || saved == null)
+                return;
+            if (saved.TryGetValue(entry.boneName, out var adj))
+            {
+                entry.transfer.localPosition = adj.position;
+                entry.transfer.localScale = adj.scale;
+            }
+        }
+
+        private void ClearMappings()
+        {
+            foreach (var entry in _transferEntries)
+            {
+                if (entry == null)
+                    continue;
+
+                foreach (var r in entry.refs)
+                {
+                    if (r.renderer == null || r.originalBone == null)
+                        continue;
+
+                    var bones = r.renderer.bones;
+                    if (r.boneIndex >= 0 && r.boneIndex < bones.Length)
+                    {
+                        bones[r.boneIndex] = r.originalBone;
+                        r.renderer.bones = bones;
+                    }
+                }
+
+                if (entry.transfer != null)
+                {
+                    entry.transfer.SetParent(null);
+                    GameObject.Destroy(entry.transfer.gameObject);
+                }
+            }
+
+            _transferEntries.Clear();
+            _selectedTransferIndex = -1;
+        }
+
+        private void StoreAdjustmentsFor(ChaControl chaCtrl, Dictionary<string, SavedAdjustment> map)
+        {
+            if (chaCtrl == null || map == null)
+                return;
+            _perCharAdjustments[chaCtrl.GetHashCode()] = map;
+        }
+
+        private SkinnedMeshRenderer GetBodyRenderer(ChaControl chaCtrl)
+        {
+            if (chaCtrl == null || chaCtrl.objBody == null)
+                return null;
+
+            var renderers = chaCtrl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
+            if (renderers == null || renderers.Length == 0)
+                return null;
+
+            SkinnedMeshRenderer best = null;
+            int bestCount = -1;
+            foreach (var r in renderers)
+            {
+                if (r == null || r.bones == null)
+                    continue;
+                if (r.bones.Length > bestCount)
+                {
+                    best = r;
+                    bestCount = r.bones.Length;
+                }
+            }
+            return best;
+        }
+
+        private List<SkinnedMeshRenderer> GetActiveClothRenderers(ChaControl chaCtrl)
+        {
+            var results = new List<SkinnedMeshRenderer>();
+            var clothes = GetClothesObjects(chaCtrl);
+            if (clothes == null)
+                return results;
+
+            foreach (var go in clothes)
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+
+                var renderers = go.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                if (renderers != null && renderers.Length > 0)
+                    results.AddRange(renderers);
+            }
+
+            return results;
+        }
+
+        private GameObject[] GetClothesObjects(ChaControl chaCtrl)
+        {
+            if (chaCtrl == null)
+                return null;
+
+            var field = typeof(ChaControl).GetField("objClothes", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (field != null)
+                return field.GetValue(chaCtrl) as GameObject[];
+
+            var prop = typeof(ChaControl).GetProperty("objClothes", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (prop != null)
+                return prop.GetValue(chaCtrl, null) as GameObject[];
+
+            return null;
+        }
+
+        private float ReadFloat(XmlNode node, string attrName, float fallback = 0f)
+        {
+            if (node == null || node.Attributes == null)
+                return fallback;
+            var attr = node.Attributes[attrName];
+            if (attr == null)
+                return fallback;
+            if (float.TryParse(attr.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out float result))
+                return result;
+            return fallback;
+        }
+
+        private class RendererBoneRef
+        {
+            public SkinnedMeshRenderer renderer;
+            public int boneIndex;
+            public Transform originalBone;
+        }
+
+        private class TransferEntry
+        {
+            public string boneName;
+            public Transform bodyBone;
+            public Transform transfer;
+            public List<RendererBoneRef> refs = new List<RendererBoneRef>();
+        }
+
+        private struct SavedAdjustment
+        {
+            public Vector3 position;
+            public Vector3 scale;
+        }
+
+        #endregion
+    }
+
+#region Patches
+    [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
+    internal static class WorkspaceCtrl_OnSelectSingle_Patches
+    {
+        private static bool Prefix(object __instance, TreeNodeObject _node)
+        {
+            ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+            if (objectCtrlInfo == null)
+                return true;
+
+            OCIChar ociChar = objectCtrlInfo as OCIChar;
+            if (ociChar != null)
+            {
+                ClothTransformSlider._self._currentOCIChar = ociChar;
+            }
+            return true;
+        }
+    }
+#if AISHOUJO || HONEYSELECT2
+    [HarmonyPatch(typeof(ChaControl), "ChangeClothesAsync", typeof(int), typeof(int), typeof(bool), typeof(bool))]
+    internal static class ChaControl_ChangeClothesAsync_Patches
+    {
+        private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange = false, bool asyncFlags = true)
+        {
+            var self = ClothTransformSlider._self;
+            if (self == null || __instance == null)
+                return;
+
+            int key = __instance.GetHashCode();
+            if (!self._pendingAutoRemap.Add(key))
+                return;
+
+            self.StartCoroutine(self.AutoMapDelayed(__instance, key));
+        }
+    }
+#endif
+#endregion
+
+#endregion
+}

@@ -103,7 +103,7 @@ namespace HoneySelect2Maker
 // Video
         internal string _provider_config_path = UserData.Path + "/hs2maker/system/config/provider.json";
         internal string _fallback_config_path = UserData.Path + "/hs2maker/system/message/fallback.json";
-
+        internal string _bgm_home_folder = UserData.Path + "/hs2maker/bgm/home/";
         internal string _video_title_scene_folder = UserData.Path + "/hs2maker/title/";
         internal string _video_title_scene_loop_path = UserData.Path + "/hs2maker/title/loop.hs2m";
         internal string _video_home_scene_folder = UserData.Path + "/hs2maker/home/";
@@ -143,7 +143,6 @@ namespace HoneySelect2Maker
         #endregion
         private static ProviderConfig _providerConfig;
         internal static ProviderConfig ProviderConfig => _providerConfig;
-
 
         #region Accessors
         internal static ConfigEntry<bool> VideoModeActive { get; private set; }
@@ -318,39 +317,24 @@ namespace HoneySelect2Maker
                 int item2 = valueTuple.Item2;
                 
                 UnityEngine.Debug.Log($">> item {item} | item2 {item} |  {DateTime.Now:HH:mm:ss.fff}");
-                // if (new ChaFileControl().LoadCharaFile(item, 1, false, true) && instance.tableLobbyEvents[saveData.selectGroup].TryGetValue(item, out eventCharaInfo))
-                // {
-                // 	this.eventNos[item2] = eventCharaInfo.eventID;
-                // }
-                // if (Game.DesireEventIDs.Contains(this.eventNos[item2]))
-                // {
-                // 	instance.tableDesireCharas.Add(item, this.eventNos[item2]);
-                // }
-            }
-            
-            Manager.LobbySceneManager lm = Singleton<Manager.LobbySceneManager>.Instance;
-                
-            if (lm != null && lm.heroines.Length > 0)
-            {
-                UnityEngine.Debug.Log($">> LobbySceneManager is not null | {DateTime.Now:HH:mm:ss.fff}");
+                ChaFileControl charFileControl = new ChaFileControl().LoadCharaFile(item, 1, false, true);
+                UnityEngine.Debug.Log($">> charaFileName {charFileControl.charaFileName} |  {DateTime.Now:HH:mm:ss.fff}");
 
-                foreach (Actor.Heroine heroin in lm.heroines) {
-                    if (heroin != null) {
-                        string heroinName = heroin.chaFile.parameter.fullname;
-                        UnityEngine.Debug.Log($">> heroine name {heroinName} in LobbyScene | {DateTime.Now:HH:mm:ss.fff}");
+                // 여기서 heroinKey 와 heroinData 추가
+                HeroinData heroinData = new HeroinData();
 
-                        // 여기서 heroinKey 와 heroinData 추가
-                        HeroinData heroinData = new HeroinData();
-                        _self._playingHeroinNames[heroinName] = heroinData;
+                heroinData.fullname = charFileControl.charFile.parameter.fullname;
+                heroinData.personality = charFileControl.charFile.parameter.personality ;
+                heroinData.birthMonth = charFileControl.charFile.parameter.birthMonth;
+                heroinData.birthDay = charFileControl.charFile.parameter.birthDay;
+                heroinData.voiceRate = charFileControl.charFile.parameter2.voiceRate;
+                heroinData.trait = charFileControl.charFile.parameter2.trait;
+                heroinData.mind = charFileControl.charFile.parameter2.mind;
+                heroinData.hAttribute = charFileControl.charFile.parameter2.hAttribute;
+                heroinData.age = 20;
 
-                        UnityEngine.Debug.Log($">> heroinName {heroinName} | {DateTime.Now:HH:mm:ss.fff}");
-                    }
-                }
-            } else
-            {
-                UnityEngine.Debug.Log($">> LobbySceneManager is null | {DateTime.Now:HH:mm:ss.fff}");
-            }
-
+                _self._playingHeroinNames[charFileControl.charaFileName] = heroinData;
+            }        
         }
         #endregion
 
@@ -364,8 +348,6 @@ namespace HoneySelect2Maker
                 UnityEngine.Debug.Log($">> Start in Title | {DateTime.Now:HH:mm:ss.fff}");
 
                 if (_self.IsAvailableVideo(_self._video_title_scene_folder)) {
-                    //HS2SceneController.PlayVideo(_self._video_title_scene_folder);
-                    //_self.StartCoroutine(WaitTitleScene());
                     _self.StartCoroutine(PlayTitleVideos());
                 }
             }
@@ -417,7 +399,7 @@ namespace HoneySelect2Maker
                     //     return true;
                     // }
 
-                    // _self.UpdateHeroins();
+                    _self.UpdateHeroins();
                     _self.StartCoroutine(WaitHomeSceneCallWithChat(__instance));
                     //if (_self._playingHeroinNames.Count == 0) {
                     //    _self.StartCoroutine(WaitHomeSceneCallWithChat(__instance));
@@ -540,6 +522,34 @@ namespace HoneySelect2Maker
                 return true;
             }
         }
+
+        // [HarmonyPatch(typeof(Manager.LobbySceneManager), "Start")]
+        // private static class LobbySceneManager_Start_Patches
+        // {
+        //     private static void Postfix(Manager.LobbySceneManager __instance)
+        //     {
+        //         if (__instance != null && __instance.heroines.Length > 0)
+        //         {
+        //             UnityEngine.Debug.Log($">> LobbySceneManager is not null | {DateTime.Now:HH:mm:ss.fff}");
+
+        //             foreach (Actor.Heroine heroin in __instance.heroines) {
+        //                 if (heroin != null) {
+        //                     string heroinName = heroin.chaFile.parameter.fullname;
+        //                     UnityEngine.Debug.Log($">> heroine name {heroinName} in LobbyScene | {DateTime.Now:HH:mm:ss.fff}");
+
+        //                     // 여기서 heroinKey 와 heroinData 추가
+        //                     HeroinData heroinData = new HeroinData();
+        //                     _self._playingHeroinNames[heroinName] = heroinData;
+
+        //                     UnityEngine.Debug.Log($">> heroinName {heroinName} | {DateTime.Now:HH:mm:ss.fff}");
+        //                 }
+        //             }
+        //         } else
+        //         {
+        //             UnityEngine.Debug.Log($">> LobbySceneManager is null | {DateTime.Now:HH:mm:ss.fff}");
+        //         }                
+        //     }
+        // }
 
         private static IEnumerator WaitLobbySceneCall(HS2.LobbyScene __instance)
         {

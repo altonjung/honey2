@@ -86,13 +86,10 @@ namespace JointCorrectionSlider
 
         internal void ResetJointCorrectionSliderData()
         {
-            if (correctionData == null)
+            if (correctionData != null)
             {
-                correctionData = new JointCorrectionSliderData();
-                return;
+                correctionData.Reset();                
             }
-
-            correctionData.Reset();
         }
 
         internal JointCorrectionSliderData GetData()
@@ -109,21 +106,16 @@ namespace JointCorrectionSlider
         public float LeftShoulderValue = 0.0f;
         public float RightShoulderValue = 0.0f;
 #endif
-        public float LeftElbowValue = 0.0f;
-        public float RightElbowValue = 0.0f;
         public float LeftArmUpperValue = 0.0f;
         public float RightArmUpperValue = 0.0f;
         public float LeftArmLowerValue = 0.0f;
         public float RightArmLowerValue = 0.0f;
+        public float LeftElbowValue = 0.0f;
+        public float RightElbowValue = 0.0f;        
         public float LeftKneeValue = 0.0f;
         public float RightKneeValue = 0.0f;
         public float LeftLegValue = 0.0f;
         public float RightLegValue = 0.0f;
-
-#if FEATURE_KNEE_CORRECTION
-        public float LeftKnee2Value = 0.0f;
-        public float RightKnee2Value = 0.0f;
-#endif
 
 #if FEATURE_DAN_CORRECTION
         public float DanScaleValue = 0.0f;
@@ -193,11 +185,6 @@ namespace JointCorrectionSlider
             RightKneeValue = 0.0f;
             LeftLegValue = 0.0f;
             RightLegValue = 0.0f;
-
-#if FEATURE_KNEE_CORRECTION
-            LeftKnee2Value = 0.0f;
-            RightKnee2Value = 0.0f;
-#endif
 
 #if FEATURE_DAN_CORRECTION
             DanScaleValue = 0.0f;

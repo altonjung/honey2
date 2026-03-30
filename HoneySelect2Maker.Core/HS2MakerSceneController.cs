@@ -464,6 +464,38 @@ namespace HoneySelect2Maker
             } 
         }        
 
+        // StartCoroutine(PlayBGSoundRandom("C:/temp/test.mp3"));
+        internal static void PlayBGSound(string path, AudioSource audioSource)
+        {
+            string url = "file://" + path;
+
+            if (audioSource != null)
+            {
+                using (UnityWebRequest req =
+                    UnityWebRequestMultimedia.GetAudioClip(url, AudioType.MPEG))
+                {
+                    yield return req.SendWebRequest();
+
+                    if (req.result != UnityWebRequest.Result.Success)
+                    {
+                        Debug.LogError(req.error);
+                        yield break;
+                    }
+
+                    AudioClip clip =
+                        DownloadHandlerAudioClip.GetContent(req);
+
+                    audioSource.clip = clip;
+                    audioSource.Play();
+                }                
+            }
+        }    
+        internal static void StopBGSound(AudioSource audioSource)
+        {
+            if (audioSource != null)
+                audioSource.Stop();
+        }  
+
         internal static void DestroyCurrentRender()
         {
             _sceneVideoPlayer.Stop();
@@ -589,8 +621,16 @@ namespace HoneySelect2Maker
 
     class HeroinData
     {
-        public int favorite;
+        public string name = "";
+	    public int birthMonth = 1;
+		public int birthDay = 1;
+        public int personality = 0;                		
+		public float voiceRate = 0.5f;
+		public int trait = 0;
+		public int mind = 0;
+		public int hAttribute = 0;
         public int age;
         public int encounterCnt;
+        public int relationship;
     }
 }

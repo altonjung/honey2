@@ -593,7 +593,7 @@ namespace RealHumanSupport
                     if (controller != null)
                     {
                         if (controller.GetData() == null)
-                            controller.InitRealHumanData(chaControl);        
+                            controller.ExecuteRealHumanEffect(chaControl);        
                     }
                 }
 
@@ -613,7 +613,7 @@ namespace RealHumanSupport
                     var controller = chaControl.GetComponent<RealHumanSupportController>();
                     if (controller != null)
                     {                  
-                        controller.InitRealHumanData(chaControl);
+                        controller.ExecuteRealHumanEffect(chaControl);
                     }    
                 }
             }

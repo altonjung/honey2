@@ -50,7 +50,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.7.1";
+        public const string Version = "0.9.7.2";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -78,14 +78,11 @@ namespace WindPhysics
 
         private static bool _ShowUI = false;
 
-#if FEATURE_PUBLIC
-
-#else
         private static SimpleToolbarToggle _toolbarButton;
-#endif		
+
         private const int _uniqueId = ('W' << 24) | ('P' << 16) | ('P' << 8) | 'X';
 
-        private Rect _windowRect = new Rect(70, 10, 550, 10);
+        private Rect _windowRect = new Rect(70, 10, 400, 10);
 
         private bool _lastConfigKeyEnableWind;
         private float _lastInterval;
@@ -151,7 +148,7 @@ namespace WindPhysics
 
             WindUpForce = Config.Bind("All", "ForceUp", 0.0f, new ConfigDescription("wind up force", new AcceptableValueRange<float>(0.0f, 0.5f)));
 
-            WindForce = Config.Bind("All", "Force", 0.1f, new ConfigDescription("wind force", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            WindForce = Config.Bind("All", "Force", 0.35f, new ConfigDescription("wind force", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 60.0f)));
 
@@ -214,9 +211,7 @@ namespace WindPhysics
             UpdateWindDirectionLine();
 #endif
         }
-#if FEATURE_PUBLIC
 
-#else
         private WindData GetCurrentData()
         {
             if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
@@ -244,9 +239,13 @@ namespace WindPhysics
         {
             if (_ShowUI == false)
                 return;
-            
+#if FEATURE_PUBLIC              
+            if (StudioAPI.InsideStudio)
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Wind Physics(Public) " + Version);
+#else
             if (StudioAPI.InsideStudio)
                 this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Wind Physics " + Version);
+#endif
         }       
 
         private void draw_seperate()
@@ -310,6 +309,7 @@ namespace WindPhysics
                 GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
 
+#if !FEATURE_PUBLIC  
                 // Force up
                 GUILayout.BeginHorizontal();              
                 GUILayout.Label(new GUIContent("Force Up", "Wind ForceUp"),  GUILayout.Width(80));
@@ -317,14 +317,14 @@ namespace WindPhysics
                 GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal(); 
 
-                // Gravity            
+                // Gravity
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
                 Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
                 GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
-            
-                draw_seperate();
+                // draw_seperate();
+
     // Hair
                 GUILayout.Label("<color=orange>Hair</color>", RichLabel);
                 GUILayout.BeginHorizontal();            
@@ -332,12 +332,12 @@ namespace WindPhysics
                 data.HairElastic = GUILayout.HorizontalSlider(data.HairElastic, 0.0f, 1.0f);
                 GUILayout.Label(data.HairElastic.ToString("0.00"), GUILayout.Width(40));
 
-                GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-                data.HairForce = GUILayout.HorizontalSlider(data.HairForce, 0.1f, 1.0f);
-                GUILayout.Label(data.HairForce.ToString("0.00"), GUILayout.Width(40));
+                // GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
+                // data.HairForce = GUILayout.HorizontalSlider(data.HairForce, 0.1f, 1.0f);
+                // GUILayout.Label(data.HairForce.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
                 
-                draw_seperate();            
+                // draw_seperate();            
     // Acc
                 GUILayout.Label("<color=orange>Accessory</color>", RichLabel);;
                 GUILayout.BeginHorizontal();
@@ -346,29 +346,35 @@ namespace WindPhysics
                 data.AccesoriesElastic = GUILayout.HorizontalSlider(data.AccesoriesElastic, 0.0f, 1.0f);
                 GUILayout.Label(data.AccesoriesElastic.ToString("0.00"), GUILayout.Width(40));
                 
-                GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-                data.AccesoriesForce = GUILayout.HorizontalSlider(data.AccesoriesForce, 0.1f, 1.0f);
-                GUILayout.Label(data.AccesoriesForce.ToString("0.00"), GUILayout.Width(40));
+                // GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
+                // data.AccesoriesForce = GUILayout.HorizontalSlider(data.AccesoriesForce, 0.1f, 1.0f);
+                // GUILayout.Label(data.AccesoriesForce.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
 
-                draw_seperate();
+                // draw_seperate();
     // Cloth
                 GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
                 GUILayout.BeginHorizontal();        
-                GUILayout.Label(new GUIContent("D", "Damping"), GUILayout.Width(20));
+                GUILayout.Label(new GUIContent("Damping", "Damping"), GUILayout.Width(80));
                 data.ClothDamping = GUILayout.HorizontalSlider(data.ClothDamping, 0.0f, 1.0f);
                 GUILayout.Label(data.ClothDamping.ToString("0.00"), GUILayout.Width(40));
-
-                GUILayout.Label(new GUIContent("S", "Stiffness"), GUILayout.Width(20));
-                data.ClothStiffness = GUILayout.HorizontalSlider(data.ClothStiffness, 0.0f, 10.0f);
-                GUILayout.Label(data.ClothStiffness.ToString("0.00"), GUILayout.Width(40));
-
-                GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-                data.ClotheForce = GUILayout.HorizontalSlider(data.ClotheForce, 0.1f, 1.0f);
-                GUILayout.Label(data.ClotheForce.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
 
+                GUILayout.BeginHorizontal();        
+                GUILayout.Label(new GUIContent("Stiffness", "Stiffness"), GUILayout.Width(80));
+                data.ClothStiffness = GUILayout.HorizontalSlider(data.ClothStiffness, 0.0f, 10.0f);
+                GUILayout.Label(data.ClothStiffness.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();
+                
+                // GUILayout.BeginHorizontal();        
+                // GUILayout.Label(new GUIContent("Force", "Force"), GUILayout.Width(80));
+                // data.ClotheForce = GUILayout.HorizontalSlider(data.ClotheForce, 0.1f, 1.0f);
+                // GUILayout.Label(data.ClotheForce.ToString("0.00"), GUILayout.Width(40));
+                // GUILayout.EndHorizontal();
+
                 GUILayout.Space(10);  
+#endif                
+                draw_seperate();
 
                 GUILayout.BeginHorizontal();
                 if (ConfigKeyEnableWind.Value == true)
@@ -470,9 +476,7 @@ namespace WindPhysics
                 _windDirLine.SetPosition(1, origin + dir * _windDirLength);
             }
 
-        }        
-#endif
-
+        }
 #endif
         
 #endregion
@@ -639,11 +643,12 @@ namespace WindPhysics
 
                             if (controller != null)
                             {
-                                WindData windData = controller.GetWindData();
-                                if (windData != null && windData.wind_status != Status.RUN)
-                                {
-                                    controller.ExecuteWindEffect(chaCtrl1);
-                                }
+                                controller.ExecuteWindEffect(chaCtrl1);
+                                // WindData windData = controller.GetWindData();
+                                // if (windData != null && windData.wind_status != Status.RUN)
+                                // {
+                                //     controller.ExecuteWindEffect(chaCtrl1);
+                                // }
                             }
                         } 
                         else
@@ -719,9 +724,7 @@ namespace WindPhysics
                     var controller = chaControl.GetComponent<WindPhysicsController>();
                     if (controller != null)
                     {                  
-                        WindData windData = controller.GetWindData();
-                        if (windData != null && windData.wind_status == Status.RUN)
-                            controller.ExecuteWindEffect(chaControl);
+                        controller.ExecuteWindEffect(chaControl);
                     }    
                 }
             }

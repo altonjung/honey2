@@ -151,6 +151,7 @@ namespace HoneySelect2Maker
                 ```json
                 {{
                 ""answer"": """",
+                ""emotion"": ""angry|sad|calm|joy"",                
                 ""next_action"": ""stay|leave""
                 }}
                 ```";
@@ -167,10 +168,12 @@ namespace HoneySelect2Maker
             You are {heroin.name}, {heroin.age}, {heroin.gender}.
             Job: {heroin.job}.
             Personality: {heroin.character1}, {heroin.character2}.
-            Relation: {heroin.friendship}.
-            Talk Style: {heroin.talking_style}.
-            Habit: {heroin.habit},
+            Relation: You & Me between {heroin.friendship}.
+            Habit: {heroin.habit}.
             Loving: {heroin.love}.
+            Talk Style: {heroin.talking_style}.            
+            # Chat Situation
+            - {heroin.lastDialogueContext}
             # Chat Rules
             - reply only in {user.nationality}
             - natural conversation
@@ -180,6 +183,7 @@ namespace HoneySelect2Maker
                 ```json
                 {{
                 ""answer"": """",
+                ""emotion"": ""angry|sad|calm|joy"",
                 ""next_action"": ""stay|leave""
                 }}
                 ```";
@@ -408,8 +412,22 @@ namespace HoneySelect2Maker
         }
     }
 
+/*
+    lastDialogueContext
+    "you don't know me"
+
+    "you are sad feeling."
+    “you are hurt by my insult.”
+	“you are disappointed by my rude.”
+    “you feel stressed by my rude.”
+
+    "you feel reassured after your friendly feedback."
+    ’you delighted by my good feedback."
+*/
+
     class ChatUser
     {
+        public string lastDialogueContext = "you don't know me"; 
         public string gender; // = "boy";
         public string name; // = "";
         public int    age; // = 18;
@@ -463,7 +481,7 @@ namespace HoneySelect2Maker
     public class AnswerWrapper
     {
         public string answer;
-        // public string emotion;
+        public string emotion;
         public string next_action;
     }
 
