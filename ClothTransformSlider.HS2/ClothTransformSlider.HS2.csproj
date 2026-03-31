@@ -30,7 +30,7 @@
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\bin\HS2\</OutputPath>
-    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX</DefineConstants>
+    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX;FEATURE_SCENE_SAVE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -63,9 +63,6 @@
     <Reference Include="HS2_ExtensibleSaveFormat, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\ExtensibleSaveFormat.HoneySelect2.18.2.0\lib\net46\HS2_ExtensibleSaveFormat.dll</HintPath>
       <Private>False</Private>
-    </Reference>
-    <Reference Include="HS2PE">
-      <HintPath>.\HS2PE.dll</HintPath>
     </Reference>
     <Reference Include="IL, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\IllusionLibs.HoneySelect2.IL.2020.5.29.5\lib\net46\IL.dll</HintPath>
@@ -154,6 +151,9 @@
     <Reference Include="UnityEngine.PhysicsModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\packages\IllusionLibs.KoikatsuSunshine.UnityEngine.PhysicsModule.2019.4.9\lib\net46\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>False</Private>
+    </Reference>
+    <Reference Include="HS2PE">
+      <HintPath>.\HS2PE.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

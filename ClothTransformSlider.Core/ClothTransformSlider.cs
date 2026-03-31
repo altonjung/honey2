@@ -99,7 +99,7 @@ namespace ClothTransformSlider
 
         private AssetBundle _bundle;
 
-        private static bool _ShowUI = false;
+        internal bool _ShowUI = false;
         private static SimpleToolbarToggle _toolbarButton;
 		
         private const int _uniqueId = ('C' << 24) | ('T' << 16) | ('F' << 8) | 'S';
@@ -107,6 +107,7 @@ namespace ClothTransformSlider
         private Rect _windowRect = new Rect(140, 10, 300, 10);
 
         internal OCIChar _currentOCIChar = null;
+        private int _mappedCharKey = int.MinValue;
         private Vector2 _transferScroll;
         private int _selectedTransferIndex = -1;
         private readonly List<TransferEntry> _transferEntries = new List<TransferEntry>();
@@ -160,7 +161,12 @@ namespace ClothTransformSlider
                 "Open window",
                 "Open ClothTransform window",
                 () => ResourceUtils.GetEmbeddedResource("toolbar_icon.png", typeof(ClothTransformSlider).Assembly).LoadTexture(),
-                false, this, val => _ShowUI = val);
+                false, this, val =>
+                {
+                    _ShowUI = val;
+                    if (val && _currentOCIChar != null)
+                        RefreshMappingsForSelection(_currentOCIChar);
+                });
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);        
 
             Logger.LogMessage($"{Name} {Version}.. by unbreakable dreamer");      
@@ -181,6 +187,8 @@ namespace ClothTransformSlider
             PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
             if (data == null)
                 return;
+            if (data.data != null && data.data.ContainsKey("sceneInfo"))
+                UnityEngine.Debug.Log($">> CTS SceneLoad xml:\n{data.data["sceneInfo"]}");
             XmlDocument doc = new XmlDocument();
             doc.LoadXml((string)data.data["sceneInfo"]);
             XmlNode node = doc.FirstChild;
@@ -194,6 +202,8 @@ namespace ClothTransformSlider
             PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
             if (data == null)
                 return;
+            if (data.data != null && data.data.ContainsKey("sceneInfo"))
+                UnityEngine.Debug.Log($">> CTS SceneImport xml:\n{data.data["sceneInfo"]}");
             XmlDocument doc = new XmlDocument();
             doc.LoadXml((string)data.data["sceneInfo"]);
             XmlNode node = doc.FirstChild;
@@ -214,6 +224,8 @@ namespace ClothTransformSlider
                 PluginData data = new PluginData();
                 data.version = _saveVersion;
                 data.data.Add("sceneInfo", stringWriter.ToString());
+
+                UnityEngine.Debug.Log($">> CTS SceneSave xml:\n{stringWriter}");
 
                 ExtendedSave.SetSceneExtendedDataById(_extSaveKey, data);
             }
@@ -324,7 +336,6 @@ namespace ClothTransformSlider
                 bool hasDicKey = TryGetDicKey(ociChar.GetChaControl(), out dicKey);
                 UnityEngine.Debug.Log($">> SceneRead char dicKey={(hasDicKey ? dicKey.ToString() : "not-found")} savedTransfers={saved.Count}");
 
-                AutoMapWithSaved(ociChar.GetChaControl(), saved);
                 StoreAdjustmentsFor(ociChar.GetChaControl(), saved);
 
                 restoredChars++;
@@ -550,9 +561,46 @@ namespace ClothTransformSlider
             return _currentOCIChar.GetChaControl();
         }
 
+        internal void RefreshMappingsForSelection(OCIChar ociChar)
+        {
+            if (ociChar == null)
+                return;
+
+            var chaCtrl = ociChar.GetChaControl();
+            if (chaCtrl == null)
+                return;
+
+            if (!CanAutoMap(chaCtrl))
+                return;
+
+            Dictionary<string, SavedAdjustment> saved = null;
+            if (TryGetDicKey(chaCtrl, out int dicKey) && _perCharAdjustments.TryGetValue(dicKey, out var map))
+                saved = map;
+            else if (_perCharAdjustments.TryGetValue(chaCtrl.GetHashCode(), out var map2))
+                saved = map2;
+
+            ClearMappings();
+            AutoMapWithSaved(chaCtrl, saved);
+            _mappedCharKey = GetCharKey(chaCtrl);
+        }
+
         internal void AutoMap(ChaControl chaCtrl)
         {
-            var saved = CaptureCurrentAdjustments();
+            if (!CanAutoMap(chaCtrl))
+            {
+                int key = GetCharKey(chaCtrl);
+                if (_pendingAutoRemap.Add(key))
+                    StartCoroutine(AutoMapDelayed(chaCtrl, key));
+                return;
+            }
+
+            int potential = GetPotentialBoneCount(chaCtrl);
+            if (potential == 0)
+            {
+                return;
+            }
+
+            var saved = GetSavedFor(chaCtrl) ?? CaptureCurrentAdjustments();
             ClearMappings();
             AutoMapWithSaved(chaCtrl, saved);
         }
@@ -781,6 +829,80 @@ namespace ClothTransformSlider
                 _perCharAdjustments[chaCtrl.GetHashCode()] = map;
         }
 
+        private int GetCharKey(ChaControl chaCtrl)
+        {
+            if (chaCtrl == null)
+                return int.MinValue;
+
+            if (TryGetDicKey(chaCtrl, out int dicKey))
+                return dicKey;
+
+            return chaCtrl.GetHashCode();
+        }
+
+        private Dictionary<string, SavedAdjustment> GetSavedFor(ChaControl chaCtrl)
+        {
+            if (chaCtrl == null)
+                return null;
+
+            if (TryGetDicKey(chaCtrl, out int dicKey) && _perCharAdjustments.TryGetValue(dicKey, out var map))
+                return map;
+
+            if (_perCharAdjustments.TryGetValue(chaCtrl.GetHashCode(), out var map2))
+                return map2;
+
+            return null;
+        }
+
+        private bool CanAutoMap(ChaControl chaCtrl)
+        {
+            if (chaCtrl == null)
+                return false;
+
+            SkinnedMeshRenderer bodyRenderer = GetBodyRenderer(chaCtrl);
+            if (bodyRenderer == null)
+            {
+                return false;
+            }
+
+            var clothRenderers = GetActiveClothRenderers(chaCtrl);
+            if (clothRenderers.Count == 0)
+            {
+                return false;
+            }
+
+            bool hasBones = clothRenderers.Any(r => r != null && r.bones != null && r.bones.Length > 0);
+            if (!hasBones)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private int GetPotentialBoneCount(ChaControl chaCtrl)
+        {
+            var clothRenderers = GetActiveClothRenderers(chaCtrl);
+            int count = 0;
+            foreach (var renderer in clothRenderers)
+            {
+                if (renderer == null || renderer.bones == null)
+                    continue;
+                foreach (var bone in renderer.bones)
+                {
+                    if (bone == null)
+                        continue;
+                    string name = NormalizeBoneName(bone.name);
+                    if (string.IsNullOrEmpty(name))
+                        continue;
+                    count++;
+                    if (count > 0)
+                        return count;
+                }
+            }
+            return count;
+        }
+
         private bool TryGetDicKey(ChaControl chaCtrl, out int dicKey)
         {
             dicKey = 0;
@@ -975,6 +1097,8 @@ namespace ClothTransformSlider
             if (ociChar != null)
             {
                 ClothTransformSlider._self._currentOCIChar = ociChar;
+                if (ClothTransformSlider._self._ShowUI)
+                    ClothTransformSlider._self.RefreshMappingsForSelection(ociChar);
             }
             return true;
         }
