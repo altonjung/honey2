@@ -1,0 +1,8 @@
+D:\작업\github\work\hs2\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealHumanSupport.HS2.csproj.AssemblyReference.cache
+D:\작업\github\work\hs2\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealHumanSupport.HS2.csproj.CoreCompileInputs.cache
+D:\작업\github\work\hs2\HSPlugins-main\bin\HS2\RealHumanSupport.dll
+D:\작업\github\work\hs2\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealHumanSupport.dll
+C:\share\timeline\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealHumanSupport.HS2.csproj.AssemblyReference.cache
+C:\share\timeline\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealHumanSupport.HS2.csproj.CoreCompileInputs.cache
+C:\share\timeline\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealHumanSupport.dll
+C:\share\timeline\HSPlugins-main\bin\HS2\RealHumanSupport.dll

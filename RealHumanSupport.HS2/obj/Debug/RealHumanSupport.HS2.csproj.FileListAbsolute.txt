@@ -1,0 +1,7 @@
+C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\RealHumanSupport.HS2\obj\Debug\RealHumanSupport.HS2.csproj.AssemblyReference.cache
+C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\RealHumanSupport.HS2\obj\Debug\RealHumanSupport.HS2.csproj.CoreCompileInputs.cache
+C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\RealHumanSupport.dll
+C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\bin\HS2\RealHumanSupport.pdb
+C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\RealHumanSupport.HS2\obj\Debug\RealHuma.1603E21D.Up2Date
+C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\RealHumanSupport.HS2\obj\Debug\RealHumanSupport.dll
+C:\Users\SDS\Downloads\HSPlugins-main\HSPlugins-main\RealHumanSupport.HS2\obj\Debug\RealHumanSupport.pdb

@@ -1,0 +1,6 @@
+C:\share\timeline\HSPlugins-main\bin\HS2\RealHumanSupport.dll
+C:\share\timeline\HSPlugins-main\bin\HS2\RealHumanSupport.pdb
+C:\share\timeline\HSPlugins-main\RealHumanSupport.HS2\obj\Debug\RealHumanSupport.HS2.csproj.AssemblyReference.cache
+C:\share\timeline\HSPlugins-main\RealHumanSupport.HS2\obj\Debug\RealHumanSupport.HS2.csproj.CoreCompileInputs.cache
+C:\share\timeline\HSPlugins-main\RealHumanSupport.HS2\obj\Debug\RealHumanSupport.dll
+C:\share\timeline\HSPlugins-main\RealHumanSupport.HS2\obj\Debug\RealHumanSupport.pdb
