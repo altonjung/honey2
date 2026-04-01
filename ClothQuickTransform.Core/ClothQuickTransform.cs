@@ -51,7 +51,7 @@ using KKAPI.Utilities;
 using KKAPI.Chara;
 using static CharaUtils.Expression;
 
-namespace ClothTransformSlider
+namespace ClothQuickTransform
 {
 #if BEPINEX
     [BepInPlugin(GUID, Name, Version)]
@@ -62,15 +62,15 @@ namespace ClothTransformSlider
 #endif
     [BepInDependency("com.bepis.bepinex.extendedsave")]
 #endif
-    public class ClothTransformSlider : GenericPlugin
+    public class ClothQuickTransform : GenericPlugin
 #if IPA
                             , IEnhancedPlugin
 #endif
     {
         #region Constants
-        public const string Name = "ClothTransformSlider";
+        public const string Name = "ClothQuickTransform";
         public const string Version = "0.9.0.0";
-        public const string GUID = "com.alton.illusionplugins.clothtransformslider";
+        public const string GUID = "com.alton.illusionplugins.ClothQuickTransform";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
@@ -92,7 +92,7 @@ namespace ClothTransformSlider
         #region Private Variables
 
         internal static new ManualLogSource Logger;
-        internal static ClothTransformSlider _self;
+        internal static ClothQuickTransform _self;
 
         private static string _assemblyLocation;
         internal bool _loaded = false;
@@ -114,6 +114,11 @@ namespace ClothTransformSlider
         internal readonly HashSet<int> _pendingAutoRemap = new HashSet<int>();
         private readonly Dictionary<int, Dictionary<string, SavedAdjustment>> _perCharAdjustments =
             new Dictionary<int, Dictionary<string, SavedAdjustment>>();
+        private GameObject _selectedBoneMarker;
+        private Material _selectedBoneMaterial;
+        private const float _selectedBoneMarkerScale = 1.0f;
+        private const int _selectedBoneMarkerSegments = 24;
+        private const float _selectedBoneMarkerLineWidth = 0.02f;
     
         private GUIStyle _richLabel;
 
@@ -160,7 +165,7 @@ namespace ClothTransformSlider
             _toolbarButton = new SimpleToolbarToggle(
                 "Open window",
                 "Open ClothTransform window",
-                () => ResourceUtils.GetEmbeddedResource("toolbar_icon.png", typeof(ClothTransformSlider).Assembly).LoadTexture(),
+                () => ResourceUtils.GetEmbeddedResource("toolbar_icon.png", typeof(ClothQuickTransform).Assembly).LoadTexture(),
                 false, this, val =>
                 {
                     _ShowUI = val;
@@ -269,7 +274,7 @@ namespace ClothTransformSlider
 
         private void SceneRead(XmlNode node, List<OCIChar> ociChars)
         {
-            UnityEngine.Debug.Log($">> SceneRead in ClothTransformSlider");
+            UnityEngine.Debug.Log($">> SceneRead in ClothQuickTransform");
 
             var ociCharByDicKey = new Dictionary<int, OCIChar>();
             foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
@@ -347,7 +352,7 @@ namespace ClothTransformSlider
 
         private void SceneWrite(string path, XmlTextWriter writer)
         {
-            UnityEngine.Debug.Log($">> SceneWrite in ClothTransformSlider");
+            UnityEngine.Debug.Log($">> SceneWrite in ClothQuickTransform");
 
             var dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
             var ociCharByDicKey = dic
@@ -417,10 +422,13 @@ namespace ClothTransformSlider
         protected override void OnGUI()
         {
             if (_ShowUI == false)
+            {
+                ClearSelectedBoneHighlight();
                 return;
+            }
 
             if (StudioAPI.InsideStudio)
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "ClothTransformSlider " + Version);
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "ClothQuickTransform " + Version);
         }
         private void WindowFunc(int id)
         {
@@ -459,6 +467,7 @@ namespace ClothTransformSlider
                 draw_seperate();
 
                 _transferScroll = GUILayout.BeginScrollView(_transferScroll, GUI.skin.box, GUILayout.Height(180));
+                int prevSelectedIndex = _selectedTransferIndex;
                 for (int i = 0; i < _transferEntries.Count; i++)
                 {
                     var entry = _transferEntries[i];
@@ -469,6 +478,8 @@ namespace ClothTransformSlider
                     }
                 }
                 GUILayout.EndScrollView();
+                if (prevSelectedIndex != _selectedTransferIndex)
+                    UpdateSelectedBoneHighlight();
 
                 if (_selectedTransferIndex >= 0 && _selectedTransferIndex < _transferEntries.Count)
                 {
@@ -756,6 +767,7 @@ namespace ClothTransformSlider
 
             _selectedTransferIndex = _transferEntries.Count > 0 ? 0 : -1;
             StoreAdjustmentsFor(chaCtrl, CaptureCurrentAdjustments());
+            UpdateSelectedBoneHighlight();
         }
 
         private Dictionary<string, SavedAdjustment> CaptureCurrentAdjustments()
@@ -817,6 +829,7 @@ namespace ClothTransformSlider
 
             _transferEntries.Clear();
             _selectedTransferIndex = -1;
+            ClearSelectedBoneHighlight();
         }
 
         private void StoreAdjustmentsFor(ChaControl chaCtrl, Dictionary<string, SavedAdjustment> map)
@@ -1048,6 +1061,98 @@ namespace ClothTransformSlider
             return $"len={name.Length} text='{name}' codes=[{string.Join(",", codes)}]";
         }
 
+        private void UpdateSelectedBoneHighlight()
+        {
+            if (_selectedTransferIndex < 0 || _selectedTransferIndex >= _transferEntries.Count)
+            {
+                ClearSelectedBoneHighlight();
+                return;
+            }
+
+            var entry = _transferEntries[_selectedTransferIndex];
+            if (entry == null || entry.transfer == null)
+            {
+                ClearSelectedBoneHighlight();
+                return;
+            }
+
+            EnsureSelectedBoneMarker();
+            _selectedBoneMarker.transform.SetParent(entry.transfer, false);
+            _selectedBoneMarker.transform.localPosition = Vector3.zero;
+            _selectedBoneMarker.transform.localRotation = Quaternion.identity;
+            _selectedBoneMarker.transform.localScale = Vector3.one * _selectedBoneMarkerScale;
+            _selectedBoneMarker.SetActive(true);
+        }
+
+        private void EnsureSelectedBoneMarker()
+        {
+            if (_selectedBoneMarker != null)
+                return;
+
+            var marker = new GameObject("CTS_SelectedBoneMarker");
+            marker.hideFlags = HideFlags.DontSave;
+            if (_selectedBoneMaterial == null)
+                _selectedBoneMaterial = CreateSelectedBoneMaterial();
+            CreateWireSphere(marker.transform);
+
+            _selectedBoneMarker = marker;
+        }
+
+        private Material CreateSelectedBoneMaterial()
+        {
+            Shader shader = Shader.Find("Unlit/Color");
+            if (shader == null)
+                shader = Shader.Find("Standard");
+            if (shader == null)
+                return null;
+            var mat = new Material(shader);
+            mat.color = Color.green;
+            return mat;
+        }
+
+        private void CreateWireSphere(Transform parent)
+        {
+            CreateWireCircle(parent, "Wire_XY", Vector3.forward);
+            CreateWireCircle(parent, "Wire_XZ", Vector3.up);
+            CreateWireCircle(parent, "Wire_YZ", Vector3.right);
+        }
+
+        private void CreateWireCircle(Transform parent, string name, Vector3 normal)
+        {
+            var go = new GameObject(name);
+            go.hideFlags = HideFlags.DontSave;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+
+            var lr = go.AddComponent<LineRenderer>();
+            lr.useWorldSpace = false;
+            lr.loop = true;
+            lr.positionCount = _selectedBoneMarkerSegments;
+            lr.startWidth = _selectedBoneMarkerLineWidth;
+            lr.endWidth = _selectedBoneMarkerLineWidth;
+            if (_selectedBoneMaterial != null)
+                lr.sharedMaterial = _selectedBoneMaterial;
+
+            Quaternion rot = Quaternion.FromToRotation(Vector3.forward, normal);
+            for (int i = 0; i < _selectedBoneMarkerSegments; i++)
+            {
+                float t = (float)i / _selectedBoneMarkerSegments * Mathf.PI * 2f;
+                Vector3 p = new Vector3(Mathf.Cos(t), Mathf.Sin(t), 0f);
+                lr.SetPosition(i, rot * p);
+            }
+        }
+
+        private void ClearSelectedBoneHighlight()
+        {
+            if (_selectedBoneMarker != null)
+            {
+                _selectedBoneMarker.SetActive(false);
+                _selectedBoneMarker.transform.SetParent(null, false);
+            }
+        }
+
         private class RendererBoneRef
         {
             public SkinnedMeshRenderer renderer;
@@ -1096,9 +1201,9 @@ namespace ClothTransformSlider
             OCIChar ociChar = objectCtrlInfo as OCIChar;
             if (ociChar != null)
             {
-                ClothTransformSlider._self._currentOCIChar = ociChar;
-                if (ClothTransformSlider._self._ShowUI)
-                    ClothTransformSlider._self.RefreshMappingsForSelection(ociChar);
+                ClothQuickTransform._self._currentOCIChar = ociChar;
+                if (ClothQuickTransform._self._ShowUI)
+                    ClothQuickTransform._self.RefreshMappingsForSelection(ociChar);
             }
             return true;
         }
@@ -1109,7 +1214,7 @@ namespace ClothTransformSlider
     {
         private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange = false, bool asyncFlags = true)
         {
-            var self = ClothTransformSlider._self;
+            var self = ClothQuickTransform._self;
             if (self == null || __instance == null)
                 return;
 

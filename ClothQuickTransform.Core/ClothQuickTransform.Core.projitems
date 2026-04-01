@@ -6,11 +6,11 @@
     <SharedGUID>a9a8dfae-8470-4ab1-b5a7-6f2c9b42a3d6</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>ClothTransformSlider.Core</Import_RootNamespace>
+    <Import_RootNamespace>ClothQuickTransform.Core</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ClothTransformSlider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ClothQuickTransform.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />

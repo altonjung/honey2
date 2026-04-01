@@ -1,8 +1,8 @@
 ﻿using System.Reflection;
 
-[assembly: AssemblyTitle(ClothTransformSlider.ClothTransformSlider.Name)]
+[assembly: AssemblyTitle(ClothQuickTransform.ClothQuickTransform.Name)]
 [assembly: AssemblyDescription("Keyframe sequencing/animation tool for Studio")]
 [assembly: AssemblyCompany("https://github.com/IllusionMods/HSPlugins")]
-[assembly: AssemblyProduct(ClothTransformSlider.ClothTransformSlider.Name)]
+[assembly: AssemblyProduct(ClothQuickTransform.ClothQuickTransform.Name)]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
-[assembly: AssemblyVersion(ClothTransformSlider.ClothTransformSlider.Version)]
+[assembly: AssemblyVersion(ClothQuickTransform.ClothQuickTransform.Version)]

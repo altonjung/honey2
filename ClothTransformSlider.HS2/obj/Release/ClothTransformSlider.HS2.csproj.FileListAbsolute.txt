@@ -1,5 +1,0 @@
-C:\share\work\hs2\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTransformSlider.HS2.csproj.AssemblyReference.cache
-C:\share\work\hs2\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTransformSlider.HS2.csproj.CoreCompileInputs.cache
-C:\share\work\hs2\HSPlugins-main\bin\HS2\ClothTransformSlider.dll
-C:\share\work\hs2\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTra.9A3C3692.Up2Date
-C:\share\work\hs2\HSPlugins-main\ClothTransformSlider.HS2\obj\Release\ClothTransformSlider.dll
