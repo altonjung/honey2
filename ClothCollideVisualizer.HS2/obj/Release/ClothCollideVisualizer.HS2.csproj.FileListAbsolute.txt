@@ -1,0 +1,5 @@
+C:\share\work\hs2\HSPlugins-main\ClothCollideVisualizer.HS2\obj\Release\ClothCollideVisualizer.HS2.csproj.AssemblyReference.cache
+C:\share\work\hs2\HSPlugins-main\ClothCollideVisualizer.HS2\obj\Release\ClothCollideVisualizer.HS2.csproj.CoreCompileInputs.cache
+C:\share\work\hs2\HSPlugins-main\bin\HS2\ClothPhysicsVisualizer.dll
+C:\share\work\hs2\HSPlugins-main\ClothCollideVisualizer.HS2\obj\Release\ClothCol.2F382E5E.Up2Date
+C:\share\work\hs2\HSPlugins-main\ClothCollideVisualizer.HS2\obj\Release\ClothPhysicsVisualizer.dll

@@ -84,6 +84,9 @@ namespace ClothCollideVisualizer
         private const string GROUP_CAPSULE_COLLIDER = "Group: (C)Colliders";
         private const string GROUP_SPHERE_COLLIDER = "Group: (S)Colliders";
 
+#if FEATURE_GROUND_COLLIDER        
+        private const string GROUND_COLLIDER_NAME = "Cloth colliders support_flat_ground";
+#endif
         #region Private Types
         #endregion
 
@@ -315,9 +318,9 @@ namespace ClothCollideVisualizer
 
                     GUILayout.Label("<color=orange>Position</color>", RichLabel);
                     Vector3 pos = debugTr.localPosition;
-                    pos.x = SliderRow("Pos X", pos.x, -10.0f, 10.0f);
-                    pos.y = SliderRow("Pos Y", pos.y, -10.0f, 10.0f);
-                    pos.z = SliderRow("Pos Z", pos.z, -10.0f, 10.0f);
+                    pos.x = SliderRow("Pos X", pos.x, -3.0f, 3.0f);
+                    pos.y = SliderRow("Pos Y", pos.y, -3.0f, 3.0f);
+                    pos.z = SliderRow("Pos Z", pos.z, -3.0f, 3.0f);
                     debugTr.localPosition = pos;
 
                     GUILayout.Label("<color=orange>Rotation</color>", RichLabel);
@@ -541,6 +544,11 @@ namespace ClothCollideVisualizer
                     continue;
                 }
 
+#if FEATURE_GROUND_COLLIDER
+                // ground collider
+                CreateGroundClothCollider(ociChar.charInfo);
+#endif                
+
                 // bone 노드 순회
                 foreach (XmlNode boneNode in charNode.SelectNodes("bone"))
                 {
@@ -757,9 +765,11 @@ namespace ClothCollideVisualizer
         {
             for (int i = 0; i < frameCount; i++)
                 yield return null;
-
-            if (ociChar != null)
-                _self.AddVisualColliders(ociChar);
+                
+            if (_ShowUI) {
+                if (ociChar != null)
+                    _self.AddVisualColliders(ociChar);
+            }
         }
 
         private void CleanupVisualsByName(OCIChar ociChar)
