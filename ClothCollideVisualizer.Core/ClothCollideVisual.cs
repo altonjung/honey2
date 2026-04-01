@@ -766,10 +766,9 @@ namespace ClothCollideVisualizer
             for (int i = 0; i < frameCount; i++)
                 yield return null;
                 
-            if (_ShowUI) {
-                if (ociChar != null)
-                    _self.AddVisualColliders(ociChar);
-            }
+
+            if (ociChar != null && _ShowUI)
+                _self.AddVisualColliders(ociChar);
         }
 
         private void CleanupVisualsByName(OCIChar ociChar)
