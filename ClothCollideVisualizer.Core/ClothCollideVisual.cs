@@ -84,9 +84,6 @@ namespace ClothCollideVisualizer
         private const string GROUP_CAPSULE_COLLIDER = "Group: (C)Colliders";
         private const string GROUP_SPHERE_COLLIDER = "Group: (S)Colliders";
 
-#if FEATURE_GROUND_COLLIDER        
-        private const string GROUND_COLLIDER_NAME = "Cloth colliders support_flat_ground";
-#endif
         #region Private Types
         #endregion
 
@@ -543,11 +540,6 @@ namespace ClothCollideVisualizer
                     // UnityEngine.Debug.LogWarning($">> SceneRead: Character '{charName}' not found!");
                     continue;
                 }
-
-#if FEATURE_GROUND_COLLIDER
-                // ground collider
-                CreateGroundClothCollider(ociChar.charInfo);
-#endif                
 
                 // bone 노드 순회
                 foreach (XmlNode boneNode in charNode.SelectNodes("bone"))

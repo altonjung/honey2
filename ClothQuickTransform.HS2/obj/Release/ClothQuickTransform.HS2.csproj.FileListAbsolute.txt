@@ -1,5 +1,0 @@
-C:\share\work\hs2\HSPlugins-main\bin\HS2\ClothQuickTransform.dll
-C:\share\work\hs2\HSPlugins-main\ClothQuickTransform.HS2\obj\Release\ClothQuickTransform.HS2.csproj.AssemblyReference.cache
-C:\share\work\hs2\HSPlugins-main\ClothQuickTransform.HS2\obj\Release\ClothQuickTransform.HS2.csproj.CoreCompileInputs.cache
-C:\share\work\hs2\HSPlugins-main\ClothQuickTransform.HS2\obj\Release\ClothQui.EEE4C1A5.Up2Date
-C:\share\work\hs2\HSPlugins-main\ClothQuickTransform.HS2\obj\Release\ClothQuickTransform.dll
