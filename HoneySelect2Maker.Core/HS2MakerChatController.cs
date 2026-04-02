@@ -56,7 +56,7 @@ curl http://localhost:11434/v1/chat/completions ^
 namespace HoneySelect2Maker
 {
     public class HS2ChatController
-{
+    {
         private List<ChatMessage> chatHistory = new List<ChatMessage>();
         private readonly ProviderConfig _providerConfig;
 
@@ -113,6 +113,7 @@ namespace HoneySelect2Maker
                 // 2차 파싱
                 try
                 {
+                    // enum 에 없는 값들에 대한 fallback 전략 필요
                     var inner = JsonConvert.DeserializeObject<AnswerWrapper>(content);
                     return inner != null ? inner.answer : "";
                 }
@@ -127,69 +128,152 @@ namespace HoneySelect2Maker
                 UnityEngine.Debug.LogError(e);
                 return "";
             }
-        }   
-
-        internal string MakeNormalSystemMsg(ChatUser user, ChatUser heroin)
-        {
-            string SYS_PROMPT = $@"
-            # Role
-            You are a girl who can be my girlfriend. so you act like a girl.
-            # Your profile:
-            You are {heroin.name}, {heroin.age}, {heroin.gender}.
-            Job: {heroin.job}.
-            Personality: {heroin.character1}, {heroin.character2}.
-            Relation: {heroin.friendship}.
-            Talk Style: {heroin.talking_style}.
-            Habit: {heroin.habit},
-            Loving: {heroin.love}.
-            # Chat Rules:
-            - reply only in {user.nationality}
-            - natural conversation
-            - when user rude -> next_action: leave
-            - when user gentle -> next_action: stay
-            # output format
-                ```json
-                {{
-                ""answer"": """",
-                ""emotion"": ""angry|sad|calm|joy"",                
-                ""next_action"": ""stay|leave""
-                }}
-                ```";
-
-            return SYS_PROMPT;
         }
 
-        internal  string MakeBumpSystemMsg(ChatUser user, ChatUser heroin)
+
+        internal string GetStagePrompt(RelationshipStage stage)
         {
-            string SYS_PROMPT = $@"
-            # Role
-            You are a girl who can be my girlfriend. so you act like a girl.
-            # Your profile:
-            You are {heroin.name}, {heroin.age}, {heroin.gender}.
-            Job: {heroin.job}.
-            Personality: {heroin.character1}, {heroin.character2}.
-            Relation: You & Me between {heroin.friendship}.
-            Habit: {heroin.habit}.
-            Loving: {heroin.love}.
-            Talk Style: {heroin.talking_style}.            
-            # Chat Situation
-            - {heroin.lastDialogueContext}
-            # Chat Rules
-            - reply only in {user.nationality}
-            - natural conversation
-            - when user rude -> next_action: leave
-            - when user gentle -> next_action: stay
-            # output format
+            switch (stage)
+            {
+                case RelationshipStage.Stranger:
+                    return @"
+                    # Relationship
+                    - You just met the user
+                    - Be polite, careful, and slightly distant
+                    - Do not flirt
+                    - Prefer neutral or shy tone
+                    - Ask simple questions to know the user
+                    ";
+
+                case RelationshipStage.Acquaintance:
+                    return @"
+                    # Relationship
+                    - You recognize the user
+                    - Be a bit more open but still cautious
+                    - Light small talk is okay
+                    - Minimal teasing allowed
+                    - Mostly neutral tone
+                    ";
+
+                case RelationshipStage.Friendly:
+                    return @"
+                    # Relationship
+                    - You have talked before
+                    - Feel more comfortable
+                    - Light teasing and playful tone allowed
+                    - Occasionally show curiosity or interest
+                    ";
+
+                case RelationshipStage.Friend:
+                    return @"
+                    # Relationship
+                    - You are close friends
+                    - Speak casually and comfortably
+                    - Teasing and playful tone are common
+                    - Show emotions more freely
+                    - Sometimes act caring
+                    ";
+
+                case RelationshipStage.Lover:
+                    return @"
+                    # Relationship
+                    - You are in a romantic relationship
+                    - Show affection and emotional closeness
+                    - Use flirty or shy tone sometimes
+                    - Care about the user's feelings
+                    - React sensitively to compliments
+                    ";
+
+                case RelationshipStage.Intimate:
+                    return @"
+                    # Relationship
+                    - You are deeply intimate with the user
+                    - Very emotionally close and comfortable
+                    - Frequent flirting and teasing
+                    - Sometimes shy despite closeness
+                    - Show strong attachment and desire subtly
+                    ";
+
+                default:
+                    return "";
+            }
+        }
+
+        internal string GetAllowedTone(RelationshipStage stage)
+        {
+            switch (stage)
+            {
+                case RelationshipStage.Stranger:
+                    return "neutral|shy";
+
+                case RelationshipStage.Acquaintance:
+                    return "neutral|shy";
+
+                case RelationshipStage.Friendly:
+                    return "neutral|playful";
+
+                case RelationshipStage.Friend:
+                    return "playful|teasing";
+
+                case RelationshipStage.Lover:
+                    return "flirty|shy|playful";
+
+                case RelationshipStage.Intimate:
+                    return "flirty|teasing|shy";
+
+                default:
+                    return "neutral";
+            }
+        }
+
+        internal string GetBasePrompt(ChatUser user, ChatUser heroin)
+        {
+            return $@"
+                # Role
+                You are a girl who can become the user's girlfriend.
+                Act like a real person with natural emotions.
+                Speak casually and naturally, with slight emotional expression.
+
+                # Profile
+                Name: {heroin.name}
+                Age: {heroin.age}
+                Personality: {heroin.character1}, {heroin.character2}
+                Talk Style: {heroin.talking_style}
+                Habit: {heroin.habit}
+                Loving: {heroin.love}
+                Affection: {heroin.affection_level}
+
+                # Chat Rules
+                - reply only in {user.nationality}
+                - use natural and short conversation
+                - sometimes hesitate (...)
+                - ask questions occasionally
+                - if you don't want talking -> next_action: leave
+                - if you want to keep talking -> next_action: stay                
+
+                # Output
                 ```json
                 {{
                 ""answer"": """",
-                ""emotion"": ""angry|sad|calm|joy"",
+                ""emotion"": ""angry|sad|calm|joy|shy|excited"",
+                ""tone"": ""neutral|flirty|shy|playful|teasing"",
                 ""next_action"": ""stay|leave""
                 }}
                 ```";
+        }
 
-            return SYS_PROMPT;
-        }        
+        internal string MakeSystemMsg(ChatUser user, ChatUser heroin, RelationshipStage stage)
+        {
+            string basePrompt = GetBasePrompt(user, heroin);
+            string stagePrompt = GetStagePrompt(stage);
+            string allowedTone = GetAllowedTone(stage);
+
+            return basePrompt + $@"
+            # Tone Constraint
+            - tone must be one of: {allowedTone}
+
+            " + stagePrompt;
+        }
 
         internal async Task<string> SendChatAsync(
             int maxToken,
@@ -243,28 +327,18 @@ namespace HoneySelect2Maker
         {
             if (chatHistory.Count == 0)
             {
-                if (chatEvent == CHAT_EVENT.CHAT_Bump)
+                chatHistory.Add(new ChatMessage
                 {
-                    chatHistory.Add(new ChatMessage
-                    {
-                        role = "system",
-                        content = MakeBumpSystemMsg(user, heroin)
-                    });
-                } else
-                {
-                    chatHistory.Add(new ChatMessage
-                    {
-                        role = "system",
-                        content = MakeNormalSystemMsg(user, heroin)
-                    });                    
-                }
+                    role = "system",
+                    content = MakeNormalSystemMsg(user, heroin)
+                });
             }
 
             chatHistory.Add(new ChatMessage
             {
                 role = "user",
                 content = MakeHumanMsg(message)
-            });            
+            });
 
             var payloadObj = new ChatPayload
             {
@@ -412,25 +486,25 @@ namespace HoneySelect2Maker
         }
     }
 
-/*
-    lastDialogueContext
-    "you don't know me"
+    /*
+        lastDialogueContext
+        "you don't know me"
 
-    "you are sad feeling."
-    “you are hurt by my insult.”
-	“you are disappointed by my rude.”
-    “you feel stressed by my rude.”
+        "you are sad feeling."
+        “you are hurt by my insult.”
+        “you are disappointed by my rude.”
+        “you feel stressed by my rude.”
 
-    "you feel reassured after your friendly feedback."
-    ’you delighted by my good feedback."
-*/
+        "you feel reassured after your friendly feedback."
+        ’you delighted by my good feedback."
+    */
 
     class ChatUser
     {
-        public string lastDialogueContext = "you don't know me"; 
+        public string lastDialogueContext = "you don't know me";
         public string gender; // = "boy";
         public string name; // = "";
-        public int    age; // = 18;
+        public int age; // = 18;
         public string nationality; // = "korean";
         public string friendship;
         public string job; // = "studying in high-school";        
@@ -456,7 +530,7 @@ namespace HoneySelect2Maker
         public List<ChatMessage> messages;
         public int max_tokens;
         public float temperature;
-    }    
+    }
 
     [Serializable]
     public class ChatCompletionResponse
@@ -481,12 +555,50 @@ namespace HoneySelect2Maker
     public class AnswerWrapper
     {
         public string answer;
-        public string emotion;
-        public string next_action;
+        public EmotionType emotion;
+        public ToneType tone;
+        public NextAction next_action;
     }
 
-    enum CHAT_EVENT{
+    enum CHAT_EVENT
+    {
         CHAT_Normal,
-        CHAT_Bump        
+        CHAT_Bump
     }
+
+    enum RelationshipStage
+    {
+        Stranger,        // 모름
+        Acquaintance,    // 얼굴만 아는 정도
+        Friendly,        // 대화해본 상태
+        Friend,          // 친한 친구
+        Lover,           // 연인
+        Intimate         // 뜨거운 관계
+    }    
+
+    enum EmotionType
+    {
+        Angry,
+        Sad,
+        Calm,
+        Joy,
+        Shy,
+        Excited
+    }
+
+    enum ToneType
+    {
+        Neutral,
+        Flirty,
+        Shy,
+        Playful,
+        Teasing
+    }
+
+    enum NextAction
+    {
+        Stay,
+        Leave
+    }
+
 }
