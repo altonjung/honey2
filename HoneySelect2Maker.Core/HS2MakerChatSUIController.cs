@@ -48,6 +48,26 @@ namespace HoneySelect2Maker
         - 이 버전은 ScrollRect 기반으로 메시지가 스크롤됩니다.
     */
     // UGUI(Canvas + ScrollRect + InputField/Text) 생성
+    /*
+        Usage (updated)
+        1) Create:
+           var chatUI = new HS2ChatSUIController();
+           chatUI.SetFontFromOSBySystemLanguage();
+           chatUI.CreateChatUI(chatController, actionController, user, heroin);
+
+        2) Append:
+           chatUI.AppendChat("You", "Hello");
+           chatUI.AppendChat("Jenny", "Hi there");
+
+        3) Destroy:
+           chatUI.DestroyChatUI();
+
+        UI structure
+        - ScrollRect-based chat list
+        - Left/right bubble rows by speaker
+        - Separated areas per row: avatar, speaker name, message text
+        - Auto EventSystem creation when missing
+    */
     public class HS2ChatSUIController
     {
         private const bool DebugVisuals = false;
