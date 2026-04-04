@@ -1,5 +1,0 @@
-D:\work\hs2\working\hs2plugin\BakeClothNormalmap.HS2\obj\Release\BakeClothNormalmap.HS2.csproj.AssemblyReference.cache
-D:\work\hs2\working\hs2plugin\BakeClothNormalmap.HS2\obj\Release\BakeClothNormalmap.HS2.csproj.CoreCompileInputs.cache
-D:\work\hs2\working\hs2plugin\bin\HS2\BakeClothNormalmap.dll
-D:\work\hs2\working\hs2plugin\BakeClothNormalmap.HS2\obj\Release\BakeClothNormalmap.dll
-D:\work\hs2\working\hs2plugin\BakeClothNormalmap.HS2\obj\Release\RealHuma.1603E21D.Up2Date

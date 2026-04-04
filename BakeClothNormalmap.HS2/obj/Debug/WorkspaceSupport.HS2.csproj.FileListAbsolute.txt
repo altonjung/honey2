@@ -1,6 +1,0 @@
-C:\share\timeline\HSPlugins-main\bin\HS2\BakeClothNormalmap.dll
-C:\share\timeline\HSPlugins-main\bin\HS2\BakeClothNormalmap.pdb
-C:\share\timeline\HSPlugins-main\BakeClothNormalmap.HS2\obj\Debug\BakeClothNormalmap.HS2.csproj.AssemblyReference.cache
-C:\share\timeline\HSPlugins-main\BakeClothNormalmap.HS2\obj\Debug\BakeClothNormalmap.HS2.csproj.CoreCompileInputs.cache
-C:\share\timeline\HSPlugins-main\BakeClothNormalmap.HS2\obj\Debug\BakeClothNormalmap.dll
-C:\share\timeline\HSPlugins-main\BakeClothNormalmap.HS2\obj\Debug\BakeClothNormalmap.pdb

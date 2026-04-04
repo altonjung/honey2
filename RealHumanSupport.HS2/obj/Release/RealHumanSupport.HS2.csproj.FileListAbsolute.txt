@@ -1,5 +1,0 @@
-C:\share\work\hs2\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealHumanSupport.HS2.csproj.AssemblyReference.cache
-C:\share\work\hs2\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealHumanSupport.HS2.csproj.CoreCompileInputs.cache
-C:\share\work\hs2\HSPlugins-main\bin\HS2\RealGirlSupport.dll
-C:\share\work\hs2\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealHuma.1603E21D.Up2Date
-C:\share\work\hs2\HSPlugins-main\RealHumanSupport.HS2\obj\Release\RealGirlSupport.dll
