@@ -51,32 +51,34 @@ using KKAPI.Utilities;
 using KKAPI.Chara;
 
 /*
-Agent 코드 수행
+    Agent 코드 수행
 
-목적
-- 활성화된 캐릭터가 착용한 Cloth 컴포넌트와 외부 Item에 임의로 부여한 Collider에 대해 상호작용 효과를 제공한다.
+    목적
+    - 활성화된 캐릭터가 착용한 Cloth 컴포넌트와 외부 Item에 임의로 부여한 Collider에 대해 상호작용 효과를 제공한다.
 
-용어
-- OCIChar: 캐릭터 
-    > GetCurrentOCI 함수를 통해 현재 씬내 활성화된 캐리터를 획득
-- OCIItem: 아이템(공, 테이블, 의자 등)
-    > GetAllOCIItemFromStudio 함수를 통해 현재 씬내 전체 아이템 목록 획득
+    용어
+    - OCIChar: 캐릭터 
+        > GetCurrentOCI 함수를 통해 현재 씬내 활성화된 캐리터를 획득
+    - OCIItem: 아이템(공, 테이블, 의자 등)
+        > GetAllOCIItemFromStudio 함수를 통해 현재 씬내 전체 아이템 목록 획득
 
 
-요구 기능
-1) UI 생성
-  1.1) 현재 씬내 현재 캐릭터내 cloth 컴포넌트를 조회 하여 UI 제공
-       - 상의/하의 Cloth 선택 UI 가 필요하고 각 정보는 GetClothTop()/GetClothBottom() 통해서 획득
-  1.2) 현재 씬내 조회된 OCIItem 목록 선택 UI 제공
-  1.3) OCIItem 목록에서 사용자가 선택한 Item에 대해 Capsule/Sphere Collider 생성 UI 제공        
-       - Center(X, Y, Z), Radius, Height 조정 가능 UI 제공 필요..
-       - 생성되는 대상에 대한 collide 시각화 필요(녹색 실선으로 collide 표현하면 좋겠음)
-  1.4) Binding 버튼 클릭 시, 선택한 Cloth의 충돌 매핑에 Item Collider를 추가
-  1.5) 아래는 고도화 기능 (나중에 해달라고 할때 하면 됨..)
-       - collide 생성된 대상 OCIItem 가 선택시 거기에 생성된 collide가 다시 시각화 되어야 함..
-       - 이처리를 위해선 collide 이름에 특별한 명칭을 부여하여, OCItem 선택시 collide 찾기가 용이해야함
-       - collide 삭제 버튼을 제공하여 삭제될 수 있어야 함
+    요구 기능
+    1) UI 생성
+    1.1) 현재 씬내 현재 캐릭터내 cloth 컴포넌트를 조회 하여 UI 제공
+        - 상의/하의 Cloth 선택 UI 가 필요하고 각 정보는 GetClothTop()/GetClothBottom() 통해서 획득
+    1.2) 현재 씬내 조회된 OCIItem 목록 선택 UI 제공
+    1.3) OCIItem 목록에서 사용자가 선택한 Item에 대해 Capsule/Sphere Collider 생성 UI 제공        
+        - capsule/sphere 중 선택한 대상에 대한 생성 버튼 제공
+        - Center(X, Y, Z), Radius, Height 조정 가능 UI 제공 필요((녹색 실선으로 collide 속성값 변경 부분 실시간 확인 제공)
+    1.4) Binding 버튼 클릭 시, 선택한 Cloth의 충돌 매핑에 Item Collider를 추가
+    1.5) 아래는 고도화 기능 (나중에 해달라고 할때 하면 됨..)
+        - collide가 생성된 대상 OCIItem 가 재 선택시 생성되었던 collide가 다시 시각화 되어야 함..
+        - 이처리를 위해선 collide 이름에 특별한 명칭을 부여하여, OCItem 선택시 collide 찾기가 용이해야함
+        - collide 삭제 버튼을 제공하여 삭제될 수 있어야 함
 
+    확인사항:
+        - 이게 성능 이슈가 좀 있는거 같아.. collider 생성 시점 많이 느려지는 느낌이 존재해..원인을 한번 확인해봐..
 */
 namespace ClothCollideBinder
 {
@@ -935,7 +937,7 @@ namespace ClothCollideBinder
             if (ociItem == null)
                 return "(null)";
 
-            return ociItem.guideObject.gameObject.name;
+            return ociItem.itemInfo.objectInfo.name;// ociItem.treeNodeObject.textName;
         }
 
         private void SceneInit()
@@ -1289,16 +1291,6 @@ namespace ClothCollideBinder
         }
 
         #endregion
-
-        // CapsuleCollider Wireframe 생성
-
-        // SphereCollider Wireframe 생성
-
-        // Text를 bone 기준 로컬 좌표로 생성
-
-
-        // 선택된 Collider 강조 표시
-
 
         private BinderState GetCurrentData(OCIChar ociChar)
         {
