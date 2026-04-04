@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{0E8A5A0B-D464-4950-BA76-E23F4F74FCAB}</ProjectGuid>
+    <ProjectGuid>{9D0594F9-A34A-41EA-9355-2E18CB5E020C}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>ClothCollideVisualizer</RootNamespace>
-    <AssemblyName>ClothCollideVisualizer</AssemblyName>
+    <RootNamespace>ClothCollideBinder</RootNamespace>
+    <AssemblyName>ClothCollideBinder</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -151,7 +151,7 @@
     <Analyzer Include="..\packages\BepInEx.Analyzers.1.0.4\analyzers\dotnet\cs\BepInEx.Analyzers.dll" />
     <Analyzer Include="..\packages\Microsoft.Unity.Analyzers.1.19.0\analyzers\dotnet\cs\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
-  <Import Project="..\ClothCollideVisualizer.Core\ClothCollideVisualizer.Core.projitems" Label="Shared" />
+  <Import Project="..\ClothCollideBinder.Core\ClothCollideBinder.Core.projitems" Label="Shared" />
   <!-- <Import Project="..\UIUtility\UIUtility.projitems" Label="Shared" /> -->
   <Import Project="..\ToolBox\ToolBox.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

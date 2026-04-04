@@ -1,4 +1,4 @@
-ï»¿ï»¿using Studio;
+using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -37,20 +37,20 @@ using AIChara;
 namespace HoneySelect2Maker
 {
     /*
-        ì‚¬ìš©ë²•
-        1) UI ìƒì„±: var chatUI = new HS2ChatUIController(); chatUI.CreateChatUI(chatController, actionController, user, heroin);
-        2) í…ìŠ¤íŠ¸ ì¶œë ¥: chatUI.AppendChat("System", "ë©”ì‹œì§€");
-        3) UI í•´ì œ: chatUI.DestroyChatUI();
+        »ç¿ë¹ı
+        1) UI »ı¼º: var chatUI = new HS2ChatUIController(); chatUI.CreateChatUI(chatController, actionController, user, heroin);
+        2) ÅØ½ºÆ® Ãâ·Â: chatUI.AppendChat("System", "¸Ş½ÃÁö");
+        3) UI ÇØÁ¦: chatUI.DestroyChatUI();
 
-        ì°¸ê³ 
-        - ì…ë ¥ì°½ì— ë©”ì‹œì§€ë¥¼ ì…ë ¥í•˜ê³  ì—”í„°ë¥¼ ì¹˜ë©´ ë¡œê·¸ë¡œ ì¶œë ¥ë©ë‹ˆë‹¤.
-        - EventSystemì´ ì—†ìœ¼ë©´ ìë™ìœ¼ë¡œ ìƒì„±ë©ë‹ˆë‹¤.
+        Âü°í
+        - ÀÔ·ÂÃ¢¿¡ ¸Ş½ÃÁö¸¦ ÀÔ·ÂÇÏ°í ¿£ÅÍ¸¦ Ä¡¸é ·Î±×·Î Ãâ·ÂµË´Ï´Ù.
+        - EventSystemÀÌ ¾øÀ¸¸é ÀÚµ¿À¸·Î »ı¼ºµË´Ï´Ù.
 
-        font ì‚¬ìš©
-        C:\Users\<ì‚¬ìš©ì>\AppData\Local\Microsoft\Windows\Fonts í´ë”ì— ttf í˜¹ì€ otf íŒŒì¼ ì„¤ì¹˜        
+        font »ç¿ë
+        C:\Users\<»ç¿ëÀÚ>\AppData\Local\Microsoft\Windows\Fonts Æú´õ¿¡ ttf È¤Àº otf ÆÄÀÏ ¼³Ä¡        
 
     */
-    // UGUI(Canvas + InputField/Text) ìƒì„±
+    // UGUI(Canvas + InputField/Text) »ı¼º
     public class HS2ChatUIController
     {
         public enum FontColorOption
@@ -61,6 +61,7 @@ namespace HoneySelect2Maker
 
         private GameObject _chatCanvasGO;
         private GameObject _chatRootGO;
+        private RectTransform _chatRootRect;
         private ScrollRect _chatScrollRect;
         private RectTransform _chatContent;
         private InputField _chatInput;
@@ -86,7 +87,11 @@ namespace HoneySelect2Maker
         private const float BubblePaddingX = 18.0f;
         private const float BubblePaddingY = 12.0f;
 
-        // Chat UI ìƒì„± í•¨ìˆ˜: ìº”ë²„ìŠ¤/íŒ¨ë„/ë¡œê·¸/ì…ë ¥ì°½ì„ ìƒì„±í•˜ê³  í•˜ë‹¨ì— ê³ ì •í•œë‹¤.
+        // Ã¤ÆÃ Ã¢ Å©±â ºñÀ²(0~1): 1ÀÌ¸é ÀüÃ¼ È­¸é.
+        private float _chatWindowWidthRatio = 1.0f;
+        private float _chatWindowHeightRatio = 1.0f;
+
+        // Chat UI »ı¼º ÇÔ¼ö: Äµ¹ö½º/ÆĞ³Î/·Î±×/ÀÔ·ÂÃ¢À» »ı¼ºÇÏ°í ÇÏ´Ü¿¡ °íÁ¤ÇÑ´Ù.
         internal void CreateChatUI(
             HS2ChatController chatController,
             HS2ActionController actionController,
@@ -127,11 +132,8 @@ namespace HoneySelect2Maker
             _chatRootGO.transform.SetParent(_chatCanvasGO.transform, false);
 
             var rootRect = _chatRootGO.AddComponent<RectTransform>();
-            rootRect.anchorMin = new Vector2(0.0f, 0.0f);
-            rootRect.anchorMax = new Vector2(1.0f, 1.0f);
-            rootRect.pivot = new Vector2(0.5f, 0.5f);
-            rootRect.sizeDelta = Vector2.zero;
-            rootRect.anchoredPosition = Vector2.zero;
+            _chatRootRect = rootRect;
+            ApplyChatWindowRect();
 
             var bg = _chatRootGO.AddComponent<Image>();
             bg.color = new Color(0.05f, 0.05f, 0.06f, 0.25f);
@@ -162,7 +164,7 @@ namespace HoneySelect2Maker
             _chatInput.ActivateInputField();
         }
 
-        // Chat UI ì‚¬ìš©ì Prompt ìˆ˜ì§‘ í•¨ìˆ˜: ì—”í„° ì…ë ¥ ì‹œ í˜¸ì¶œë˜ì–´ ë¡œê·¸ì— ì¶œë ¥í•œë‹¤.
+        // Chat UI »ç¿ëÀÚ Prompt ¼öÁı ÇÔ¼ö: ¿£ÅÍ ÀÔ·Â ½Ã È£ÃâµÇ¾î ·Î±×¿¡ Ãâ·ÂÇÑ´Ù.
         private async void OnSubmitInput(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -192,7 +194,7 @@ namespace HoneySelect2Maker
             _chatInput.ActivateInputField();
         }
 
-        // Chat UI ë‚´ Prompt ì¶œë ¥ í•¨ìˆ˜: ì±„íŒ… ë¡œê·¸ í…ìŠ¤íŠ¸ì— í•œ ì¤„ì„ ì¶”ê°€í•œë‹¤.
+        // Chat UI ³» Prompt Ãâ·Â ÇÔ¼ö: Ã¤ÆÃ ·Î±× ÅØ½ºÆ®¿¡ ÇÑ ÁÙÀ» Ãß°¡ÇÑ´Ù.
         internal void AppendChat(string speaker, string message)
         {
             if (_chatContent == null)
@@ -212,7 +214,7 @@ namespace HoneySelect2Maker
             }
         }
 
-        // Chat UI í•´ì œ í•¨ìˆ˜: ìƒì„±ëœ UI ì˜¤ë¸Œì íŠ¸ë¥¼ ì œê±°í•˜ê³  ìƒíƒœë¥¼ ì´ˆê¸°í™”í•œë‹¤.
+        // Chat UI ÇØÁ¦ ÇÔ¼ö: »ı¼ºµÈ UI ¿ÀºêÁ§Æ®¸¦ Á¦°ÅÇÏ°í »óÅÂ¸¦ ÃÊ±âÈ­ÇÑ´Ù.
         internal void DestroyChatUI()
         {
             if (_chatCanvasGO != null)
@@ -222,6 +224,7 @@ namespace HoneySelect2Maker
             }
 
             _chatRootGO = null;
+            _chatRootRect = null;
             _chatScrollRect = null;
             _chatContent = null;
             _chatInput = null;
@@ -234,20 +237,43 @@ namespace HoneySelect2Maker
             HS2SceneController.DestroyCurrentRender();
         }
 
-        // í°íŠ¸ í¬ê¸° ì„¤ì • í•¨ìˆ˜: ì´í›„ ìƒì„±ë˜ëŠ” ë©”ì‹œì§€/ì…ë ¥ í…ìŠ¤íŠ¸ì— ì ìš©ëœë‹¤.
+        // ÆùÆ® Å©±â ¼³Á¤ ÇÔ¼ö: ÀÌÈÄ »ı¼ºµÇ´Â ¸Ş½ÃÁö/ÀÔ·Â ÅØ½ºÆ®¿¡ Àû¿ëµÈ´Ù.
         internal void SetFontSize(int fontSize)
         {
             _fontSize = Mathf.Clamp(fontSize, 10, 40);
         }
 
-        // í°íŠ¸ ìƒ‰ìƒ ì„¤ì • í•¨ìˆ˜: ì‚¬ìš©ì/ì‹œìŠ¤í…œ ê°ê° í°ìƒ‰/ê²€ì • ì¤‘ ì„ íƒí•œë‹¤.
+        // Ã¤ÆÃ Ã¢ Å©±â ¼³Á¤ ÇÔ¼ö: È­¸é ´ëºñ ºñÀ²(0.2~1.0)·Î width/height¸¦ Á¶ÀıÇÑ´Ù.
+        // ¿¹) SetChatWindowSize(0.75f, 0.85f)
+        internal void SetChatWindowSize(float widthRatio, float heightRatio)
+        {
+            _chatWindowWidthRatio = Mathf.Clamp(widthRatio, 0.2f, 1.0f);
+            _chatWindowHeightRatio = Mathf.Clamp(heightRatio, 0.2f, 1.0f);
+            ApplyChatWindowRect();
+        }
+
+        private void ApplyChatWindowRect()
+        {
+            if (_chatRootRect == null)
+                return;
+
+            float halfW = _chatWindowWidthRatio * 0.5f;
+            float halfH = _chatWindowHeightRatio * 0.5f;
+            _chatRootRect.anchorMin = new Vector2(0.5f - halfW, 0.5f - halfH);
+            _chatRootRect.anchorMax = new Vector2(0.5f + halfW, 0.5f + halfH);
+            _chatRootRect.pivot = new Vector2(0.5f, 0.5f);
+            _chatRootRect.sizeDelta = Vector2.zero;
+            _chatRootRect.anchoredPosition = Vector2.zero;
+        }
+
+        // ÆùÆ® »ö»ó ¼³Á¤ ÇÔ¼ö: »ç¿ëÀÚ/½Ã½ºÅÛ °¢°¢ Èò»ö/°ËÁ¤ Áß ¼±ÅÃÇÑ´Ù.
         internal void SetFontColors(FontColorOption userColor, FontColorOption systemColor)
         {
             _userFontColor = userColor;
             _systemFontColor = systemColor;
         }
 
-        // EventSystem ë³´ì¥ í•¨ìˆ˜: ì—†ìœ¼ë©´ ìƒì„±í•œë‹¤.
+        // EventSystem º¸Àå ÇÔ¼ö: ¾øÀ¸¸é »ı¼ºÇÑ´Ù.
         private void EnsureEventSystem()
         {
             if (GameObject.FindObjectOfType<EventSystem>() != null)
@@ -259,7 +285,7 @@ namespace HoneySelect2Maker
             es.AddComponent<StandaloneInputModule>();
         }
 
-        // í…ìŠ¤íŠ¸ ìì‹ ìƒì„± í•¨ìˆ˜: InputField í…ìŠ¤íŠ¸/í”Œë ˆì´ìŠ¤í™€ë”ì— ì‚¬ìš©í•œë‹¤.
+        // ÅØ½ºÆ® ÀÚ½Ä »ı¼º ÇÔ¼ö: InputField ÅØ½ºÆ®/ÇÃ·¹ÀÌ½ºÈ¦´õ¿¡ »ç¿ëÇÑ´Ù.
         private Text CreateTextChild(Transform parent, string name, int fontSize, Color color, TextAnchor anchor, string text = "")
         {
             var go = new GameObject(name);
@@ -415,7 +441,9 @@ namespace HoneySelect2Maker
             textAreaLayout.childForceExpandHeight = false;
 
             var textAreaLE = textAreaGO.AddComponent<LayoutElement>();
-            textAreaLE.preferredWidth = MaxBubbleWidth;
+            // Keep row compact; bubble width is still limited by MaxBubbleWidth during text measure.
+            textAreaLE.minWidth = 120.0f;
+            textAreaLE.preferredWidth = 0.0f;
 
             var nameGO = new GameObject("SpeakerName");
             nameGO.transform.SetParent(textAreaGO.transform, false);
@@ -423,7 +451,7 @@ namespace HoneySelect2Maker
             nameText.font = GetFont();
             nameText.fontSize = Mathf.Max(14, _fontSize - 6);
             nameText.color = isUser ? new Color(0.75f, 0.88f, 1.0f, 0.95f) : new Color(1.0f, 0.82f, 0.9f, 0.95f);
-            nameText.alignment = isUser ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+            nameText.alignment = TextAnchor.MiddleRight;
             nameText.horizontalOverflow = HorizontalWrapMode.Overflow;
             nameText.verticalOverflow = VerticalWrapMode.Overflow;
             nameText.text = speaker;
@@ -443,16 +471,26 @@ namespace HoneySelect2Maker
             var bubbleTextGO = new GameObject("Message");
             bubbleTextGO.transform.SetParent(bubbleGO.transform, false);
             var bubbleRect = bubbleTextGO.AddComponent<RectTransform>();
-            bubbleRect.anchorMin = new Vector2(0.0f, 1.0f);
-            bubbleRect.anchorMax = new Vector2(0.0f, 1.0f);
-            bubbleRect.pivot = new Vector2(0.0f, 1.0f);
-            bubbleRect.anchoredPosition = new Vector2(BubblePaddingX, -BubblePaddingY);
+            if (isUser)
+            {
+                bubbleRect.anchorMin = new Vector2(1.0f, 1.0f);
+                bubbleRect.anchorMax = new Vector2(1.0f, 1.0f);
+                bubbleRect.pivot = new Vector2(1.0f, 1.0f);
+                bubbleRect.anchoredPosition = new Vector2(-BubblePaddingX, -BubblePaddingY);
+            }
+            else
+            {
+                bubbleRect.anchorMin = new Vector2(0.0f, 1.0f);
+                bubbleRect.anchorMax = new Vector2(0.0f, 1.0f);
+                bubbleRect.pivot = new Vector2(0.0f, 1.0f);
+                bubbleRect.anchoredPosition = new Vector2(BubblePaddingX, -BubblePaddingY);
+            }
 
             var bodyText = bubbleTextGO.AddComponent<Text>();
             bodyText.font = GetFont();
             bodyText.fontSize = _fontSize;
             bodyText.color = GetFontColor(isUser);
-            bodyText.alignment = isUser ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
+            bodyText.alignment = TextAnchor.UpperRight;
             bodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
             bodyText.verticalOverflow = VerticalWrapMode.Overflow;
             bodyText.supportRichText = true;
@@ -462,17 +500,21 @@ namespace HoneySelect2Maker
             var bodyLE = bubbleTextGO.AddComponent<LayoutElement>();
             bodyLE.flexibleWidth = 0.0f;
 
-            var measureSettings = bodyText.GetGenerationSettings(new Vector2(10000f, 0f));
-            measureSettings.horizontalOverflow = HorizontalWrapMode.Overflow;
-            var rawTextWidth = bodyText.cachedTextGeneratorForLayout.GetPreferredWidth(bodyText.text, measureSettings) / bodyText.pixelsPerUnit;
-            var targetTextWidth = Mathf.Min(MaxBubbleWidth - (BubblePaddingX * 2.0f), rawTextWidth);
+            var maxTextWidth = MaxBubbleWidth - (BubblePaddingX * 2.0f);
 
+            // Measure unwrapped width first, then clamp to bubble max width.
+            bodyText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            var rawTextWidth = Mathf.Max(1.0f, bodyText.preferredWidth);
+            var targetTextWidth = Mathf.Clamp(rawTextWidth, 1.0f, maxTextWidth);
+
+            bodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
             bodyLE.preferredWidth = targetTextWidth;
             bubbleRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, targetTextWidth);
 
             var heightSettings = bodyText.GetGenerationSettings(new Vector2(targetTextWidth, 0f));
             heightSettings.horizontalOverflow = HorizontalWrapMode.Wrap;
             var textHeight = bodyText.cachedTextGeneratorForLayout.GetPreferredHeight(bodyText.text, heightSettings) / bodyText.pixelsPerUnit;
+            textHeight = Mathf.Max(textHeight, _fontSize + 4.0f);
             bubbleRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, textHeight);
 
             var bubbleWidth = targetTextWidth + (BubblePaddingX * 2.0f);
@@ -582,22 +624,18 @@ namespace HoneySelect2Maker
                 return cached;
 
             var candidates = new List<string>();
-            var speakerSafe = SanitizeFileName(speaker);
-            var userSafe = SanitizeFileName(_user != null ? _user.name : "you");
-            var heroinSafe = SanitizeFileName(_heroin != null ? _heroin.name : "heroin");
 
+            // ¾Æ¹ÙÅ¸ ±ÔÄ¢ ´Ü¼øÈ­:
+            // - »ç¿ëÀÚ: me.png
+            // - »ó´ë¹æ: heroin.png
+            // ÆÄÀÏÀÌ ¾øÀ¸¸é default.png¸¦ fallbackÀ¸·Î »ç¿ë
             if (isUser)
             {
-                candidates.Add(Path.Combine(_avatarFolderPath, "you.png"));
-                candidates.Add(Path.Combine(_avatarFolderPath, userSafe + ".png"));
-                candidates.Add(Path.Combine(_avatarFolderPath, "user.png"));
+                candidates.Add(Path.Combine(_avatarFolderPath, "me.png"));
             }
             else
             {
-                candidates.Add(Path.Combine(_avatarFolderPath, speakerSafe + ".png"));
-                candidates.Add(Path.Combine(_avatarFolderPath, heroinSafe + ".png"));
                 candidates.Add(Path.Combine(_avatarFolderPath, "heroin.png"));
-                candidates.Add(Path.Combine(_avatarFolderPath, "npc.png"));
             }
 
             candidates.Add(Path.Combine(_avatarFolderPath, "default.png"));
@@ -618,16 +656,6 @@ namespace HoneySelect2Maker
 
             _avatarSpriteCache[key] = null;
             return null;
-        }
-
-        private static string SanitizeFileName(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return "unknown";
-
-            var invalid = Path.GetInvalidFileNameChars();
-            var chars = value.Trim().Select(c => invalid.Contains(c) ? '_' : c).ToArray();
-            return new string(chars);
         }
 
         private static string GetInitials(string speaker)
@@ -689,7 +717,7 @@ namespace HoneySelect2Maker
             return option == FontColorOption.Black ? Color.black : Color.white;
         }
 
-        // í°íŠ¸ ì§€ì •: ìœ ë‹ˆí‹° Resourcesì— í¬í•¨ëœ í°íŠ¸ë¥¼ ê²½ë¡œë¡œ ì§€ì •í•œë‹¤. (ì˜ˆ: "Fonts/NotoSansCJK")
+        // ÆùÆ® ÁöÁ¤: À¯´ÏÆ¼ Resources¿¡ Æ÷ÇÔµÈ ÆùÆ®¸¦ °æ·Î·Î ÁöÁ¤ÇÑ´Ù. (¿¹: "Fonts/NotoSansCJK")
         internal void SetFontResourcePath(string resourcePath)
         {
             _customFontResourcePath = resourcePath;
@@ -697,7 +725,7 @@ namespace HoneySelect2Maker
             _customOSFontNames = null;
         }
 
-        // ì•„ë°”íƒ€ í´ë” ì§€ì •: ë©”ì‹œì§€ í™”ìëª… ê¸°ë°˜ìœ¼ë¡œ `{speaker}.png`ë¥¼ ì¡°íšŒí•œë‹¤.
+        // ¾Æ¹ÙÅ¸ Æú´õ ÁöÁ¤: ¸Ş½ÃÁö È­ÀÚ¸í ±â¹İÀ¸·Î `{speaker}.png`¸¦ Á¶È¸ÇÑ´Ù.
         internal void SetAvatarFolderPath(string folderPath)
         {
             if (string.IsNullOrWhiteSpace(folderPath))
@@ -707,7 +735,7 @@ namespace HoneySelect2Maker
             _avatarSpriteCache.Clear();
         }
 
-        // í°íŠ¸ ì§€ì •: ì™¸ë¶€ì—ì„œ ë¡œë“œëœ Fontë¥¼ ì§ì ‘ ì£¼ì…í•œë‹¤.
+        // ÆùÆ® ÁöÁ¤: ¿ÜºÎ¿¡¼­ ·ÎµåµÈ Font¸¦ Á÷Á¢ ÁÖÀÔÇÑ´Ù.
         internal void SetFont(Font font)
         {
             _customFont = font;
@@ -715,7 +743,7 @@ namespace HoneySelect2Maker
             _customOSFontNames = null;
         }
 
-        // í°íŠ¸ ì§€ì •: OSì— ì„¤ì¹˜ëœ í°íŠ¸ë¥¼ ì‚¬ìš©í•œë‹¤. (ì˜ˆ: "Noto Sans CJK KR")
+        // ÆùÆ® ÁöÁ¤: OS¿¡ ¼³Ä¡µÈ ÆùÆ®¸¦ »ç¿ëÇÑ´Ù. (¿¹: "Noto Sans CJK KR")
         internal void SetFontFromOS(params string[] fontNames)
         {
             _customOSFontNames = fontNames;
@@ -723,7 +751,7 @@ namespace HoneySelect2Maker
             _customFontResourcePath = null;
         }
 
-        // OS ì‹œìŠ¤í…œ ì–¸ì–´ì— ë§ì¶° í°íŠ¸ë¥¼ ìë™ ì„ íƒí•œë‹¤.
+        // OS ½Ã½ºÅÛ ¾ğ¾î¿¡ ¸ÂÃç ÆùÆ®¸¦ ÀÚµ¿ ¼±ÅÃÇÑ´Ù.
         internal void SetFontFromOSBySystemLanguage()
         {
             UnityEngine.Debug.Log($"SetFontFromOSBySystemLanguage {Application.systemLanguage}");
@@ -781,3 +809,6 @@ namespace HoneySelect2Maker
         }
     }
 }
+
+
+

@@ -11,7 +11,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WindPhysics.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)WindPhysicsLogic.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WindPhysicsController.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\wp_toolbar_icon.png" />

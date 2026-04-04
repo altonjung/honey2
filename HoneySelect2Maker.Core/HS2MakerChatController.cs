@@ -53,6 +53,7 @@ curl http://localhost:11434/v1/chat/completions ^
   ]
 }"
 */
+
 namespace HoneySelect2Maker
 {
     public class HS2ChatController
@@ -95,12 +96,24 @@ namespace HoneySelect2Maker
 
         internal string ExtractAnswer(string json)
         {
+            AnswerWrapper fallback = CreateFallbackAnswerWrapper();
+
             try
             {
                 // 1차 파싱
                 var outer = JsonConvert.DeserializeObject<ChatCompletionResponse>(json);
+                if (outer == null || outer.choices == null || outer.choices.Length == 0 || outer.choices[0]?.message == null)
+                {
+                    UnityEngine.Debug.LogWarning(">> ExtractAnswer outer parse failed: invalid response shape.");
+                    return fallback.answer;
+                }
 
                 string content = outer.choices[0].message.content;
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    UnityEngine.Debug.LogWarning(">> ExtractAnswer outer parse failed: empty message content.");
+                    return fallback.answer;
+                }
 
                 // ```json 제거
                 content = content
@@ -115,18 +128,100 @@ namespace HoneySelect2Maker
                 {
                     // enum 에 없는 값들에 대한 fallback 전략 필요
                     var inner = JsonConvert.DeserializeObject<AnswerWrapper>(content);
-                    return inner != null ? inner.answer : "";
+                    if (inner == null || string.IsNullOrWhiteSpace(inner.answer))
+                    {
+                        UnityEngine.Debug.LogWarning(">> ExtractAnswer inner parse failed: invalid AnswerWrapper payload.");
+                        return fallback.answer;
+                    }
+
+                    if (inner.emotion == EmotionType.Angry)
+                    {
+                        UnityEngine.Debug.LogWarning(">> ExtractAnswer emotion is angry. Using refusal fallback message.");
+                        return GetRandomFallbackRefusalMessage();
+                    }
+
+                    return inner.answer;
                 }
                 catch (Exception ex)
                 {
                     UnityEngine.Debug.LogWarning($">> ExtractAnswer inner parse failed: {ex.Message}");
-                    return "";
+                    return fallback.answer;
                 }
             }
             catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e);
-                return "";
+                return fallback.answer;
+            }
+        }
+
+        private AnswerWrapper CreateFallbackAnswerWrapper()
+        {
+            string fallbackAnswer = GetRandomFallbackLeaveMessage();
+
+            return new AnswerWrapper
+            {
+                answer = fallbackAnswer,
+                emotion = EmotionType.Calm,
+                tone = ToneType.Neutral,
+                next_action = NextAction.Leave
+            };
+        }
+
+        private string GetRandomFallbackLeaveMessage()
+        {
+            return GetRandomLocalizedFallbackMessage(fallback_leave_message, "...");
+        }
+
+        private string GetRandomFallbackRefusalMessage()
+        {
+            return GetRandomLocalizedFallbackMessage(fallback_refusal_message, "...");
+        }
+
+        private string GetRandomLocalizedFallbackMessage(string messageSetJson, string defaultMessage)
+        {
+            try
+            {
+                var localized = JsonConvert.DeserializeObject<Dictionary<string, List<FallbackMessageItem>>>(messageSetJson);
+                if (localized == null || localized.Count == 0)
+                    return defaultMessage;
+
+                string key = ResolveFallbackLanguageKey(Application.systemLanguage);
+                if (!localized.TryGetValue(key, out var candidates) || candidates == null || candidates.Count == 0)
+                {
+                    if (!localized.TryGetValue("en", out candidates) || candidates == null || candidates.Count == 0)
+                        return defaultMessage;
+                }
+
+                var picked = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+                if (picked == null || string.IsNullOrWhiteSpace(picked.message))
+                    return defaultMessage;
+
+                return picked.message.Trim();
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($">> fallback message parse failed: {ex.Message}");
+                return defaultMessage;
+            }
+        }
+
+        private string ResolveFallbackLanguageKey(SystemLanguage systemLanguage)
+        {
+            switch (systemLanguage)
+            {
+                case SystemLanguage.Korean:
+                    return "ko";
+                case SystemLanguage.Japanese:
+                    return "ja";
+                case SystemLanguage.Chinese:
+                case SystemLanguage.ChineseSimplified:
+                case SystemLanguage.ChineseTraditional:
+                    return "zh";
+                case SystemLanguage.Spanish:
+                    return "es";
+                default:
+                    return "en";
             }
         }
 
@@ -248,8 +343,9 @@ namespace HoneySelect2Maker
                 - use natural and short conversation
                 - sometimes hesitate (...)
                 - ask questions occasionally
-                - if you don't want talking -> next_action: leave
-                - if you want to keep talking -> next_action: stay                
+                - if you don't want chatting -> next_action: leave
+                - if you want to keep chatting -> next_action: stay
+                - if you feel rude in chatting -> next_action: leave, emotion: angry         
 
                 # Output
                 ```json
@@ -484,6 +580,86 @@ namespace HoneySelect2Maker
             if (!string.IsNullOrWhiteSpace(_providerConfig.openrouterTitle))
                 openrouterTitle = _providerConfig.openrouterTitle;
         }
+
+
+// 여기에 json 포맷 5개국 llm 응답 오류로 인한 fallback message 관리 ..
+        private const string fallback_leave_message = @"
+        {
+        ""ko"": [
+            {""message"": ""어머, 갑자기 급한 일이 생겼어… 미안, 나중에 다시 얘기하자."", ""next_action"": ""leave""},
+            {""message"": ""앗, 지금 바로 가봐야 할 것 같아… 미안해."", ""next_action"": ""leave""},
+            {""message"": ""미안, 갑자기 일이 생겨서 여기까지 해야 할 것 같아."", ""next_action"": ""leave""},
+            {""message"": ""지금 좀 급해서 먼저 가볼게… 다음에 얘기하자."", ""next_action"": ""leave""},
+            {""message"": ""아쉽지만 지금은 계속 대화하기 어려울 것 같아… 미안해."", ""next_action"": ""leave""}
+        ],
+        ""en"": [
+            {""message"": ""Oh no, something urgent just came up… I’m sorry, let’s talk later."", ""next_action"": ""leave""},
+            {""message"": ""Ah, I have to go right now… sorry about this."", ""next_action"": ""leave""},
+            {""message"": ""Sorry, something just came up and I need to leave."", ""next_action"": ""leave""},
+            {""message"": ""I’m in a bit of a rush right now… let’s continue later."", ""next_action"": ""leave""},
+            {""message"": ""I wish I could stay, but I have to go now… sorry."", ""next_action"": ""leave""}
+        ],
+        ""ja"": [
+            {""message"": ""ごめん、急に用事ができちゃって…また後で話そうね。"", ""next_action"": ""leave""},
+            {""message"": ""あっ、今すぐ行かなきゃ…ごめんね。"", ""next_action"": ""leave""},
+            {""message"": ""ごめん、急な用事でここまでにしないといけないみたい。"", ""next_action"": ""leave""},
+            {""message"": ""ちょっと急いでるから先に行くね…またね。"", ""next_action"": ""leave""},
+            {""message"": ""残念だけど、今は続けられなさそう…ごめんね。"", ""next_action"": ""leave""}
+        ],
+        ""zh"": [
+            {""message"": ""啊，不好意思，我突然有点急事…我们下次再聊吧。"", ""next_action"": ""leave""},
+            {""message"": ""抱歉，我现在得马上走了…不好意思。"", ""next_action"": ""leave""},
+            {""message"": ""对不起，突然有点事情要处理，我得先离开了。"", ""next_action"": ""leave""},
+            {""message"": ""我这边有点赶时间…我们之后再聊好吗？"", ""next_action"": ""leave""},
+            {""message"": ""有点可惜，现在没办法继续聊了…抱歉。"", ""next_action"": ""leave""}
+        ],
+        ""es"": [
+            {""message"": ""Ay, me salió algo urgente… lo siento, hablamos luego."", ""next_action"": ""leave""},
+            {""message"": ""Ah, tengo que irme ahora mismo… perdón."", ""next_action"": ""leave""},
+            {""message"": ""Lo siento, me surgió algo y tengo que irme."", ""next_action"": ""leave""},
+            {""message"": ""Estoy un poco apurada ahora… seguimos después, ¿sí?"", ""next_action"": ""leave""},
+            {""message"": ""Me encantaría quedarme, pero tengo que irme… lo siento."", ""next_action"": ""leave""}
+        ]
+        }";
+
+        private const string fallback_refusal_message = @"
+        {
+        ""ko"": [
+            {""message"": ""그런 얘기는 불편해… 여기서 그만할게."", ""next_action"": ""leave""},
+            {""message"": ""미안하지만 이건 답하기 어려워… 그만할게."", ""next_action"": ""leave""},
+            {""message"": ""이건 좀 불쾌해… 대화 종료할게."", ""next_action"": ""leave""},
+            {""message"": ""이런 주제는 싫어… 여기까지 할게."", ""next_action"": ""leave""},
+            {""message"": ""더 이상 얘기하기 어려울 것 같아… 미안."", ""next_action"": ""leave""}
+        ],
+        ""en"": [
+            {""message"": ""That makes me uncomfortable… I’m going to stop here."", ""next_action"": ""leave""},
+            {""message"": ""Sorry, I can’t respond to that… I’ll end this here."", ""next_action"": ""leave""},
+            {""message"": ""That’s a bit inappropriate… I’m leaving now."", ""next_action"": ""leave""},
+            {""message"": ""I don’t like this topic… let’s stop."", ""next_action"": ""leave""},
+            {""message"": ""I’m not comfortable continuing this… sorry."", ""next_action"": ""leave""}
+        ],
+        ""ja"": [
+            {""message"": ""そういう話はちょっと不快…ここで終わりにするね。"", ""next_action"": ""leave""},
+            {""message"": ""ごめん、それには答えられない…ここまでにするね。"", ""next_action"": ""leave""},
+            {""message"": ""ちょっと不適切だと思う…もうやめるね。"", ""next_action"": ""leave""},
+            {""message"": ""この話題は苦手…終わりにするね。"", ""next_action"": ""leave""},
+            {""message"": ""これ以上続けるのは無理そう…ごめんね。"", ""next_action"": ""leave""}
+        ],
+        ""zh"": [
+            {""message"": ""这样的话让我不太舒服…我先结束了。"", ""next_action"": ""leave""},
+            {""message"": ""抱歉，这个我没办法回答…就到这里吧。"", ""next_action"": ""leave""},
+            {""message"": ""这个有点不合适…我先走了。"", ""next_action"": ""leave""},
+            {""message"": ""我不太喜欢这个话题…结束吧。"", ""next_action"": ""leave""},
+            {""message"": ""我没法继续聊这个…不好意思。"", ""next_action"": ""leave""}
+        ],
+        ""es"": [
+            {""message"": ""Eso me incomoda… voy a dejarlo aquí."", ""next_action"": ""leave""},
+            {""message"": ""Lo siento, no puedo responder a eso… termino aquí."", ""next_action"": ""leave""},
+            {""message"": ""Eso es inapropiado… me voy."", ""next_action"": ""leave""},
+            {""message"": ""No me gusta este tema… mejor lo dejamos."", ""next_action"": ""leave""},
+            {""message"": ""No me siento cómoda con esto… lo siento."", ""next_action"": ""leave""}
+        ]
+        }";        
     }
 
     /*
@@ -553,6 +729,13 @@ namespace HoneySelect2Maker
     }
 
     [Serializable]
+    class FallbackMessageItem
+    {
+        public string message;
+        public string next_action;
+    }
+
+    [Serializable]
     class AnswerWrapper
     {
         public string answer;
@@ -601,5 +784,4 @@ namespace HoneySelect2Maker
         Stay,
         Leave
     }
-
 }

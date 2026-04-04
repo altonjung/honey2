@@ -1,4 +1,4 @@
-using Studio;
+﻿using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -131,6 +131,7 @@ namespace WindPhysics
         internal static ConfigEntry<float> Gravity { get; private set; }
         internal static ConfigEntry<float> WindDirection { get; private set; }
         internal static ConfigEntry<float> WindInterval { get; private set; }
+        internal static ConfigEntry<float> WindKeepTime { get; private set; }
         internal static ConfigEntry<float> WindUpForce { get; private set; }
         internal static ConfigEntry<float> WindForce { get; private set; }
         internal static ConfigEntry<float> WindAmplitude { get; private set; } 
@@ -142,7 +143,7 @@ namespace WindPhysics
         {
             base.Awake();
             // Environment 
-            Gravity = Config.Bind("All", "Gravity", -0.03f, new ConfigDescription("Gravity", new AcceptableValueRange<float>(-0.1f, 0.1f)));
+            Gravity = Config.Bind("All", "Gravity", -0.05f, new ConfigDescription("gravity", new AcceptableValueRange<float>(-0.1f, 0.1f)));
 
             WindDirection = Config.Bind("All", "Direction", 0f, new ConfigDescription("wind direction from 0 to 360 degree", new AcceptableValueRange<float>(0.0f, 359.0f)));
 
@@ -152,6 +153,8 @@ namespace WindPhysics
 
             WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 60.0f)));
 
+            WindKeepTime = Config.Bind("All", "Keep", 1f, new ConfigDescription("wind keep time(sec)", new AcceptableValueRange<float>(0.1f, 2.0f)));
+
             WindAmplitude = Config.Bind("All", "Amplitude", 1.0f, new ConfigDescription("wind amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
             // option 
@@ -159,6 +162,7 @@ namespace WindPhysics
 
             _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;
             _lastInterval = WindInterval.Value;
+            ClampWindKeepTimeToInterval();
 
             _self = this;
             Logger = base.Logger; 
@@ -279,6 +283,18 @@ namespace WindPhysics
             if (data != null)
             {
                 // ================= UI =================
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("park"))
+                    ApplyScenePreset("park");
+                if (GUILayout.Button("hill"))
+                    ApplyScenePreset("hill");
+                if (GUILayout.Button("space"))
+                    ApplyScenePreset("space");
+                if (GUILayout.Button("water"))
+                    ApplyScenePreset("water");
+                GUILayout.EndHorizontal();
+                draw_seperate();
+
     // Global
                 GUILayout.Label("<color=orange>Global</color>", RichLabel);
                 // Direction
@@ -294,6 +310,14 @@ namespace WindPhysics
                 WindInterval.Value = GUILayout.HorizontalSlider(WindInterval.Value, 0.0f, 60.0f);
                 GUILayout.Label(WindInterval.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();            
+
+                // Keep
+                ClampWindKeepTimeToInterval();
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Keep", "Wind Keep Time"), GUILayout.Width(80));
+                WindKeepTime.Value = GUILayout.HorizontalSlider(WindKeepTime.Value, 0.1f, Mathf.Min(2.0f, WindInterval.Value));
+                GUILayout.Label(WindKeepTime.Value.ToString("0.00"), GUILayout.Width(40));
+                GUILayout.EndHorizontal();
 
                 // Amplitude
                 GUILayout.BeginHorizontal(); 
@@ -320,7 +344,7 @@ namespace WindPhysics
                 // Gravity
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
-                Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
+                Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.5f, 0.2f);
                 GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
                 // draw_seperate();
@@ -502,13 +526,51 @@ namespace WindPhysics
             WindForce.Value = (float)WindForce.DefaultValue;
             WindUpForce.Value = (float)WindUpForce.DefaultValue;            
             WindInterval.Value = (float)WindInterval.DefaultValue;
+            WindKeepTime.Value = (float)WindKeepTime.DefaultValue;
             WindAmplitude.Value = (float)WindAmplitude.DefaultValue;
+            ClampWindKeepTimeToInterval();
 
             var controller = GetCurrentControl();
             if (controller != null)
             {
                 controller.ResetWindData();
             }
+        }
+
+        private void ApplyScenePreset(string preset)
+        {
+            // 기본 옵션(글로벌 바람 설정만 복원)
+            Gravity.Value = (float)Gravity.DefaultValue;
+            WindDirection.Value = (float)WindDirection.DefaultValue;
+            WindForce.Value = (float)WindForce.DefaultValue;
+            WindUpForce.Value = (float)WindUpForce.DefaultValue;
+            WindInterval.Value = (float)WindInterval.DefaultValue;
+            WindKeepTime.Value = (float)WindKeepTime.DefaultValue;
+            WindAmplitude.Value = (float)WindAmplitude.DefaultValue;
+
+            if (preset == "park")
+            {
+                WindForce.Value = 0.3f;
+                Gravity.Value = -0.05f;
+            }
+            else if (preset == "hill")
+            {
+                WindForce.Value = 0.8f;
+                Gravity.Value = -0.05f;
+            }
+            else if (preset == "space")
+            {
+                WindForce.Value = 0.01f;
+                Gravity.Value = 0.0f;
+            }
+            else if (preset == "water")
+            {
+                WindForce.Value = 0.03f;
+                Gravity.Value = 0.02f;
+            }
+
+            Gravity.Value = Mathf.Clamp(Gravity.Value, -0.5f, 0.2f);
+            ClampWindKeepTimeToInterval();
         }
 
         private void MgmtInit()
@@ -527,6 +589,20 @@ namespace WindPhysics
 
             _selectChaMgmt.Clear();
             _ShowUI = false;
+        }
+
+        internal static void ClampWindKeepTimeToInterval()
+        {
+            if (WindInterval == null || WindKeepTime == null)
+                return;
+
+            float interval = Mathf.Clamp(WindInterval.Value, 0.1f, 60f);
+            if (!Mathf.Approximately(interval, WindInterval.Value))
+                WindInterval.Value = interval;
+
+            float keep = Mathf.Clamp(WindKeepTime.Value, 0.1f, Mathf.Min(2.0f, interval));
+            if (!Mathf.Approximately(keep, WindKeepTime.Value))
+                WindKeepTime.Value = keep;
         }
 
         IEnumerator CheckWindMgmtRoutine()
@@ -892,6 +968,7 @@ namespace WindPhysics
                         float value = (float)leftValue;
                         if (WindPhysics.WindInterval.Value != value)
                             WindPhysics.WindInterval.Value = value;
+                        WindPhysics.ClampWindKeepTimeToInterval();
                     },
                     interpolateAfter: null,
                     isCompatibleWithTarget: (oci) => oci is OCIChar,
@@ -939,3 +1016,5 @@ namespace WindPhysics
 #endif
     }           
 }
+
+

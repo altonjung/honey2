@@ -1,0 +1,7 @@
+# Build output folders
+**/[Dd]ebug/
+**/[Rr]elease/
+
+# Ignore DLLs only under Debug/Release
+**/[Dd]ebug/**/*.dll
+**/[Rr]elease/**/*.dll

@@ -52,7 +52,7 @@ using KKAPI.Chara;
 /*
     기본로직
 
-    1) 각 캐릭터에 RealGirlSupport 로직 자동 추가
+    1) 각 캐릭터에 RealGirlController 로직 자동 추가
     2) 각 pose 에 따른 얼굴 | 다리 | 몸  dynamic-bumpmap 지원
     3) belly inflation, teadrop 지원
     4) FEATURE_FACE_BLENDSHAPE_SUPPORT (wink) 당분간 off
@@ -255,7 +255,7 @@ namespace RealHumanSupport
                 if (controller == null)
                     return null;
 
-                RealHumanData data = controller.GetData();
+                RealHumanData data = controller.GetRealHumanData();
                 return data;
             } 
 
@@ -527,7 +527,7 @@ namespace RealHumanSupport
                                 if (mouseReleased)
                                 {
                                     mouseReleased = false;  // 한 번만 쓰고 초기화
-                                    RealHumanData realHumanData = controller.GetData();
+                                    RealHumanData realHumanData = controller.GetRealHumanData();
 
                                     if (realHumanData != null)
                                     {   
@@ -592,7 +592,7 @@ namespace RealHumanSupport
                     var controller = chaControl.GetComponent<RealHumanSupportController>();
                     if (controller != null)
                     {
-                        if (controller.GetData() == null)
+                        if (controller.GetRealHumanData() == null)
                             controller.ExecuteRealHumanEffect(chaControl);        
                     }
                 }
