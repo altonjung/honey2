@@ -538,6 +538,7 @@ namespace HoneySelect2Maker
 
             return assistantContent;
         }
+        
         internal string MakeHumanMsg(string instruction)
         {
             return instruction;
@@ -590,7 +591,7 @@ namespace HoneySelect2Maker
             {""message"": ""앗, 지금 바로 가봐야 할 것 같아… 미안해."", ""next_action"": ""leave""},
             {""message"": ""미안, 갑자기 일이 생겨서 여기까지 해야 할 것 같아."", ""next_action"": ""leave""},
             {""message"": ""지금 좀 급해서 먼저 가볼게… 다음에 얘기하자."", ""next_action"": ""leave""},
-            {""message"": ""아쉽지만 지금은 계속 대화하기 어려울 것 같아… 미안해."", ""next_action"": ""leave""}
+            {""message"": ""전화가 왔네. 지금 대화하기 어려울 것 같아… 미안해."", ""next_action"": ""leave""}
         ],
         ""en"": [
             {""message"": ""Oh no, something urgent just came up… I’m sorry, let’s talk later."", ""next_action"": ""leave""},
