@@ -137,6 +137,8 @@ namespace ClothCollideBinder
             public Vector3 center;
             public float radius;
             public float height;
+            public ExternalColliderType visualType;
+            public Dictionary<string, LineRenderer> visualLines;
         }
 
         private sealed class ClothInfo
@@ -150,6 +152,7 @@ namespace ClothCollideBinder
             public OCIChar ociChar;
             public ClothInfo[] clothInfos = Enumerable.Range(0, 8).Select(_ => new ClothInfo()).ToArray();
             public List<ExternalItemColliderBinding> externalItemColliderBindings = new List<ExternalItemColliderBinding>();
+            public bool bindingsDirty;
         }
         #endregion
 
@@ -219,7 +222,7 @@ namespace ClothCollideBinder
 
             _toolbarButton = new SimpleToolbarToggle(
                 "Open window",
-                "Open CollideVisualizer window",
+                "Open CollideBinder window",
                 () => ResourceUtils.GetEmbeddedResource("toolbar_icon.png", typeof(ClothCollideBinder).Assembly).LoadTexture(),
                 false, this, val =>
                 {
@@ -244,6 +247,8 @@ namespace ClothCollideBinder
         {
             if (_loaded == false)
                 return;
+
+            ProcessDirtyRebuilds();
         }
 
         private OCIChar GetCurrentOCI()
@@ -359,6 +364,90 @@ namespace ClothCollideBinder
             return value;
         }
 
+        private static bool Approximately(float a, float b, float epsilon = 0.0001f)
+        {
+            return Mathf.Abs(a - b) <= epsilon;
+        }
+
+        private static bool ApproximatelyVector(Vector3 a, Vector3 b, float epsilon = 0.0001f)
+        {
+            return Mathf.Abs(a.x - b.x) <= epsilon
+                && Mathf.Abs(a.y - b.y) <= epsilon
+                && Mathf.Abs(a.z - b.z) <= epsilon;
+        }
+
+        private void UpdateExternalColliderBindingParams(ExternalItemColliderBinding binding, Vector3 center, float radius, float height)
+        {
+            if (binding == null || binding.collider == null || binding.colliderObject == null)
+                return;
+
+            binding.center = center;
+            binding.radius = Mathf.Max(0.05f, radius);
+            binding.height = Mathf.Max(0.1f, height);
+
+            if (binding.visualObject == null)
+                binding.visualObject = CreateExternalColliderVisual(binding);
+
+            ApplyExternalColliderSize(binding);
+        }
+
+        private void UpdateExternalColliderPreview(ExternalItemColliderBinding binding, ExternalColliderType previewType, Vector3 center, float radius, float height)
+        {
+            if (binding == null || binding.colliderObject == null || previewType == ExternalColliderType.None)
+                return;
+
+            if (binding.visualObject == null)
+                binding.visualObject = CreateExternalColliderVisual(binding);
+
+            if (binding.visualLines == null)
+                binding.visualLines = new Dictionary<string, LineRenderer>();
+
+            if (binding.visualType != previewType)
+            {
+                ResetExternalWireLines(binding);
+                binding.visualType = previewType;
+            }
+
+            const float lineWidth = 0.008f;
+            Color wireColor = Color.green;
+
+            float safeRadius = Mathf.Max(0.05f, radius);
+            float safeHeight = Mathf.Max(safeRadius * 2f, height);
+
+            if (previewType == ExternalColliderType.Sphere)
+            {
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Sphere_XZ", lineWidth, wireColor),
+                    center, Quaternion.identity, safeRadius, 40);
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Sphere_XY", lineWidth, wireColor),
+                    center, Quaternion.Euler(90f, 0f, 0f), safeRadius, 40);
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Sphere_YZ", lineWidth, wireColor),
+                    center, Quaternion.Euler(0f, 0f, 90f), safeRadius, 40);
+            }
+            else if (previewType == ExternalColliderType.Capsule)
+            {
+                float halfHeight = safeHeight * 0.5f;
+                float cylHalf = Mathf.Max(0f, halfHeight - safeRadius);
+                Vector3 topCenter = center + Vector3.up * cylHalf;
+                Vector3 bottomCenter = center - Vector3.up * cylHalf;
+
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Capsule_Top", lineWidth, wireColor),
+                    topCenter, Quaternion.identity, safeRadius, 32);
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Capsule_Bottom", lineWidth, wireColor),
+                    bottomCenter, Quaternion.identity, safeRadius, 32);
+                UpdateCapsuleProfile(
+                    GetOrCreateWireLine(binding, "Capsule_ProfileX", lineWidth, wireColor),
+                    center, safeRadius, cylHalf, Vector3.right, 20);
+                UpdateCapsuleProfile(
+                    GetOrCreateWireLine(binding, "Capsule_ProfileZ", lineWidth, wireColor),
+                    center, safeRadius, cylHalf, Vector3.forward, 20);
+            }
+        }
+
         private void DrawExternalItemUI(BinderState physicCollider)
         {
             GUILayout.Label("<color=orange>External OCIItem Binder</color>", RichLabel);
@@ -436,7 +525,7 @@ namespace ClothCollideBinder
             if (selectedItem == null)
                 return;
 
-            ExternalItemColliderBinding binding = FindExternalItemColliderBinding(physicCollider, selectedItem, _selectedClothTarget);
+            ExternalItemColliderBinding binding = FindExternalItemColliderBinding(physicCollider, selectedItem);
             bool selectionChanged = _lastUiItem != selectedItem || _lastUiClothTarget != _selectedClothTarget;
             if (selectionChanged)
             {
@@ -458,9 +547,18 @@ namespace ClothCollideBinder
                 _lastUiClothTarget = _selectedClothTarget;
             }
 
+            if (binding != null)
+            {
+                if (binding.clothTarget != _selectedClothTarget)
+                    GUILayout.Label($"<color=yellow>Bound To: {binding.clothTarget} (Remove to change)</color>", RichLabel);
+                if (binding.colliderType != _pendingColliderType)
+                    GUILayout.Label($"<color=yellow>Collider Type Locked: {binding.colliderType} (Remove to change)</color>", RichLabel);
+            }
+
             GUILayout.Space(4f);
             GUILayout.Label("<color=orange>3) Collider Type</color>", RichLabel);
             GUILayout.BeginHorizontal();
+            ExternalColliderType prevType = _pendingColliderType;
             if (GUILayout.Toggle(_pendingColliderType == ExternalColliderType.Capsule, "Capsule", GUI.skin.button))
             {
                 if (_pendingColliderType != ExternalColliderType.Capsule)
@@ -481,6 +579,9 @@ namespace ClothCollideBinder
             GUILayout.EndHorizontal();
 
             GUILayout.Label("<color=orange>4) Collider Params</color>", RichLabel);
+            Vector3 prevCenter = _pendingColliderCenter;
+            float prevRadius = _pendingColliderRadius;
+            float prevHeight = _pendingColliderHeight;
             _pendingColliderCenter.x = SliderRow("Center X", _pendingColliderCenter.x, -2.0f, 2.0f);
             _pendingColliderCenter.y = SliderRow("Center Y", _pendingColliderCenter.y, -2.0f, 2.0f);
             _pendingColliderCenter.z = SliderRow("Center Z", _pendingColliderCenter.z, -2.0f, 2.0f);
@@ -488,8 +589,20 @@ namespace ClothCollideBinder
             if (_pendingColliderType == ExternalColliderType.Capsule)
                 _pendingColliderHeight = SliderRow("Height", _pendingColliderHeight, 0.1f, 3.0f);
 
+            if (binding != null && binding.colliderType == _pendingColliderType)
+            {
+                bool changed =
+                    !ApproximatelyVector(prevCenter, _pendingColliderCenter) ||
+                    !Approximately(prevRadius, _pendingColliderRadius) ||
+                    !Approximately(prevHeight, _pendingColliderHeight);
+                if (changed || prevType != _pendingColliderType)
+                    UpdateExternalColliderBindingParams(binding, _pendingColliderCenter, _pendingColliderRadius, _pendingColliderHeight);
+            }
+
             GUILayout.Space(4f);
             GUILayout.BeginHorizontal();
+            bool canBind = binding == null || (binding.colliderType == _pendingColliderType && binding.clothTarget == _selectedClothTarget);
+            GUI.enabled = canBind;
             if (GUILayout.Button("Bind"))
             {
                 AddOrUpdateExternalColliderBinding(
@@ -501,10 +614,11 @@ namespace ClothCollideBinder
                     _pendingColliderRadius,
                     _pendingColliderHeight);
             }
+            GUI.enabled = true;
 
             if (binding != null && GUILayout.Button("Remove"))
             {
-                RemoveExternalColliderBinding(physicCollider, selectedItem, _selectedClothTarget);
+                RemoveExternalColliderBinding(physicCollider, selectedItem);
             }
             GUILayout.EndHorizontal();
         }
@@ -517,13 +631,13 @@ namespace ClothCollideBinder
             return _cachedOciItems[_selectedItemIndex];
         }
 
-        private static ExternalItemColliderBinding FindExternalItemColliderBinding(BinderState physicCollider, OCIItem ociItem, ClothBindingTarget clothTarget)
+        private static ExternalItemColliderBinding FindExternalItemColliderBinding(BinderState physicCollider, OCIItem ociItem)
         {
             if (physicCollider == null || ociItem == null)
                 return null;
 
             return physicCollider.externalItemColliderBindings
-                .FirstOrDefault(v => v != null && v.ociItem == ociItem && v.clothTarget == clothTarget);
+                .FirstOrDefault(v => v != null && v.ociItem == ociItem);
         }
 
         private void RefreshExternalItemList(BinderState physicCollider)
@@ -558,7 +672,8 @@ namespace ClothCollideBinder
                 physicCollider.externalItemColliderBindings.Remove(invalid);
             }
 
-            RebuildCharacterClothColliderBindings(physicCollider);
+            CleanupDuplicateBindings(physicCollider);
+            MarkBindingsDirty(physicCollider);
         }
 
         private void AddOrUpdateExternalColliderBinding(
@@ -580,9 +695,26 @@ namespace ClothCollideBinder
                 return;
             }
 
-            ExternalItemColliderBinding existing = FindExternalItemColliderBinding(physicCollider, ociItem, clothTarget);
+            ExternalItemColliderBinding existing = FindExternalItemColliderBinding(physicCollider, ociItem);
             if (existing != null)
             {
+                if (existing.colliderType != colliderType || existing.clothTarget != clothTarget)
+                {
+                    Logger.LogWarning("[ClothCollideBinder] An OCIItem can have only one collider. Remove first to change type/target.");
+                    return;
+                }
+
+                if (existing.colliderType == colliderType && existing.collider != null && existing.colliderObject != null)
+                {
+                    existing.center = center;
+                    existing.radius = Mathf.Max(0.05f, radius);
+                    existing.height = Mathf.Max(0.1f, height);
+                    if (existing.visualObject == null)
+                        existing.visualObject = CreateExternalColliderVisual(existing);
+                    ApplyExternalColliderSize(existing);
+                    return;
+                }
+
                 if (existing.collider != null)
                     GameObject.Destroy(existing.collider);
                 if (existing.colliderObject != null)
@@ -631,15 +763,15 @@ namespace ClothCollideBinder
             ApplyExternalColliderSize(binding);
 
             physicCollider.externalItemColliderBindings.Add(binding);
-            RebuildCharacterClothColliderBindings(physicCollider);
+            MarkBindingsDirty(physicCollider);
         }
 
-        private void RemoveExternalColliderBinding(BinderState physicCollider, OCIItem ociItem, ClothBindingTarget clothTarget)
+        private void RemoveExternalColliderBinding(BinderState physicCollider, OCIItem ociItem)
         {
             if (physicCollider == null || ociItem == null)
                 return;
 
-            ExternalItemColliderBinding existing = FindExternalItemColliderBinding(physicCollider, ociItem, clothTarget);
+            ExternalItemColliderBinding existing = FindExternalItemColliderBinding(physicCollider, ociItem);
             if (existing == null)
                 return;
 
@@ -651,7 +783,59 @@ namespace ClothCollideBinder
                 GameObject.Destroy(existing.visualObject);
 
             physicCollider.externalItemColliderBindings.Remove(existing);
-            RebuildCharacterClothColliderBindings(physicCollider);
+            MarkBindingsDirty(physicCollider);
+        }
+
+        private static void MarkBindingsDirty(BinderState state)
+        {
+            if (state != null)
+                state.bindingsDirty = true;
+        }
+
+        private void CleanupDuplicateBindings(BinderState state)
+        {
+            if (state == null || state.externalItemColliderBindings == null || state.externalItemColliderBindings.Count == 0)
+                return;
+
+            var seen = new HashSet<OCIItem>();
+            var duplicates = new List<ExternalItemColliderBinding>();
+            foreach (var binding in state.externalItemColliderBindings)
+            {
+                if (binding == null || binding.ociItem == null)
+                    continue;
+                if (!seen.Add(binding.ociItem))
+                    duplicates.Add(binding);
+            }
+
+            if (duplicates.Count == 0)
+                return;
+
+            foreach (var dup in duplicates)
+            {
+                if (dup.collider != null)
+                    GameObject.Destroy(dup.collider);
+                if (dup.colliderObject != null)
+                    GameObject.Destroy(dup.colliderObject);
+                if (dup.visualObject != null)
+                    GameObject.Destroy(dup.visualObject);
+                state.externalItemColliderBindings.Remove(dup);
+            }
+        }
+
+        private void ProcessDirtyRebuilds()
+        {
+            if (_binderStateByChar.Count == 0)
+                return;
+
+            foreach (var kvp in _binderStateByChar)
+            {
+                BinderState state = kvp.Value;
+                if (state == null || !state.bindingsDirty)
+                    continue;
+
+                state.bindingsDirty = false;
+                RebuildCharacterClothColliderBindings(state);
+            }
         }
 
         private static void ApplyExternalColliderSize(ExternalItemColliderBinding binding)
@@ -692,6 +876,8 @@ namespace ClothCollideBinder
             visual.transform.localPosition = Vector3.zero;
             visual.transform.localRotation = Quaternion.identity;
             visual.transform.localScale = Vector3.one;
+            binding.visualLines = binding.visualLines ?? new Dictionary<string, LineRenderer>();
+            binding.visualType = binding.colliderType;
             return visual;
         }
 
@@ -702,7 +888,13 @@ namespace ClothCollideBinder
 
             const float lineWidth = 0.008f;
             Color wireColor = Color.green;
-            ClearExternalWireLines(binding.visualObject.transform);
+            if (binding.visualLines == null)
+                binding.visualLines = new Dictionary<string, LineRenderer>();
+            if (binding.visualType != binding.colliderType)
+            {
+                ResetExternalWireLines(binding);
+                binding.visualType = binding.colliderType;
+            }
 
             if (binding.colliderType == ExternalColliderType.Sphere)
             {
@@ -710,9 +902,15 @@ namespace ClothCollideBinder
                 if (sphere == null)
                     return;
 
-                AddWireCircle(binding.visualObject.transform, sphere.center, Quaternion.identity, sphere.radius, 40, lineWidth, wireColor, "Sphere_XZ");
-                AddWireCircle(binding.visualObject.transform, sphere.center, Quaternion.Euler(90f, 0f, 0f), sphere.radius, 40, lineWidth, wireColor, "Sphere_XY");
-                AddWireCircle(binding.visualObject.transform, sphere.center, Quaternion.Euler(0f, 0f, 90f), sphere.radius, 40, lineWidth, wireColor, "Sphere_YZ");
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Sphere_XZ", lineWidth, wireColor),
+                    sphere.center, Quaternion.identity, sphere.radius, 40);
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Sphere_XY", lineWidth, wireColor),
+                    sphere.center, Quaternion.Euler(90f, 0f, 0f), sphere.radius, 40);
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Sphere_YZ", lineWidth, wireColor),
+                    sphere.center, Quaternion.Euler(0f, 0f, 90f), sphere.radius, 40);
             }
             else if (binding.colliderType == ExternalColliderType.Capsule)
             {
@@ -728,11 +926,28 @@ namespace ClothCollideBinder
                 Vector3 topCenter = center + Vector3.up * cylHalf;
                 Vector3 bottomCenter = center - Vector3.up * cylHalf;
 
-                AddWireCircle(binding.visualObject.transform, topCenter, Quaternion.identity, radius, 32, lineWidth, wireColor, "Capsule_Top");
-                AddWireCircle(binding.visualObject.transform, bottomCenter, Quaternion.identity, radius, 32, lineWidth, wireColor, "Capsule_Bottom");
-                AddCapsuleProfile(binding.visualObject.transform, center, radius, cylHalf, Vector3.right, 20, lineWidth, wireColor, "Capsule_ProfileX");
-                AddCapsuleProfile(binding.visualObject.transform, center, radius, cylHalf, Vector3.forward, 20, lineWidth, wireColor, "Capsule_ProfileZ");
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Capsule_Top", lineWidth, wireColor),
+                    topCenter, Quaternion.identity, radius, 32);
+                UpdateWireCircle(
+                    GetOrCreateWireLine(binding, "Capsule_Bottom", lineWidth, wireColor),
+                    bottomCenter, Quaternion.identity, radius, 32);
+                UpdateCapsuleProfile(
+                    GetOrCreateWireLine(binding, "Capsule_ProfileX", lineWidth, wireColor),
+                    center, radius, cylHalf, Vector3.right, 20);
+                UpdateCapsuleProfile(
+                    GetOrCreateWireLine(binding, "Capsule_ProfileZ", lineWidth, wireColor),
+                    center, radius, cylHalf, Vector3.forward, 20);
             }
+        }
+
+        private static void ResetExternalWireLines(ExternalItemColliderBinding binding)
+        {
+            if (binding == null || binding.visualObject == null)
+                return;
+            ClearExternalWireLines(binding.visualObject.transform);
+            if (binding.visualLines != null)
+                binding.visualLines.Clear();
         }
 
         private static void ClearExternalWireLines(Transform root)
@@ -746,6 +961,80 @@ namespace ClothCollideBinder
                 if (child != null)
                     GameObject.Destroy(child.gameObject);
             }
+        }
+
+        private static LineRenderer GetOrCreateWireLine(ExternalItemColliderBinding binding, string name, float width, Color color)
+        {
+            if (binding == null || binding.visualObject == null)
+                return null;
+
+            if (binding.visualLines != null && binding.visualLines.TryGetValue(name, out var cached) && cached != null)
+            {
+                ConfigureWireLineRenderer(cached, width, color);
+                return cached;
+            }
+
+            LineRenderer lr = null;
+            Transform existing = binding.visualObject.transform.Find(name);
+            if (existing != null)
+                lr = existing.GetComponent<LineRenderer>();
+
+            if (lr == null)
+            {
+                GameObject go = new GameObject(name);
+                go.transform.SetParent(binding.visualObject.transform, false);
+                lr = go.AddComponent<LineRenderer>();
+            }
+
+            ConfigureWireLineRenderer(lr, width, color);
+            if (binding.visualLines != null)
+                binding.visualLines[name] = lr;
+            return lr;
+        }
+
+        private static void UpdateWireCircle(LineRenderer lr, Vector3 center, Quaternion rotation, float radius, int segments)
+        {
+            if (lr == null)
+                return;
+
+            lr.positionCount = segments + 1;
+            for (int i = 0; i <= segments; i++)
+            {
+                float t = (float)i / segments;
+                float angle = t * Mathf.PI * 2f;
+                Vector3 p = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                lr.SetPosition(i, center + (rotation * p));
+            }
+        }
+
+        private static void UpdateCapsuleProfile(LineRenderer lr, Vector3 center, float radius, float cylHalf, Vector3 axis, int segments)
+        {
+            if (lr == null)
+                return;
+
+            int total = (segments + 1) * 2 + 1;
+            Vector3[] points = new Vector3[total];
+            int idx = 0;
+
+            for (int i = 0; i <= segments; i++)
+            {
+                float t = Mathf.Lerp(0f, Mathf.PI, (float)i / segments);
+                float u = Mathf.Cos(t) * radius;
+                float y = -cylHalf + Mathf.Sin(t) * radius;
+                points[idx++] = center + axis * u + Vector3.up * y;
+            }
+
+            for (int i = 0; i <= segments; i++)
+            {
+                float t = Mathf.Lerp(Mathf.PI, Mathf.PI * 2f, (float)i / segments);
+                float u = Mathf.Cos(t) * radius;
+                float y = cylHalf + Mathf.Sin(t) * radius;
+                points[idx++] = center + axis * u + Vector3.up * y;
+            }
+
+            points[idx] = points[0];
+            lr.positionCount = points.Length;
+            lr.SetPositions(points);
         }
 
         private static void AddWireCircle(Transform parent, Vector3 center, Quaternion rotation, float radius, int segments, float width, Color color, string name)
@@ -813,8 +1102,8 @@ namespace ClothCollideBinder
             Shader shader = Shader.Find("Sprites/Default");
             if (shader == null)
                 shader = Shader.Find("Unlit/Color");
-            if (shader != null)
-                lr.material = new Material(shader);
+            if (shader != null && (lr.sharedMaterial == null || lr.sharedMaterial.shader != shader))
+                lr.sharedMaterial = new Material(shader);
         }
 
         private void RebuildCharacterClothColliderBindings(BinderState physicCollider)
@@ -937,7 +1226,7 @@ namespace ClothCollideBinder
             if (ociItem == null)
                 return "(null)";
 
-            return ociItem.itemInfo.objectInfo.name;// ociItem.treeNodeObject.textName;
+            return ociItem.treeNodeObject.textName;// ociItem.treeNodeObject.textName;
         }
 
         private void SceneInit()
@@ -1324,7 +1613,8 @@ namespace ClothCollideBinder
                 state.clothInfos[i].hasCloth = clothObj != null && clothObj.GetComponentsInChildren<Cloth>(true).Length > 0;
             }
 
-            RebuildCharacterClothColliderBindings(state);
+            CleanupDuplicateBindings(state);
+            MarkBindingsDirty(state);
             return state;
         }
 
@@ -1415,12 +1705,3 @@ namespace ClothCollideBinder
         #endregion
     }
 }
-
-
-
-
-
-
-
-
-

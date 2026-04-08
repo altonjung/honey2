@@ -11,6 +11,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HS2Maker.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HS2MakerSceneData.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HS2MakerSceneController.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HS2MakerChatUIController.cs" />    
     <Compile Include="$(MSBuildThisFileDirectory)HS2MakerChatSUIController.cs" />

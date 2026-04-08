@@ -100,15 +100,16 @@ namespace HoneySelect2Maker
         internal static new ManualLogSource Logger;
         internal static HoneySelect2Maker _self;
 
-// Video
         internal string _provider_config_path = UserData.Path + "/hs2maker/system/config/provider.json";
         internal string _fallback_config_path = UserData.Path + "/hs2maker/system/message/fallback.json";
+// Video        
         internal string _bgm_home_folder = UserData.Path + "/hs2maker/bgm/home/";
         internal string _video_title_scene_folder = UserData.Path + "/hs2maker/title/";
         internal string _video_title_scene_loop_path = UserData.Path + "/hs2maker/title/loop.hs2m";
         internal string _video_home_scene_folder = UserData.Path + "/hs2maker/home/";
         internal string _video_home_evt_scene_folder = UserData.Path + "/hs2maker/home/event/";
         internal string _video_home_sleep_scene_folder = UserData.Path + "/hs2maker/home/sleep/";
+        internal string _video_home_enjoy_scene_folder = UserData.Path + "/hs2maker/home/enjoy/";
         internal string _video_lobby_scene_folder = UserData.Path + "/hs2maker/lobby/";
         internal string _video_concierge_scene_folder = UserData.Path + "/hs2maker/concierge/";     
         internal string _video_adv_japaneses_scene_folder = UserData.Path + "/hs2maker/adv/japanese/";
@@ -128,11 +129,7 @@ namespace HoneySelect2Maker
         internal static string _HS2_OPENROUTER_REFERER = "";
         internal static string _HS2_OPENROUTER_TITLE = "";
 
-        internal bool _isAbleTitleVideo;
-       
-        internal List<Canvas> _disabledCanvasCache = new List<Canvas>();
-
-        internal Dictionary<string, HeroinData> _playingHeroinNames = new Dictionary<string, HeroinData>();
+        internal Dictionary<string, HeroinData> _playingHeroins = new Dictionary<string, HeroinData>();
 
         private static string _assemblyLocation;
         internal static bool _reEntryHarmony = false;
@@ -173,12 +170,6 @@ namespace HoneySelect2Maker
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
 
             HS2SceneController.Initialize();
-
-            // title
-            if (HS2SceneController.GetVideoFiles(_self._video_title_scene_folder).Count > 0)
-            {
-                _isAbleTitleVideo = true;
-            }
 
             _HS2_LLM_SERVER = Environment.GetEnvironmentVariable("hs2_llm_host");
 
@@ -334,9 +325,23 @@ namespace HoneySelect2Maker
                 heroinData.hAttribute = charFileControl.parameter2.hAttribute;
                 heroinData.age = 20;
 
-                _self._playingHeroinNames[charFileControl.charaFileName] = heroinData;
-            }        
+                UpdateHeroinsStatus(charFileControl.charaFileName, heroinData);
+            }
+
+            UnityEngine.Debug.Log($">>UpdateHeroins | {_playingHeroins.Count} |  {DateTime.Now:HH:mm:ss.fff}");
         }
+
+        // 사용법: UpdateHeroinsStatus("heroineName", heroinData);
+        private void UpdateHeroinsStatus(string key, HeroinData value)
+        {
+            if (string.IsNullOrWhiteSpace(key) || value == null)
+                return;
+
+            _playingHeroins[key] = value;
+        }
+
+
+
         #endregion
 
         #region Patches
@@ -566,9 +571,6 @@ namespace HoneySelect2Maker
             HS2SceneController.PlayVideoRandom(_self._video_lobby_scene_folder, true);
             yield return new WaitUntil(() => _videoFinished);
 
-
-            _self.UpdateHeroins();
-
             // 🔥 원 함수 실행
             var method = typeof(HS2.LobbyScene)
                 .GetMethod("Start", System.Reflection.BindingFlags.Instance |
@@ -711,9 +713,8 @@ namespace HoneySelect2Maker
 
             if (sceneName.Equals("MyRoom")) {
                 if (__instance.packData.EventCGName.Equals("My room_Event36")) {
-                    UnityEngine.Debug.Log($">> Advance MyRoom with Sleep");
                     if (_self.IsAvailableVideo(_self._video_home_sleep_scene_folder)) {  
-                        // sleep
+                        // sleep 이벤트 처리
                         HS2SceneController.PlayVideoRandom(_self._video_home_sleep_scene_folder, true);
                         yield return new WaitUntil(() => _videoFinished);
                         method_name = "Start";
@@ -721,8 +722,12 @@ namespace HoneySelect2Maker
                 } 
                 else
                 {   // enjoy
-                    UnityEngine.Debug.Log($">> Advance MyRoom with enjoy");
-                    //     
+                    if (_self.IsAvailableVideo(_self._video_home_enjoy_scene_folder)) {  
+                        // enjoy 이벤트 처리
+                        HS2SceneController.PlayVideoRandom(_self._video_home_enjoy_scene_folder, true);
+                        yield return new WaitUntil(() => _videoFinished);
+                        method_name = "Start";
+                    }                
                 }
             } else if  (sceneName.Equals("Japanese")) { 
                 if (_self.IsAvailableVideo(_self._video_adv_japaneses_scene_folder)) { 
@@ -1005,7 +1010,9 @@ namespace HoneySelect2Maker
                 if (scene.name.Equals("Title") || scene.name.Equals("NightPool"))
                 { 
                     // title 맵은 로딩 제외
-                    if(_self._isAbleTitleVideo && _no == 18)
+
+                    // title
+                    if (HS2SceneController.GetVideoFiles(_self._video_title_scene_folder).Count > 0 && _no == 18)
                     {
                         return false;
                     }
@@ -1026,12 +1033,9 @@ namespace HoneySelect2Maker
                 if (!VideoModeActive.Value)
                     return true;
 
-                // if (__instance != null && root != null)
-                //     UnityEngine.Debug.Log($">> SetRoot {root.name}, scene {scene.name}, charName {__instance.Name}, charBirthDay {__instance.birthMonth}/{__instance.birthDay} | {DateTime.Now:HH:mm:ss.fff}");
-
                 if (scene.name.Equals("Title") || scene.name.Equals("NightPool"))
                 {
-                    if (_self._isAbleTitleVideo)
+                    if (HS2SceneController.GetVideoFiles(_self._video_title_scene_folder).Count > 0)
                     {
                         root.SetActive(false);
                     }

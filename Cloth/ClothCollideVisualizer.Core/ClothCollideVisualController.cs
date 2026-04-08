@@ -31,22 +31,27 @@ using AIChara;
 
 namespace ClothCollideVisualizer
 {
+    // 캐릭터별 물리 콜라이더 시각화 데이터의 생성/정리를 담당한다.
     public class ClothCollideVisualizerController: CharaCustomFunctionController
     {
+        // 현재 캐릭터의 콜라이더 시각화 상태 저장소
         PhysicCollider physicCollider;
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
+        // 현재 물리 콜라이더 데이터를 반환한다.
         internal PhysicCollider GetData()
         {
             return physicCollider;
         }
 
+        // 캐릭터 기준으로 물리 콜라이더 데이터 컨테이너를 초기화한다.
         internal void InitPhysicCollider(OCIChar _ociChar)
         {
             physicCollider = new PhysicCollider();
             physicCollider.ociChar = _ociChar;
         }
 
+        // 생성했던 디버그 오브젝트와 캐시를 모두 정리한다.
         internal void RemovePhysicCollier()
         {
             if (physicCollider == null)
@@ -86,6 +91,7 @@ namespace ClothCollideVisualizer
         }
     }
 
+    // 캐릭터 단위의 물리 콜라이더/디버그 시각화 데이터 묶음
     class PhysicCollider
     {
         public OCIChar ociChar;
@@ -120,10 +126,13 @@ namespace ClothCollideVisualizer
 
     class ClothInfo
     {
+        // 의상 슬롯 원본 오브젝트
         public GameObject clothObj;
+        // Cloth 컴포넌트 보유 여부
         public bool hasCloth;
     }
 
+    // 원본 콜라이더와 디버그 트랜스폼의 매핑 정보
     class DebugColliderEntry
     {
         public string name;

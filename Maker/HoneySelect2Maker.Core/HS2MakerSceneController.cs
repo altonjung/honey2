@@ -619,19 +619,4 @@ namespace HoneySelect2Maker
             return Application.systemLanguage;
         }
     }
-
-    class HeroinData
-    {
-        public string fullname = "";
-	    public int birthMonth = 1;
-		public int birthDay = 1;
-        public int personality = 0;                		
-		public float voiceRate = 0.5f;
-		public int trait = 0;
-		public int mind = 0;
-		public int hAttribute = 0;
-        public int age;
-        public int encounterCnt;
-        public int relationship;
-    }
 }

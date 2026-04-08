@@ -1,4 +1,4 @@
-using Studio;
+﻿using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -206,6 +206,7 @@ namespace ClothCollideVisualizer
                 return;
         }
 
+        // 현재 스튜디오에서 선택된 OCIChar를 가져온다.
         private OCIChar GetCurrentOCI()
         {
             OCIChar ociChar = GetLastOCICharFromStudio();
@@ -250,6 +251,7 @@ namespace ClothCollideVisualizer
                 _windowRect = GUILayout.Window(_uniqueId + 1, _windowRect, WindowFunc, "ClothCollideVisualizer " + Version);
         }
 
+        // 플러그인 메인 윈도우 UI를 그린다.
         private void WindowFunc(int id)
         {
             var studio = Studio.Studio.Instance;
@@ -464,6 +466,7 @@ namespace ClothCollideVisualizer
                 && Mathf.Abs(Mathf.DeltaAngle(a.z, b.z)) < TransformCompareEpsilon;
         }
 
+        // 씬 로드/임포트 시 공통 초기화가 필요할 경우 이 지점에서 처리한다.
         private void SceneInit()
         {
         }
@@ -667,7 +670,7 @@ namespace ClothCollideVisualizer
             return null;
         }
 
-        // ��ƿ: ������ float �Ľ�
+        // 유틸: 문자열을 float 값으로 파싱한다.
         private float ParseFloat(string value)
         {
             if (float.TryParse(value, out float result))
@@ -680,8 +683,8 @@ namespace ClothCollideVisualizer
             List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
 
             List<OCIChar> ociChars = dic
-                .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo �� OCIChar
-                .Where(c => c != null)               // null ���� (OCIChar�� �ƴ� ��� ��ŵ)
+                .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo를 OCIChar로 캐스팅
+                .Where(c => c != null)               // null 항목 제거
                 .ToList();
 
             foreach (OCIChar ociChar in ociChars)
@@ -692,7 +695,7 @@ namespace ClothCollideVisualizer
                 List<SphereCollider> scolliders = ociChar.charInfo.objBodyBone
                     .transform
                     .GetComponentsInChildren<SphereCollider>()
-                    .OrderBy(col => col.gameObject.name) // �̸� ���� ����
+                    .OrderBy(col => col.gameObject.name) // 이름순 정렬
                     .ToList();
 
                 List<Transform> targetCollider = new List<Transform>();
@@ -835,8 +838,7 @@ namespace ClothCollideVisualizer
             }
         }
         #endregion
-
-        // CapsuleCollider Wireframe �����
+        // CapsuleCollider 디버그 와이어프레임을 생성한다.
         private static void CreateCapsuleWireframe(CapsuleCollider capsule, Transform parent, string name, List<GameObject> debugObjects, Dictionary<Collider, List<Renderer>> debugCollideRenderers)
         {
             Camera cam = Camera.main;
@@ -849,7 +851,7 @@ namespace ClothCollideVisualizer
 
             List<Renderer> renderers = new List<Renderer>();
 
-            // Capsule ���� ����
+            // Capsule 방향에 따라 기준 축과 회전을 결정한다.
             Vector3 axis;
             Quaternion rot = Quaternion.identity;
             switch (capsule.direction)
@@ -860,9 +862,9 @@ namespace ClothCollideVisualizer
                 default: axis = Vector3.up; break;
             }
 
-            int segments = 48; // ���� �ٻ��� ���� ��
+            int segments = 48; // 원호를 구성할 세그먼트 수
 
-            // Cylinder Body + Top/Bottom Hemisphere ��
+            // 원통 몸통과 상/하단 반구를 하나의 라인으로 생성
             GameObject lineObj = new GameObject("CapsuleWireLines");
             lineObj.transform.SetParent(root.transform, false);
             LineRenderer lr = lineObj.AddComponent<LineRenderer>();
@@ -906,13 +908,12 @@ namespace ClothCollideVisualizer
             lr.positionCount = points.Count;
             lr.SetPositions(points.ToArray());
 
-            renderers.Add(lr); // LineRenderer ��ü�� ���
+            renderers.Add(lr); // LineRenderer를 목록에 추가
             debugObjects.Add(root);
             debugObjects.Add(lineObj);
-
             debugCollideRenderers[capsule] = renderers;
 
-            // �ؽ�Ʈ
+            // 콜라이더 이름 텍스트 생성
             Vector3 textPos = axis * (halfHeight * 0.5f + 0.1f);
             CreateTextDebugLocal(root.transform, textPos, name, cam, debugObjects, debugCollideRenderers);
 
@@ -921,8 +922,7 @@ namespace ClothCollideVisualizer
                 root.SetActive(false);
             }
         }
-
-        // SphereCollider Wireframe �����
+        // SphereCollider 디버그 와이어프레임을 생성한다.
         private static void CreateSphereWireframe(SphereCollider sphere, Transform parent, string name, List<GameObject> debugObjects, Dictionary<Collider, List<Renderer>> debugCollideRenderers)
         {
             Camera cam = Camera.main;
@@ -948,19 +948,19 @@ namespace ClothCollideVisualizer
 
             float angle_temp = 2 * Mathf.PI / segments;
 
-            // XY ��
+            // XY 평면 원
             for (int i = 0; i <= segments; i++)
             {
                 float angle = angle_temp * i;
                 points.Add(new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f));
             }
-            // XZ ��
+            // XZ 평면 원
             for (int i = 0; i <= segments; i++)
             {
                 float angle = angle_temp * i;
                 points.Add(new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius));
             }
-            // YZ ��
+            // YZ 평면 원
             for (int i = 0; i <= segments; i++)
             {
                 float angle = angle_temp * i;
@@ -975,7 +975,7 @@ namespace ClothCollideVisualizer
             debugObjects.Add(lineObj);
             debugCollideRenderers[sphere] = renderers;
 
-            // �ؽ�Ʈ
+            // 콜라이더 이름 텍스트 생성
             Vector3 textPos = sphere.center + Vector3.up * (radius + 0.05f);
             CreateTextDebugLocal(root.transform, textPos, name, cam, debugObjects, debugCollideRenderers);
 
@@ -998,7 +998,7 @@ namespace ClothCollideVisualizer
             tm.characterSize = 0.05f;
             tm.anchor = TextAnchor.MiddleCenter;
 
-            // ī�޶� �ٶ󺸵���
+            // 카메라를 바라보도록 텍스트 방향 정렬
             if (cam != null)
                 textObj.transform.rotation = Quaternion.LookRotation(textObj.transform.position - cam.transform.position);
 
@@ -1035,14 +1035,14 @@ namespace ClothCollideVisualizer
                     }
 
                     Color c = rend.material.color;
-                    // ���õ� �͸� ����, �������� ���� ��� �迭 ����
+                    // 선택된 콜라이더는 빨간색으로 강조하고 나머지는 타입별 기본색을 유지한다.
                     if (kvp.Key == selected)
                     {
-                        c.r = 1f; c.g = 0f; c.b = 0f; // ����
+                        c.r = 1f; c.g = 0f; c.b = 0f; // 선택된 콜라이더 강조색
                     }
                     else
                     {
-                        // ���� �� ���� (��� �迭)
+                        // 선택되지 않은 콜라이더는 타입별 기본색 적용 (반투명)
                         if (kvp.Key is CapsuleCollider)
                             c = new Color(0f, 1f, 0.5f, 0.5f);
                         else if (kvp.Key is SphereCollider)
@@ -1107,6 +1107,7 @@ namespace ClothCollideVisualizer
                 value.debugEntryBySource.Clear();                
         }
 
+        // 현재 캐릭터에 시각화 데이터가 이미 생성되어 있는지 확인한다.
         private static bool ExistVisualColliders(OCIChar ociChar)
         {
             if (ociChar != null)
@@ -1127,6 +1128,7 @@ namespace ClothCollideVisualizer
             return false;
         }
 
+        // 선택된 캐릭터의 Cloth Collider를 탐색해 디버그 시각화를 생성한다.
         private void AddVisualColliders(OCIChar ociChar)
         {
             if (ociChar != null)
@@ -1150,7 +1152,7 @@ namespace ClothCollideVisualizer
                     List<GameObject> physicsClothes = new List<GameObject>();
 
                     int idx = 0;
-                    // ĳ���ͳ� 8�� cloth part ���� �� cloth component ã�Ƽ� ����
+                    // 캐릭터의 8개 의상 슬롯에서 Cloth 컴포넌트를 찾아 기록한다.
                     foreach (var clothObj in baseCharControl.objClothes)
                     {
                         if (clothObj == null)
@@ -1174,7 +1176,7 @@ namespace ClothCollideVisualizer
                         idx++;
                     }
 
-                    // ĳ���ͳ� 20�� accessory���� �� cloth component ã�Ƽ� ����
+                    // 필요 시 액세서리 슬롯(최대 20개)도 같은 방식으로 확장 가능
                     //idx = 0;
                     //foreach (var accessory in baseCharControl.objAccessory)
                     //{
@@ -1237,14 +1239,14 @@ namespace ClothCollideVisualizer
                                 physicCollider.debugEntries.Add(entry);
                                 physicCollider.debugEntryBySource[col] = entry;
 
-                                // ����׿� sphere ����
+                                // SphereCollider 시각화 생성
                                 CreateSphereWireframe(col, debugRoot.transform, collider_name, physicCollider.debugSphereCollideVisibleObjects, physicCollider.debugCollideRenderers);
                             }
                         }
 
                         foreach (var col in capsulecolliders.OrderBy(col => col.gameObject.name).ToList())
                         {
-                            if (col == null) continue; // Destroy �� ��� ��ŵ
+                            if (col == null) continue; // Destroy된 콜라이더는 건너뛴다.
 
                             if (col.gameObject.name.Contains("Cloth colliders"))
                             {
@@ -1274,7 +1276,7 @@ namespace ClothCollideVisualizer
                                 physicCollider.debugEntries.Add(entry);
                                 physicCollider.debugEntryBySource[col] = entry;
 
-                                // ����׿� capsule ����
+                                // CapsuleCollider 시각화 생성
                                 CreateCapsuleWireframe(col, debugRoot.transform, collider_name, physicCollider.debugCapsuleCollideVisibleObjects, physicCollider.debugCollideRenderers);
                             }
                         }
@@ -1311,7 +1313,7 @@ namespace ClothCollideVisualizer
                     var controller = _self.GetCurrentControl(ociChar);
                     if (controller != null)
                     {
-                        // ���Ҵ�
+                        // 교체 전 데이터/디버그 오브젝트 정리
                         controller.RemovePhysicCollier();
                         _self.CleanupVisualsByName(ociChar);
                         __instance.GetChaControl().StartCoroutine(ExecuteAfterFrame(ociChar, 10));
@@ -1332,7 +1334,7 @@ namespace ClothCollideVisualizer
                     var controller = _self.GetCurrentControl(ociChar);
                     if (controller != null)
                     {
-                        // ���Ҵ�
+                        // 변경 전 데이터/디버그 오브젝트 정리
                         controller.RemovePhysicCollier();
                         _self.CleanupVisualsByName(ociChar);
                         __instance.StartCoroutine(ExecuteAfterFrame(ociChar, 10));
@@ -1353,7 +1355,7 @@ namespace ClothCollideVisualizer
                     var controller = _self.GetCurrentControl(ociChar);
                     if (controller != null)
                     {
-                        // ���Ҵ�
+                        // 변경 전 데이터/디버그 오브젝트 정리
                         controller.RemovePhysicCollier();
                         _self.CleanupVisualsByName(ociChar);
                         __instance.StartCoroutine(ExecuteAfterFrame(ociChar, 10));
