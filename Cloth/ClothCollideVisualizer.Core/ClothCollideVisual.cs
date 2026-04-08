@@ -100,15 +100,17 @@ namespace ClothCollideVisualizer
         private Vector2 _debugScroll;
         private int _selectedDebugIndex = -1;
         private DebugColliderEntry _selectedDebugEntry;
-
-        // private Dictionary<OCIChar, PhysicCollider> _ociCharMgmt = new Dictionary<OCIChar, PhysicCollider>();
-
+        
         private const int _uniqueId = ('C' << 24) | ('C' << 16) | ('V' << 8) | 'S';
         private Rect _windowRect = new Rect(140, 10, 340, 10);
         private GUIStyle _richLabel;
         private static readonly Color ModifiedEntryColor = new Color(1f, 0f, 0f, 1f);
         private static readonly Color UnmodifiedEntryColor = new Color(0.75f, 0.95f, 0.75f, 1f);
         private const float TransformCompareEpsilon = 0.001f;
+        private static readonly float[] SliderStepOptions = new float[] { 1f, 0.1f, 0.01f, 0.001f };
+        private int _posStepIndex = 1;
+        private int _rotStepIndex = 0;
+        private int _scaleStepIndex = 2;
 
         private GUIStyle RichLabel
         {
@@ -326,27 +328,33 @@ namespace ClothCollideVisualizer
                     Transform debugTr = _selectedDebugEntry.debugTransform;
 
                     GUILayout.Label("<color=orange>Position</color>", RichLabel);
+                    DrawStepSelector(ref _posStepIndex, "Step");
                     Vector3 pos = debugTr.localPosition;
-                    pos.x = SliderRow("Pos X", pos.x, -2.0f, 2.0f, 0.0f);
-                    pos.y = SliderRow("Pos Y", pos.y, -2.0f, 2.0f, 0.0f);
-                    pos.z = SliderRow("Pos Z", pos.z, -2.0f, 2.0f, 0.0f);
+                    float posStep = SliderStepOptions[_posStepIndex];
+                    pos.x = SliderRow("Pos X", pos.x, -2.0f, 2.0f, 0.0f, posStep);
+                    pos.y = SliderRow("Pos Y", pos.y, -2.0f, 2.0f, 0.0f, posStep);
+                    pos.z = SliderRow("Pos Z", pos.z, -2.0f, 2.0f, 0.0f, posStep);
                     debugTr.localPosition = pos;
 
                     GUILayout.Label("<color=orange>Rotation</color>", RichLabel);
+                    DrawStepSelector(ref _rotStepIndex, "Step");
                     Vector3 rot = debugTr.localEulerAngles;
                     rot.x = NormalizeAngle(rot.x);
                     rot.y = NormalizeAngle(rot.y);
                     rot.z = NormalizeAngle(rot.z);
-                    rot.x = SliderRow("Rot X", rot.x, -180.0f, 180.0f, 0.0f);
-                    rot.y = SliderRow("Rot Y", rot.y, -180.0f, 180.0f, 0.0f);
-                    rot.z = SliderRow("Rot Z", rot.z, -180.0f, 180.0f, 0.0f);
+                    float rotStep = SliderStepOptions[_rotStepIndex];
+                    rot.x = SliderRow("Rot X", rot.x, -180.0f, 180.0f, 0.0f, rotStep);
+                    rot.y = SliderRow("Rot Y", rot.y, -180.0f, 180.0f, 0.0f, rotStep);
+                    rot.z = SliderRow("Rot Z", rot.z, -180.0f, 180.0f, 0.0f, rotStep);
                     debugTr.localEulerAngles = rot;
 
                     GUILayout.Label("<color=orange>Scale</color>", RichLabel);
+                    DrawStepSelector(ref _scaleStepIndex, "Step");
                     Vector3 scale = debugTr.localScale;
-                    scale.x = SliderRow("Scale X", scale.x, 0.1f, 2.0f, 1.0f);
-                    scale.y = SliderRow("Scale Y", scale.y, 0.1f, 2.0f, 1.0f);
-                    scale.z = SliderRow("Scale Z", scale.z, 0.1f, 2.0f, 1.0f);
+                    float scaleStep = SliderStepOptions[_scaleStepIndex];
+                    scale.x = SliderRow("Scale X", scale.x, 0.1f, 2.0f, 1.0f, scaleStep);
+                    scale.y = SliderRow("Scale Y", scale.y, 0.1f, 2.0f, 1.0f, scaleStep);
+                    scale.z = SliderRow("Scale Z", scale.z, 0.1f, 2.0f, 1.0f, scaleStep);
                     debugTr.localScale = scale;
 
                     ApplyDebugToSource(_selectedDebugEntry);
@@ -393,16 +401,57 @@ namespace ClothCollideVisualizer
             GUILayout.Space(10);
         }
 
-        private float SliderRow(string label, float value, float min, float max, float resetValue)
+        private float SliderRow(string label, float value, float min, float max, float resetValue, float step)
         {
             GUILayout.BeginHorizontal();
             GUILayout.Label(label, GUILayout.Width(60));
+            if (GUILayout.Button("-", GUILayout.Width(22)))
+                value -= step;
             value = GUILayout.HorizontalSlider(value, min, max);
-            GUILayout.Label(value.ToString("0.00"), GUILayout.Width(50));
+            if (GUILayout.Button("+", GUILayout.Width(22)))
+                value += step;
+            value = Quantize(value, step, min, max);
+            GUILayout.Label(FormatByStep(value, step), GUILayout.Width(50));
             if (GUILayout.Button("Reset", GUILayout.Width(52)))
                 value = resetValue;
             GUILayout.EndHorizontal();
             return value;
+        }
+
+        private void DrawStepSelector(ref int stepIndex, string label)
+        {
+            if (stepIndex < 0 || stepIndex >= SliderStepOptions.Length)
+                stepIndex = 0;
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(60));
+            for (int i = 0; i < SliderStepOptions.Length; i++)
+            {
+                string stepLabel = SliderStepOptions[i].ToString("0.###");
+                if (GUILayout.Toggle(stepIndex == i, stepLabel, GUI.skin.button, GUILayout.Width(44)))
+                    stepIndex = i;
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        private float Quantize(float value, float step, float min, float max)
+        {
+            if (step <= 0f)
+                return Mathf.Clamp(value, min, max);
+
+            float quantized = Mathf.Round(value / step) * step;
+            return Mathf.Clamp(quantized, min, max);
+        }
+
+        private string FormatByStep(float value, float step)
+        {
+            int decimals = 2;
+            if (step > 0f)
+            {
+                decimals = Mathf.Clamp(Mathf.CeilToInt(-Mathf.Log10(step)), 0, 4);
+            }
+            string fmt = decimals == 0 ? "0" : ("0." + new string('0', decimals));
+            return value.ToString(fmt, CultureInfo.InvariantCulture);
         }
 
         private float NormalizeAngle(float angle)

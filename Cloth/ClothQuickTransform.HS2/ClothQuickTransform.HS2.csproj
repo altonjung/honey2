@@ -168,7 +168,6 @@
     <Analyzer Include="..\packages\Microsoft.Unity.Analyzers.1.19.0\analyzers\dotnet\cs\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
   <Import Project="..\ClothQuickTransform.Core\ClothQuickTransform.Core.projitems" Label="Shared" />
-  <!-- <Import Project="..\UIUtility\UIUtility.projitems" Label="Shared" /> -->
   <Import Project="..\ToolBox\ToolBox.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
