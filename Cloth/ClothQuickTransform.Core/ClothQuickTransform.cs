@@ -123,7 +123,7 @@ namespace ClothQuickTransform
         private int _slotIndex = 0;
         private static readonly string[] ClothSlotLabels = new[]
         {
-            "Top", "Bottom", "Bra", "Shorts", "Gloves", "Pantyhose/Stockings", "Shoes"
+            "Top", "Bottom", "Bra", "Pants", "Gloves", "Stockings", "Shoes"
         };
     
         private GUIStyle _richLabel;
