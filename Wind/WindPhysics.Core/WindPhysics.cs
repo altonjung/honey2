@@ -33,6 +33,7 @@ using KKAPI.Studio;
 using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 using KKAPI.Chara;
+using System.Linq;
 
 namespace WindPhysics
 {
@@ -50,7 +51,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.7.2";
+        public const string Version = "0.9.7.3";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -84,15 +85,12 @@ namespace WindPhysics
 
         private Rect _windowRect = new Rect(70, 10, 400, 10);
 
-        private bool _lastConfigKeyEnableWind;
-        private float _lastInterval;
-
         // 위치에 따른 바람 강도
         private AnimationCurve _heightToForceCurve = AnimationCurve.Linear(0f, 1f, 1f, 0.1f); // 위로 갈수록 약함
 
-        internal Dictionary<int, ChaControl> _selectChaMgmt = new Dictionary<int, ChaControl>();
+        // internal Dictionary<int, ChaControl> _selectChaMgmt = new Dictionary<int, ChaControl>();
 
-        private Coroutine _CheckWindMgmtCoroutine;
+        // private Coroutine _CheckWindMgmtCoroutine;
 
 #if FEATURE_VISUAL_WINDDIRECTION
         // LineRenderer 객체
@@ -107,8 +105,6 @@ namespace WindPhysics
         // 표시 위치/길이        
         private const float _windDirLength = 5f;        
 #endif
-        private OCIChar _currentOCIChar = null;
-
         private GUIStyle _richLabel;
         
         private GUIStyle RichLabel
@@ -127,14 +123,14 @@ namespace WindPhysics
         #endregion
 
         #region Accessors
-        internal static ConfigEntry<bool> ConfigKeyEnableWind { get; private set; }
+        // internal static ConfigEntry<bool> ConfigKeyEnableWind { get; private set; }
         internal static ConfigEntry<float> Gravity { get; private set; }
         internal static ConfigEntry<float> WindDirection { get; private set; }
         internal static ConfigEntry<float> WindInterval { get; private set; }
         internal static ConfigEntry<float> WindKeepTime { get; private set; }
         internal static ConfigEntry<float> WindUpForce { get; private set; }
         internal static ConfigEntry<float> WindForce { get; private set; }
-        internal static ConfigEntry<float> WindAmplitude { get; private set; } 
+        internal static ConfigEntry<float> WindAmplitude { get; private set; }
         #endregion
 
 
@@ -157,11 +153,6 @@ namespace WindPhysics
 
             WindAmplitude = Config.Bind("All", "Amplitude", 1.0f, new ConfigDescription("wind amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            // option 
-            ConfigKeyEnableWind = Config.Bind("Options", "Toggle effect", false, "Wind enabled/disabled");
-
-            _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;
-            _lastInterval = WindInterval.Value;
             ClampWindKeepTimeToInterval();
 
             _self = this;
@@ -184,7 +175,7 @@ namespace WindPhysics
 
             CharacterApi.RegisterExtraBehaviour<WindPhysicsController>(GUID);
 
-            _CheckWindMgmtCoroutine = StartCoroutine(CheckWindMgmtRoutine());
+            // _CheckWindMgmtCoroutine = StartCoroutine(CheckWindMgmtRoutine());
 
 #if FEATURE_TIMELINE_SUPPORT
             this.ExecuteDelayed2(() =>
@@ -216,49 +207,54 @@ namespace WindPhysics
 #endif
         }
 
+        protected override void OnGUI()
+        {
+            if (_loaded == false)
+                return;
+
+            if (StudioAPI.InsideStudio) {            
+                if (_ShowUI == false)             
+                    return;
+
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Wind Physics " + Version);
+            }
+        }       
+
+        private OCIChar GetCurrentOCI()
+        {
+            if (Studio.Studio.Instance == null || Studio.Studio.Instance.treeNodeCtrl == null)
+                return null;
+
+            TreeNodeObject node = Studio.Studio.Instance.treeNodeCtrl.selectNodes
+                .LastOrDefault();            
+                
+            return  node != null ? Studio.Studio.GetCtrlInfo(node) as OCIChar : null;
+        }        
+
         private WindData GetCurrentData()
         {
-            if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
-                var controller = _currentOCIChar.GetChaControl().GetComponent<WindPhysicsController>();
+            OCIChar curOciChar = GetCurrentOCI();
+            if (curOciChar != null && curOciChar.GetChaControl() != null) {
+                var controller = curOciChar.GetChaControl().GetComponent<WindPhysicsController>();
                 if (controller == null)
                     return null;
 
-                WindData data = controller.GetWindData();
+                WindData data = controller.GetData();
                 return data;
-            } 
+            }
 
             return null;
         }    
 
         private WindPhysicsController GetCurrentControl()
         {
-            if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
-                return _currentOCIChar.GetChaControl().GetComponent<WindPhysicsController>();         
+            OCIChar curOciChar = GetCurrentOCI();
+            if (curOciChar != null && curOciChar.GetChaControl() != null) {
+                return curOciChar.GetChaControl().GetComponent<WindPhysicsController>();         
             }
              
             return null;   
         }   
-
-        protected override void OnGUI()
-        {
-            if (_ShowUI == false)
-                return;
-#if FEATURE_PUBLIC              
-            if (StudioAPI.InsideStudio)
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Wind Physics(Public) " + Version);
-#else
-            if (StudioAPI.InsideStudio)
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Wind Physics " + Version);
-#endif
-        }       
-
-        private void draw_seperate()
-        {
-            GUILayout.Space(5);            
-            Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.2f));
-            GUI.Box(rect, GUIContent.none);
-            GUILayout.Space(10);
-        }
 
         private void WindowFunc(int id)
         {
@@ -278,7 +274,14 @@ namespace WindPhysics
                 studio.cameraCtrl.noCtrlCondition = null;
             }
 
-            WindData data = GetCurrentData();
+            // WindData data = GetCurrentData();
+            var controller = GetCurrentControl();
+            WindData data = controller.GetData();
+            if (data == null)
+            {
+                OCIChar curOciChar = GetCurrentOCI();                
+                data = controller.CreateWindData(curOciChar.GetChaControl());
+            }        
 
             if (data != null)
             {
@@ -288,13 +291,15 @@ namespace WindPhysics
                     ApplyScenePreset("park");
                 if (GUILayout.Button("hill"))
                     ApplyScenePreset("hill");
+                if (GUILayout.Button("water"))
+                    ApplyScenePreset("water");                    
                 if (GUILayout.Button("space"))
                     ApplyScenePreset("space");
-                if (GUILayout.Button("water"))
-                    ApplyScenePreset("water");
+#if FEATURE_PRESET_RAIN
+                if (GUILayout.Button("rain"))
+                    ApplyScenePreset("rain");
+#endif
                 GUILayout.EndHorizontal();
-                draw_seperate();
-
     // Global
                 GUILayout.Label("<color=orange>Global</color>", RichLabel);
                 // Direction
@@ -333,7 +338,6 @@ namespace WindPhysics
                 GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
 
-#if !FEATURE_PUBLIC  
                 // Force up
                 GUILayout.BeginHorizontal();              
                 GUILayout.Label(new GUIContent("Force Up", "Wind ForceUp"),  GUILayout.Width(80));
@@ -347,7 +351,6 @@ namespace WindPhysics
                 Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.5f, 0.2f);
                 GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
-                // draw_seperate();
 
     // Hair
                 GUILayout.Label("<color=orange>Hair</color>", RichLabel);
@@ -355,13 +358,7 @@ namespace WindPhysics
                 GUILayout.Label(new GUIContent("E", "Elastic"), GUILayout.Width(20));
                 data.HairElastic = GUILayout.HorizontalSlider(data.HairElastic, 0.0f, 1.0f);
                 GUILayout.Label(data.HairElastic.ToString("0.00"), GUILayout.Width(40));
-
-                // GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-                // data.HairForce = GUILayout.HorizontalSlider(data.HairForce, 0.1f, 1.0f);
-                // GUILayout.Label(data.HairForce.ToString("0.00"), GUILayout.Width(40));
-                GUILayout.EndHorizontal();
-                
-                // draw_seperate();            
+                GUILayout.EndHorizontal();        
     // Acc
                 GUILayout.Label("<color=orange>Accessory</color>", RichLabel);;
                 GUILayout.BeginHorizontal();
@@ -369,13 +366,7 @@ namespace WindPhysics
                 GUILayout.Label(new GUIContent("D", "Elastic"), GUILayout.Width(20));
                 data.AccesoriesElastic = GUILayout.HorizontalSlider(data.AccesoriesElastic, 0.0f, 1.0f);
                 GUILayout.Label(data.AccesoriesElastic.ToString("0.00"), GUILayout.Width(40));
-                
-                // GUILayout.Label(new GUIContent("F", "Force"), GUILayout.Width(20));
-                // data.AccesoriesForce = GUILayout.HorizontalSlider(data.AccesoriesForce, 0.1f, 1.0f);
-                // GUILayout.Label(data.AccesoriesForce.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
-
-                // draw_seperate();
     // Cloth
                 GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
                 GUILayout.BeginHorizontal();        
@@ -389,29 +380,22 @@ namespace WindPhysics
                 data.ClothStiffness = GUILayout.HorizontalSlider(data.ClothStiffness, 0.0f, 10.0f);
                 GUILayout.Label(data.ClothStiffness.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
-                
-                // GUILayout.BeginHorizontal();        
-                // GUILayout.Label(new GUIContent("Force", "Force"), GUILayout.Width(80));
-                // data.ClotheForce = GUILayout.HorizontalSlider(data.ClotheForce, 0.1f, 1.0f);
-                // GUILayout.Label(data.ClotheForce.ToString("0.00"), GUILayout.Width(40));
-                // GUILayout.EndHorizontal();
 
-                GUILayout.Space(10);  
-#endif                
-                draw_seperate();
+                GUILayout.Space(10);                
 
                 GUILayout.BeginHorizontal();
-                if (ConfigKeyEnableWind.Value == true)
+                if (data.enabled == true && data.coroutine != null)
                 {
                     if (GUILayout.Button("Deactive")) {
-                        _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;   
-                        ConfigKeyEnableWind.Value = false;
+                        data.wind_status = Status.STOP;
+                        data.enabled = false;
                     }    
-                } else
+                } 
+                else
                 {
                     if (GUILayout.Button("Active")) {
-                        _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value; 
-                        ConfigKeyEnableWind.Value = true;
+                        controller.ExecuteWindEffect(GetCurrentOCI().GetChaControl());
+                        data.enabled = true;
                     }   
                 }
 
@@ -568,27 +552,25 @@ namespace WindPhysics
                 WindForce.Value = 0.03f;
                 Gravity.Value = 0.02f;
             }
+#if FEATURE_PRESET_RAIN
+            else if (preset == "rain")
+            {
+                WindForce.Value = 0.5f;
+                Gravity.Value = -0.08f;
+                WindInterval.Value = 1.2f;
+                WindKeepTime.Value = 0.8f;
+                WindAmplitude.Value = 2.0f;
+            }
+#endif
 
             Gravity.Value = Mathf.Clamp(Gravity.Value, -0.5f, 0.2f);
             ClampWindKeepTimeToInterval();
         }
 
-        private void MgmtInit()
+        private void SceneInit()
         {
-            foreach (var kvp in _selectChaMgmt)
-            {
-               var key = kvp.Key;
-               ChaControl chaCtrl = kvp.Value;
-
-                var controller = chaCtrl.GetComponent<WindPhysicsController>();
-                if (controller != null)
-                {    
-                    controller.StopWindEffect();
-                }
-            }
-
-            _selectChaMgmt.Clear();
-            _ShowUI = false;
+            Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+			_ShowUI = false;
         }
 
         internal static void ClampWindKeepTimeToInterval()
@@ -605,187 +587,84 @@ namespace WindPhysics
                 WindKeepTime.Value = keep;
         }
 
-        IEnumerator CheckWindMgmtRoutine()
-        {
-            while (true)
-            {
-                if(_loaded && (_lastConfigKeyEnableWind != ConfigKeyEnableWind.Value || _lastInterval != WindInterval.Value))
-                {
-                    // 선택된 대상에 대해서만, 재처리
-                    foreach (var kvp in _selectChaMgmt)
-                    {
-                        var key = kvp.Key;
-                        ChaControl chaCtrl = kvp.Value;
-
-                        var controller = chaCtrl.GetComponent<WindPhysicsController>();
-                        if (controller != null)
-                        {    
-                            if (ConfigKeyEnableWind.Value)
-                            {
-                                WindData windData = controller.GetWindData();
-                                if (windData != null && windData.wind_status != Status.RUN)
-                                {
-                                    controller.ExecuteWindEffect(chaCtrl);
-                                }
-                            } else
-                            {
-                                controller.StopWindEffect();
-                                controller.SetHairDown();
-                            }
-                        }
-                    }
-                
-                    _lastInterval = WindInterval.Value;
-                    _lastConfigKeyEnableWind = ConfigKeyEnableWind.Value;
-                }
-
-                yield return new WaitForSeconds(0.3f); // 0.3초 대기
-            }
-        }
-
         #endregion
 
         #region Patches
+        // [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
+        // internal static class WorkspaceCtrl_OnSelectSingle_Patches
+        // {
+        //     private static bool Prefix(object __instance, TreeNodeObject _node)
+        //     {
 
-        [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
-        internal static class WorkspaceCtrl_OnSelectSingle_Patches
-        {
-            private static bool Prefix(object __instance, TreeNodeObject _node)
-            {
+        //         ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
 
-                ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
+        //         if (selectedCtrlInfo == null)
+        //            return true;
 
-                if (selectedCtrlInfo == null)
-                   return true;
+        //         OCIChar ociChar =  selectedCtrlInfo as OCIChar;
 
-                OCIChar ociChar =  selectedCtrlInfo as OCIChar;
+        //         if (ociChar != null)
+        //         {
+        //             ChaControl chaCtrl = ociChar.GetChaControl();
+        //             var controller = chaCtrl.GetComponent<WindPhysicsController>();
+        //             if (controller != null)
+        //             {
+        //                 WindData windData = controller.GetWindData();
+        //                 if (windData == null)
+        //                 {
+        //                     controller.ExecuteWindEffect(chaCtrl);
+        //                 }
+        //                 else
+        //                 {
+        //                     if (windData.wind_status != Status.RUN)
+        //                         controller.ExecuteWindEffect(chaCtrl);
+        //                 }
+        //             }             
+        //         }
 
-                if (ociChar != null)
-                {
-                    _self._currentOCIChar = ociChar;
-                    ChaControl chaCtrl = ociChar.GetChaControl();
+        //         return true;
+        //     }
+        // }
 
-                    if (_self._selectChaMgmt.TryGetValue(chaCtrl.GetHashCode(), out var chaCtrl1))
-                    {
-                        var controller = chaCtrl1.GetComponent<WindPhysicsController>();
+        // [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectMultiple))]
+        // private static class WorkspaceCtrl_OnSelectMultiple_Patches
+        // {
+        //     private static bool Prefix(object __instance)
+        //     {
 
-                        if (controller != null)
-                        {
-                            WindData windData = controller.GetWindData();
-                            if (windData.wind_status != Status.RUN)
-                            {
-                                controller.ExecuteWindEffect(chaCtrl1);
-                            }
-                        }
-                    } 
-                    else
-                    {
-                        _self._selectChaMgmt.Add(chaCtrl.GetHashCode(), chaCtrl);
-                        var controller = chaCtrl.GetComponent<WindPhysicsController>();
-                     
-                        if (controller != null)
-                        {                  
-                            controller.ExecuteWindEffect(chaCtrl);
-                        }
-                    }                 
-                }
+        //         foreach (TreeNodeObject node in Studio.Studio.instance.treeNodeCtrl.selectNodes)
+        //         {
+        //             ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(node);
 
-                return true;
-            }
-        }
+        //             if (selectedCtrlInfo == null)
+        //                 return true;
 
-        [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectMultiple))]
-        private static class WorkspaceCtrl_OnSelectMultiple_Patches
-        {
-            private static bool Prefix(object __instance)
-            {
+        //             OCIChar ociChar =  selectedCtrlInfo as OCIChar;
 
-                foreach (TreeNodeObject node in Studio.Studio.instance.treeNodeCtrl.selectNodes)
-                {
-                    ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(node);
+        //             if (ociChar != null)
+        //             {
+        //                 ChaControl chaCtrl = ociChar.GetChaControl();
+        //                 var controller = chaCtrl.GetComponent<WindPhysicsController>();                        
 
-                    if (selectedCtrlInfo == null)
-                        return true;
+        //                 if (controller != null)
+        //                 {
+        //                     WindData windData = controller.GetWindData();
+        //                     if (windData == null)
+        //                     {
+        //                         controller.ExecuteWindEffect(chaCtrl);
+        //                     }
+        //                     else
+        //                     {
+        //                         if (windData.wind_status != Status.RUN)
+        //                             controller.ExecuteWindEffect(chaCtrl);
+        //                     }
+        //                 }               
+        //             }                    
+        //         }            
 
-                    OCIChar ociChar =  selectedCtrlInfo as OCIChar;
-
-                    if (ociChar != null)
-                    {
-                        ChaControl chaCtrl = ociChar.GetChaControl();
-
-                        if (_self._selectChaMgmt.TryGetValue(chaCtrl.GetHashCode(), out var chaCtrl1))
-                        {
-                            var controller = chaCtrl1.GetComponent<WindPhysicsController>();
-
-                            if (controller != null)
-                            {
-                                controller.ExecuteWindEffect(chaCtrl1);
-                                // WindData windData = controller.GetWindData();
-                                // if (windData != null && windData.wind_status != Status.RUN)
-                                // {
-                                //     controller.ExecuteWindEffect(chaCtrl1);
-                                // }
-                            }
-                        } 
-                        else
-                        {
-                            _self._selectChaMgmt.Add(chaCtrl.GetHashCode(), chaCtrl);
-                            var controller = chaCtrl.GetComponent<WindPhysicsController>();
-                        
-                            if (controller != null)
-                            {                  
-                                controller.ExecuteWindEffect(chaCtrl);
-                            }
-                        }                 
-                    }                    
-                }            
-
-                return true;
-            }
-        }
-
-        [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnDeselectSingle), typeof(TreeNodeObject))]
-        internal static class WorkspaceCtrl_OnDeselectSingle_Patches
-        {
-            private static bool Prefix(object __instance, TreeNodeObject _node)
-            {
-                // 선택된 대상 모두 Stop 
-                foreach (var kvp in _self._selectChaMgmt)
-                {
-                    var key = kvp.Key;
-                    ChaControl chaCtrl = kvp.Value;
-
-                    if (chaCtrl != null)
-                    {                 
-                        var controller = chaCtrl.GetComponent<WindPhysicsController>();
-                        if (controller != null)
-                        {                  
-                            controller.StopWindEffect();
-                        }    
-                    }
-                }
-
-                _self._selectChaMgmt.Clear();
-
-                return true;
-            }
-        }
-
-        [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnDeleteNode), typeof(TreeNodeObject))]
-        internal static class WorkspaceCtrl_OnDeleteNode_Patches
-        {
-            private static bool Prefix(object __instance, TreeNodeObject _node)
-            {
-                ObjectCtrlInfo unselectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-
-                if (unselectedCtrlInfo == null)
-                    return true;
-
-                _self._selectChaMgmt.Remove(unselectedCtrlInfo.GetHashCode());
-
-                return true;
-            }
-        }
+        //         return true;
+        //     }
+        // }
 
         // (cltoh 할당때문에 반드시 delay 처리해야함)
         [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
@@ -800,13 +679,15 @@ namespace WindPhysics
                     var controller = chaControl.GetComponent<WindPhysicsController>();
                     if (controller != null)
                     {                  
-                        controller.ExecuteWindEffect(chaControl);
+                        WindData windData = controller.GetData();                        
+                        if (windData != null) {
+                            windData.wind_status = Status.STOP;
+                        }
                     }    
                 }
             }
         }
 
-        // 개별 옷 변경 (cloth 할당때문에 반드시 delay 처리해야함)
         [HarmonyPatch(typeof(ChaControl), "ChangeClothesAsync", typeof(int), typeof(int), typeof(bool), typeof(bool))]
         private static class ChaControl_ChangeClothesAsync_Patches
         {
@@ -818,9 +699,10 @@ namespace WindPhysics
                     var controller = chaControl.GetComponent<WindPhysicsController>();
                     if (controller != null)
                     {                  
-                        WindData windData = controller.GetWindData();
-                        if (windData != null && windData.wind_status == Status.RUN)
-                            controller.ExecuteWindEffect(chaControl);
+                        WindData windData = controller.GetData();                        
+                        if (windData != null) {
+                            windData.wind_status = Status.STOP;
+                        }
                     }    
                 }
             }
@@ -838,9 +720,10 @@ namespace WindPhysics
                     var controller = chaControl.GetComponent<WindPhysicsController>();
                     if (controller != null)
                     {                  
-                        WindData windData = controller.GetWindData();
-                        if (windData != null && windData.wind_status == Status.RUN)
-                            controller.ExecuteWindEffect(chaControl);
+                        WindData windData = controller.GetData();
+                        if (windData != null) {
+                            windData.wind_status = Status.STOP;
+                        }
                     }    
                 }
             }
@@ -858,15 +741,15 @@ namespace WindPhysics
                     var controller = chaControl.GetComponent<WindPhysicsController>();
                     if (controller != null)
                     {                  
-                        WindData windData = controller.GetWindData();
-                        if (windData != null && windData.wind_status == Status.RUN)
-                            controller.ExecuteWindEffect(chaControl);
+                        WindData windData = controller.GetData();                        
+                        if (windData != null) {
+                            windData.wind_status = Status.STOP;
+                        }
                     }    
                 }
             }
         }        
-
-        // 코디네이션 변경 (cloth 할당때문에 반드시 delay 처리해야함)
+        
         [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
         internal static class ChaControl_SetAccessoryStateAll_Patches
         {
@@ -878,9 +761,10 @@ namespace WindPhysics
                     var controller = chaControl.GetComponent<WindPhysicsController>();
                     if (controller != null)
                     {                  
-                        WindData windData = controller.GetWindData();
-                        if (windData != null && windData.wind_status == Status.RUN)
-                            controller.ExecuteWindEffect(chaControl);
+                        WindData windData = controller.GetData();                        
+                        if (windData != null) {
+                            windData.wind_status = Status.STOP;
+                        }
                     }
                 }
             }
@@ -891,7 +775,7 @@ namespace WindPhysics
         {
             private static bool Prefix(object __instance, bool _close)
             {
-                _self.MgmtInit();
+                _self.SceneInit();
                 return true;
             }
         }
@@ -911,27 +795,43 @@ namespace WindPhysics
                     interpolateBefore: (oci, parameter, leftValue, rightValue, factor) =>
                     {
                         bool value = (bool)leftValue;
-                        if (WindPhysics.ConfigKeyEnableWind.Value != value) {
-                            WindPhysics.ConfigKeyEnableWind.Value = value;
 
-                            if (value) {
-                                OCIChar ociChar =  oci as OCIChar;
+                        OCIChar ociChar =  oci as OCIChar;
 
-                                if (ociChar != null)
-                                {
-                                    var controller = ociChar.GetChaControl().GetComponent<WindPhysicsController>();
-                            
-                                    if (controller != null)
-                                    {                  
-                                        controller.ExecuteWindEffect(ociChar.GetChaControl());
-                                    }
+                        if (ociChar != null)
+                        {
+                            var controller = ociChar.GetChaControl().GetComponent<WindPhysicsController>();
+                    
+                            if (controller != null)
+                            {                 
+                                WindData winData = controller.GetData(); 
+
+                                if(winData != null && winData.enabled != value) {
+                                    winData.enabled = value;
+                                    controller.ExecuteWindEffect(ociChar.GetChaControl());   
                                 }
                             }
                         }
                     },
                     interpolateAfter: null,
                     isCompatibleWithTarget: (oci) => oci is OCIChar,
-                    getValue: (oci, parameter) => WindPhysics.ConfigKeyEnableWind.Value,
+                    getValue: (oci, parameter) => {
+                        OCIChar ociChar =  oci as OCIChar;
+
+                        if (ociChar != null)
+                        {
+                            var controller = ociChar.GetChaControl().GetComponent<WindPhysicsController>();
+                    
+                            if (controller != null)
+                            {                 
+                                WindData winData = controller.GetData(); 
+                                if (winData != null)
+                                    return winData.enabled;
+                            }
+                        }
+
+                        return false;                        
+                    },
                     readValueFromXml: (parameter, node) => node.ReadBool("value"),
                     writeValueToXml: (parameter, writer, o) => writer.WriteValue("value", (bool)o),
                     getParameter: GetParameter,
@@ -1016,5 +916,3 @@ namespace WindPhysics
 #endif
     }           
 }
-
-

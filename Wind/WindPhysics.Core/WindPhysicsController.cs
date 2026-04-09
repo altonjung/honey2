@@ -10,7 +10,6 @@ using ToolBox;
 using ToolBox.Extensions;
 using UILib;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using System.Net.Http.Headers;
 
@@ -35,7 +34,7 @@ namespace WindPhysics
 
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
-        internal WindData GetWindData()
+        internal WindData GetData()
         {
             return windData;
         }
@@ -116,6 +115,14 @@ namespace WindPhysics
             } 
         }
 
+        internal void ExecuteWindEffect(ChaControl chaControl)
+        {
+            if (chaControl != null) {
+                windData = CreateWindData(chaControl);
+                chaControl.StartCoroutine(ExecuteWindEffectDelayed());            
+            }            
+        }
+
         internal IEnumerator ExecuteWindEffectDelayed()
         {
             int frameCount = 10;
@@ -124,20 +131,6 @@ namespace WindPhysics
 
             UpdateDynamicBones();
         }                    
-
-        internal void ExecuteWindEffect(ChaControl chaControl)
-        {
-            // UnityEngine.Debug.Log($">> ExecuteWindEffect {chaControl}");
-
-            if (chaControl != null) {
-                windData = InitWindData(chaControl);
-                if (WindPhysics.ConfigKeyEnableWind.Value) {
-                    // windData.wind_status = Status.STOP; // 일단 기존 coroutine 종료
-                    chaControl.StartCoroutine(ExecuteWindEffectDelayed());
-                }
-            }            
-        }
-
 
 #if FEATURE_FIX_LONGHAIR
         internal static PositionData GetBoneRotationFromTF(Transform t)
@@ -206,11 +199,11 @@ namespace WindPhysics
             }
         }
 
-        internal WindData InitWindData(ChaControl chaCtrl)
+        internal WindData CreateWindData(ChaControl chaCtrl)
         {
             if (chaCtrl != null)
             {
-                if (windData == null) {            
+                if (windData == null) {
                     windData = new WindData();
                 }
             }
@@ -468,7 +461,7 @@ namespace WindPhysics
             {
                 if (!WindPhysics._self._loaded)
                 {
-                    yield return null;
+                    yield return new WaitForSeconds(0.5f); // 0.5초 대기
                 }
 
                 if (windData.wind_status == Status.RUN)
@@ -546,8 +539,8 @@ namespace WindPhysics
     class WindData
     {
         public ChaControl chaCtrl;
-
         public Coroutine coroutine;
+        public bool enabled;    
         public List<Cloth> clothes = new List<Cloth>();        
 
         public List<DynamicBone> hairDynamicBones = new List<DynamicBone>();
