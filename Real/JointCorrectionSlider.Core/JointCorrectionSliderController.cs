@@ -59,7 +59,7 @@ namespace JointCorrectionSlider
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
 
-        internal void InitJointCorrectionSliderData(ChaControl charControl)
+        internal JointCorrectionSliderData CreateData(ChaControl charControl)
         {
             correctionData = new JointCorrectionSliderData();
             correctionData.charControl = charControl;
@@ -74,14 +74,15 @@ namespace JointCorrectionSlider
 
             correctionData._shoulder02BaseSetL = false;
             correctionData._shoulder02BaseSetR = false;
-        #endif
-        #if FEATURE_DAN_CORRECTION
+#endif
+#if FEATURE_DAN_CORRECTION
             correctionData._dan_root = chaControl.objAnim.transform.FindLoop("cm_J_dan_s");
             correctionData._dan_top = chaControl.objAnim.transform.FindLoop("cm_J_dan_f_top");
 
             correctionData._shoulder02BaseSetL = false;
             correctionData._shoulder02BaseSetR = false;
-        #endif
+#endif
+            return correctionData;
         }
 
         internal void ResetJointCorrectionSliderData()
