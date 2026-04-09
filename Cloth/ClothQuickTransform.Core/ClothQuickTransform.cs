@@ -1,4 +1,4 @@
-﻿using Studio;
+using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -51,6 +51,9 @@ using KKAPI.Utilities;
 using KKAPI.Chara;
 using static CharaUtils.Expression;
 
+/*
+     - 상의/하의가 같이 존재하는 경우 bone mapping에 따른 동작이 잘 안되는 경우가 존재
+*/
 namespace ClothQuickTransform
 {
 #if BEPINEX
@@ -193,40 +196,54 @@ namespace ClothQuickTransform
                 Init();
         }
 #endif
+        protected override void Update()
+        {
+        }
+
+        protected override void LateUpdate()
+        {
+        }
+
+        protected override void OnGUI()
+        {
+            if (_loaded == false)
+                return;
+
+            if (StudioAPI.InsideStudio) {            
+                if (_ShowUI == false) {                    
+                    ClearSelectedBoneHighlight();
+                    return;
+                }
+
+                OCIChar current = GetCurrentOCI();
+                if (current != _currentOCIChar)
+                {
+                    _currentOCIChar = current;
+                    _currentMapData = current != null ? GetDataAndCreate(current) : null;
+                    if (_currentOCIChar != null)
+                        RefreshMappingsForSelection(_currentOCIChar);
+                    else
+                        ClearSelectedBoneHighlight();
+                }
+
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "ClothQuickTransform " + Version);
+            }
+        }
+        #endregion
+
+        #region Private Methods
+        private void Init()
+        {
+            _loaded = true;
+        }
+
+        private void SceneInit()
+        {
+            Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+			_ShowUI = false;     
+        }        
 
 #if FEATURE_SCENE_SAVE
-        // 씬 로드시 저장된 조정값을 복원한다.
-        private void OnSceneLoad(string path)
-        {
-            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
-            if (data == null)
-                return;
-            if (data.data != null && data.data.ContainsKey("sceneInfo"))
-                UnityEngine.Debug.Log($">> CTS SceneLoad xml:\n{data.data["sceneInfo"]}");
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml((string)data.data["sceneInfo"]);
-            XmlNode node = doc.FirstChild;
-            if (node == null)
-                return;
-            SceneLoad(path, node);
-        }
-
-        // 씬 임포트시 저장된 조정값을 복원한다.
-        private void OnSceneImport(string path)
-        {
-            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
-            if (data == null)
-                return;
-            if (data.data != null && data.data.ContainsKey("sceneInfo"))
-                UnityEngine.Debug.Log($">> CTS SceneImport xml:\n{data.data["sceneInfo"]}");
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml((string)data.data["sceneInfo"]);
-            XmlNode node = doc.FirstChild;
-            if (node == null)
-                return;
-            SceneImport(path, node);
-        }
-
         // 씬 저장시 현재 조정값을 기록한다.
         private void OnSceneSave(string path)
         {
@@ -240,11 +257,32 @@ namespace ClothQuickTransform
                 PluginData data = new PluginData();
                 data.version = _saveVersion;
                 data.data.Add("sceneInfo", stringWriter.ToString());
-
-                UnityEngine.Debug.Log($">> CTS SceneSave xml:\n{stringWriter}");
-
+                // UnityEngine.Debug.Log($">> CTS SceneSave xml:\n{stringWriter}");
                 ExtendedSave.SetSceneExtendedDataById(_extSaveKey, data);
             }
+        }
+
+        // 씬 로드시 저장된 조정값을 복원한다.
+        private void OnSceneLoad(string path)
+        {
+            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
+            if (data == null)
+                return;
+            //if (data.data != null && data.data.ContainsKey("sceneInfo"))
+            //     UnityEngine.Debug.Log($">> CTS SceneLoad xml:\n{data.data["sceneInfo"]}");
+
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml((string)data.data["sceneInfo"]);
+            XmlNode node = doc.FirstChild;
+            if (node == null)
+                return;
+            SceneLoad(path, node);
+        }
+
+        // 씬 임포트시 저장된 조정값을 복원한다.
+        private void OnSceneImport(string path)
+        {
+            Logger.LogMessage($"Import not support");
         }
 
         private void SceneLoad(string path, XmlNode node)
@@ -264,30 +302,9 @@ namespace ClothQuickTransform
             }, 20);
         }
 
-        private void SceneImport(string path, XmlNode node)
-        {
-            Dictionary<int, ObjectCtrlInfo> toIgnore = new Dictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
-            this.ExecuteDelayed2(() =>
-            {
-                List<KeyValuePair<int, ObjectCtrlInfo>> dic = Studio.Studio.Instance.dicObjectCtrl
-                    .Where(e => toIgnore.ContainsKey(e.Key) == false)
-                    .OrderBy(e => SceneInfo_Import_Patches._newToOldKeys[e.Key])
-                    .ToList();
-
-                List<OCIChar> ociChars = dic
-                    .Select(kv => kv.Value as OCIChar)
-                    .Where(c => c != null)
-                    .ToList();
-
-                SceneRead(node, ociChars);
-            }, 20);
-        }
-
         // 씬 데이터에서 캐릭터별 조정값을 읽어 적용한다.
         private void SceneRead(XmlNode node, List<OCIChar> ociChars)
         {
-            UnityEngine.Debug.Log($">> SceneRead in ClothQuickTransform");
-
             var ociCharByDicKey = new Dictionary<int, OCIChar>();
             foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
             {
@@ -344,12 +361,17 @@ namespace ClothQuickTransform
                 if (ociChar == null)
                     continue;
 
-                var saved = new Dictionary<string, SavedAdjustment>();
+                var savedBySlot = new Dictionary<int, Dictionary<string, SavedAdjustment>>();
                 foreach (XmlNode transferNode in charNode.SelectNodes("transfer"))
                 {
                     string boneName = NormalizeBoneName(transferNode.Attributes["name"]?.Value);
                     if (string.IsNullOrEmpty(boneName))
                         continue;
+
+                    int slotIndex = 0;
+                    var slotAttr = transferNode.Attributes["slot"];
+                    if (slotAttr != null && int.TryParse(slotAttr.Value, out int slotValue))
+                        slotIndex = slotValue;
 
                     var adj = new SavedAdjustment
                     {
@@ -363,26 +385,30 @@ namespace ClothQuickTransform
                             ReadFloat(transferNode, "scaleZ", 1f))
                     };
 
-                    saved[boneName] = adj;
+                    if (!savedBySlot.TryGetValue(slotIndex, out var slotMap))
+                    {
+                        slotMap = new Dictionary<string, SavedAdjustment>();
+                        savedBySlot[slotIndex] = slotMap;
+                    }
+                    slotMap[boneName] = adj;
                 }
 
                 int dicKey;
                 bool hasDicKey = TryGetDicKey(ociChar.GetChaControl(), out dicKey);
-                UnityEngine.Debug.Log($">> SceneRead char dicKey={(hasDicKey ? dicKey.ToString() : "not-found")} savedTransfers={saved.Count}");
+                int savedCount = savedBySlot.Values.Sum(v => v != null ? v.Count : 0);
+                UnityEngine.Debug.Log($">> SceneRead char dicKey={(hasDicKey ? dicKey.ToString() : "not-found")} savedTransfers={savedCount}");
 
-                var mapData = GetMapData(ociChar, true);
+                var mapData = GetDataAndCreate(ociChar);
                 if (mapData != null)
                 {
-                    mapData.savedAdjustments = saved;
-                    mapData.transferEntries.Clear();
-                    mapData.selectedTransferIndex = -1;
+                    mapData.savedAdjustmentsBySlot = savedBySlot;
+                    mapData.transferEntriesBySlot = new Dictionary<int, List<TransferEntry>>();
+                    mapData.selectedTransferIndexBySlot = new Dictionary<int, int>();
                 }
 
                 restoredChars++;
-                restoredTransfers += saved.Count;
+                restoredTransfers += savedCount;
             }
-
-            UnityEngine.Debug.Log($">> SceneRead summary chars={restoredChars} transfers={restoredTransfers}");
 
             if (_currentOCIChar != null)
                 RefreshMappingsForSelection(_currentOCIChar);
@@ -391,8 +417,6 @@ namespace ClothQuickTransform
         // 현재 캐릭터의 조정값을 씬 데이터로 기록한다.
         private void SceneWrite(string path, XmlTextWriter writer)
         {
-            UnityEngine.Debug.Log($">> SceneWrite in ClothQuickTransform");
-
             var dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
             var ociCharByDicKey = dic
                 .Where(kv => kv.Value is OCIChar)
@@ -407,46 +431,66 @@ namespace ClothQuickTransform
                 if (ociChar == null)
                     continue;
 
-                var mapData = GetMapData(ociChar, false);
+                var mapData = GetDataAndCreate(ociChar);
                 if (mapData == null)
                     continue;
 
-                if (mapData.transferEntries != null && mapData.transferEntries.Count > 0)
-                    mapData.savedAdjustments = CaptureAdjustments(mapData.transferEntries);
+                if (mapData.savedAdjustmentsBySlot == null)
+                    mapData.savedAdjustmentsBySlot = new Dictionary<int, Dictionary<string, SavedAdjustment>>();
 
-                var map = mapData.savedAdjustments;
-                if (map == null || map.Count == 0)
+                if (mapData.transferEntriesBySlot != null)
+                {
+                    foreach (var kvp in mapData.transferEntriesBySlot)
+                    {
+                        var list = kvp.Value;
+                        if (list == null || list.Count == 0)
+                            continue;
+                        mapData.savedAdjustmentsBySlot[kvp.Key] = CaptureAdjustments(list);
+                    }
+                }
+
+                var mapBySlot = mapData.savedAdjustmentsBySlot;
+                if (mapBySlot == null || mapBySlot.Count == 0)
                     continue;
 
                 adjustmentChars++;
-                UnityEngine.Debug.Log($">> SceneWrite char dicKey={dicKey} transfers={map.Count}");
+                // UnityEngine.Debug.Log($">> SceneWrite char dicKey={dicKey} transfers={map.Count}");
 
                 writer.WriteStartElement("character");
                 writer.WriteAttributeString("dicKey", dicKey.ToString(CultureInfo.InvariantCulture));
                 writer.WriteAttributeString("hash", ociChar.GetChaControl().GetHashCode().ToString(CultureInfo.InvariantCulture));
                 writer.WriteAttributeString("name", ociChar.charInfo != null ? ociChar.charInfo.name : string.Empty);
 
-                foreach (var entry in map)
+                foreach (var slotEntry in mapBySlot)
                 {
-                    writer.WriteStartElement("transfer");
-                    writer.WriteAttributeString("name", entry.Key);
-                    writer.WriteAttributeString("posX", entry.Value.position.x.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("posY", entry.Value.position.y.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("posZ", entry.Value.position.z.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("scaleX", entry.Value.scale.x.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("scaleY", entry.Value.scale.y.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("scaleZ", entry.Value.scale.z.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteEndElement();
+                    int slotIndex = slotEntry.Key;
+                    var map = slotEntry.Value;
+                    if (map == null || map.Count == 0)
+                        continue;
+
+                    foreach (var entry in map)
+                    {
+                        writer.WriteStartElement("transfer");
+                        writer.WriteAttributeString("slot", slotIndex.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("name", entry.Key);
+                        writer.WriteAttributeString("posX", entry.Value.position.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("posY", entry.Value.position.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("posZ", entry.Value.position.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("scaleX", entry.Value.scale.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("scaleY", entry.Value.scale.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("scaleZ", entry.Value.scale.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteEndElement();
+                    }
                 }
 
                 writer.WriteEndElement();
             }
-
-            UnityEngine.Debug.Log($">> SceneWrite adjustments chars={adjustmentChars} activeChars={activeChars}");
+            // UnityEngine.Debug.Log($">> SceneWrite adjustments chars={adjustmentChars} activeChars={activeChars}");
         }
 #endif
 
-        private static OCIChar GetLastOCICharFromStudio()
+        // 현재 씬에서 선택된 OCIChar를 가져온다.
+        private OCIChar GetCurrentOCI()
         {
             if (Studio.Studio.Instance == null || Studio.Studio.Instance.treeNodeCtrl == null)
                 return null;
@@ -457,30 +501,18 @@ namespace ClothQuickTransform
             return  node != null ? Studio.Studio.GetCtrlInfo(node) as OCIChar : null;
         }
 
-        // 현재 스튜디오에서 선택된 OCIChar를 가져온다.
-        private OCIChar GetCurrentOCI()
+        internal ClothQuickTransformController GetCurrentControl()
         {
-            OCIChar ociChar = GetLastOCICharFromStudio();
-
-            return ociChar;
-        }
-
-        // 현재 스튜디오에서 선택된 OCIChar 에서 MapData 를 가져온다.
-        private ClothQuickTransformMapData GetCurrentData(OCIChar ociChar)
-        {
-            if (ociChar == null || ociChar.GetChaControl() == null)
-                return null;
-
-            var controller = ociChar.GetChaControl().GetComponent<ClothQuickTransformController>();
-            if (controller != null)
+            OCIChar ociChar = GetCurrentOCI();
+            if (ociChar != null)
             {
-                return controller.GetOrCreateData(ociChar);
+                return ociChar.GetChaControl().GetComponent<ClothQuickTransformController>();
             }
-
             return null;
-        }
+        }        
 
-        private ClothQuickTransformMapData GetMapData(OCIChar ociChar, bool create)
+        // 현재 선택된 OCIChar 에서 MapData 를 가져온다.
+        private ClothQuickTransformMapData GetDataAndCreate(OCIChar ociChar)
         {
             if (ociChar == null || ociChar.GetChaControl() == null)
                 return null;
@@ -489,7 +521,7 @@ namespace ClothQuickTransform
             if (controller == null)
                 return null;
 
-            return create ? controller.GetOrCreateData(ociChar) : controller.GetData();
+            return controller.GetData() ?? controller.CreateData(ociChar);
         }
 
         private bool TryGetMapData(ChaControl chaCtrl, out ClothQuickTransformMapData mapData, out OCIChar ociChar)
@@ -499,11 +531,11 @@ namespace ClothQuickTransform
             if (chaCtrl == null)
                 return false;
 
-            ociChar = FindOciCharByChaControl(chaCtrl);
+            ociChar = chaCtrl.GetOCIChar();
             if (ociChar == null)
                 return false;
 
-            mapData = GetMapData(ociChar, true);
+            mapData = GetDataAndCreate(ociChar);
             return mapData != null;
         }
 
@@ -512,44 +544,10 @@ namespace ClothQuickTransform
             if (_currentOCIChar == null)
                 return null;
             if (_currentMapData == null || _currentMapData.ociChar != _currentOCIChar)
-                _currentMapData = GetMapData(_currentOCIChar, true);
+                _currentMapData = GetDataAndCreate(_currentOCIChar);
             return _currentMapData;
         }
 
-        protected override void Update()
-        {
-            if (_loaded == false)
-                return;
-        }
-
-        protected override void LateUpdate()
-        {
-        }
-
-        protected override void OnGUI()
-        {
-            if (_ShowUI == false)
-            {
-                ClearSelectedBoneHighlight();
-                return;
-            }
-
-            if (StudioAPI.InsideStudio)
-            {
-                OCIChar current = GetCurrentOCI();
-                if (current != _currentOCIChar)
-                {
-                    _currentOCIChar = current;
-                    _currentMapData = current != null ? GetMapData(current, true) : null;
-                    if (_currentOCIChar != null)
-                        RefreshMappingsForSelection(_currentOCIChar);
-                    else
-                        ClearSelectedBoneHighlight();
-                }
-
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "ClothQuickTransform " + Version);
-            }
-        }
         // 메인 UI 렌더링 및 선택 처리
         private void WindowFunc(int id)
         {
@@ -584,12 +582,26 @@ namespace ClothQuickTransform
                 if (GUILayout.Button("Clear", GUILayout.Width(120)))
                 {
                     if (mapData != null)
-                        ClearMappings(mapData.transferEntries, true, mapData);
+                    {
+                        var entries = GetOrCreateTransferEntriesFor(chaCtrl, _slotIndex);
+                        ClearMappings(entries, true, mapData, _slotIndex);
+                    }
                 }
                 GUILayout.EndHorizontal();
 
                 draw_seperate();
+                int prevSlotIndex = _slotIndex;
                 DrawClothSlotFilter();
+                if (prevSlotIndex != _slotIndex && mapData != null)
+                {
+                    var entries = GetOrCreateTransferEntriesFor(chaCtrl, _slotIndex);
+                    int selectedIndex = GetSelectedTransferIndex(mapData, _slotIndex);
+                    if (selectedIndex < 0 || selectedIndex >= entries.Count)
+                        SetSelectedTransferIndex(mapData, _slotIndex, entries.Count > 0 ? 0 : -1);
+                    if (entries.Count == 0 && CanAutoMap(chaCtrl))
+                        AutoMap(chaCtrl);
+                    UpdateSelectedBoneHighlight();
+                }
                 draw_seperate();
 
                 if (mapData == null)
@@ -598,14 +610,14 @@ namespace ClothQuickTransform
                 }
                 else
                 {
-                    mapData.transferScroll = GUILayout.BeginScrollView(mapData.transferScroll, GUI.skin.box, GUILayout.Height(180));
-                    int prevSelectedIndex = mapData.selectedTransferIndex;
+                    var entries = GetOrCreateTransferEntriesFor(chaCtrl, _slotIndex);
+                    Vector2 scroll = GetTransferScroll(mapData, _slotIndex);
+                    scroll = GUILayout.BeginScrollView(scroll, GUI.skin.box, GUILayout.Height(180));
+                    int prevSelectedIndex = GetSelectedTransferIndex(mapData, _slotIndex);
                     var activeBoneNames = GetActiveClothBoneNames(chaCtrl, _slotIndex);
-                    var visibleIndices = mapData.transferEntries
+                    var visibleIndices = entries
                         .Select((entry, index) => new { entry, index })
-                        .Where(x => x.entry != null && !string.IsNullOrEmpty(x.entry.boneName)
-                            && (x.entry.boneName.StartsWith("cf_", StringComparison.OrdinalIgnoreCase)
-                                || x.entry.boneName.StartsWith("cm_", StringComparison.OrdinalIgnoreCase)))
+                        .Where(x => x.entry != null && !string.IsNullOrEmpty(x.entry.boneName))
                         .Where(x => activeBoneNames != null && activeBoneNames.Contains(NormalizeBoneName(x.entry.boneName)))
                         .OrderBy(x => x.entry.boneName, StringComparer.OrdinalIgnoreCase)
                         .ToList();
@@ -623,22 +635,24 @@ namespace ClothQuickTransform
                             bool isModified = IsEntryModified(entry);
                             Color prevContentColor = GUI.contentColor;
                             GUI.contentColor = isModified ? ModifiedEntryColor : UnmodifiedEntryColor;
-                            if (GUILayout.Toggle(mapData.selectedTransferIndex == item.index, label, GUI.skin.button))
+                            if (GUILayout.Toggle(GetSelectedTransferIndex(mapData, _slotIndex) == item.index, label, GUI.skin.button))
                             {
-                                mapData.selectedTransferIndex = item.index;
+                                SetSelectedTransferIndex(mapData, _slotIndex, item.index);
                             }
                             GUI.contentColor = prevContentColor;
                         }
                     }
                     GUILayout.EndScrollView();
-                    if (prevSelectedIndex != mapData.selectedTransferIndex)
+                    SetTransferScroll(mapData, _slotIndex, scroll);
+                    if (prevSelectedIndex != GetSelectedTransferIndex(mapData, _slotIndex))
                     {
                         UpdateSelectedBoneHighlight();
                     }
 
-                    if (mapData.selectedTransferIndex >= 0 && mapData.selectedTransferIndex < mapData.transferEntries.Count)
+                    int selectedIndex = GetSelectedTransferIndex(mapData, _slotIndex);
+                    if (selectedIndex >= 0 && selectedIndex < entries.Count)
                     {
-                        var entry = mapData.transferEntries[mapData.selectedTransferIndex];
+                        var entry = entries[selectedIndex];
                         if (entry != null && entry.transfer != null)
                         {
                             bool isSelectedModified = IsEntryModified(entry);
@@ -663,13 +677,13 @@ namespace ClothQuickTransform
                             scale.z = SliderRow("Scale Z", scale.z, 0.2f, 2.0f, 1.0f, scaleStep);
                             entry.transfer.localScale = scale;
 
-                            StoreAdjustmentsFor(chaCtrl, CaptureAdjustments(mapData.transferEntries));
+                            StoreAdjustmentsFor(chaCtrl, CaptureAdjustments(entries), _slotIndex);
 
                             if (GUILayout.Button("Reset All"))
                             {
                                 entry.transfer.localPosition = Vector3.zero;
                                 entry.transfer.localScale = Vector3.one;
-                                StoreAdjustmentsFor(chaCtrl, CaptureAdjustments(mapData.transferEntries));
+                                StoreAdjustmentsFor(chaCtrl, CaptureAdjustments(entries), _slotIndex);
                             }
                         }
                     }
@@ -696,11 +710,6 @@ namespace ClothQuickTransform
             Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.3f));
             GUI.Box(rect, GUIContent.none);
             GUILayout.Space(10);
-        }
-
-        private void Init()
-        {
-            _loaded = true;
         }
 
         internal float SliderRow(string label, float value, float min, float max, float resetValue, float step)
@@ -806,7 +815,7 @@ namespace ClothQuickTransform
             return _currentOCIChar.GetChaControl() == chaCtrl;
         }
 
-        private List<TransferEntry> GetOrCreateTransferEntriesFor(ChaControl chaCtrl)
+        private List<TransferEntry> GetOrCreateTransferEntriesFor(ChaControl chaCtrl, int slotIndex)
         {
             if (chaCtrl == null)
                 return new List<TransferEntry>();
@@ -814,10 +823,52 @@ namespace ClothQuickTransform
             if (!TryGetMapData(chaCtrl, out var mapData, out _))
                 return new List<TransferEntry>();
 
-            if (mapData.transferEntries == null)
-                mapData.transferEntries = new List<TransferEntry>();
+            if (mapData.transferEntriesBySlot == null)
+                mapData.transferEntriesBySlot = new Dictionary<int, List<TransferEntry>>();
 
-            return mapData.transferEntries;
+            if (!mapData.transferEntriesBySlot.TryGetValue(slotIndex, out var list) || list == null)
+            {
+                list = new List<TransferEntry>();
+                mapData.transferEntriesBySlot[slotIndex] = list;
+            }
+
+            return list;
+        }
+
+        private int GetSelectedTransferIndex(ClothQuickTransformMapData mapData, int slotIndex)
+        {
+            if (mapData == null || mapData.selectedTransferIndexBySlot == null)
+                return -1;
+            if (mapData.selectedTransferIndexBySlot.TryGetValue(slotIndex, out int idx))
+                return idx;
+            return -1;
+        }
+
+        private void SetSelectedTransferIndex(ClothQuickTransformMapData mapData, int slotIndex, int index)
+        {
+            if (mapData == null)
+                return;
+            if (mapData.selectedTransferIndexBySlot == null)
+                mapData.selectedTransferIndexBySlot = new Dictionary<int, int>();
+            mapData.selectedTransferIndexBySlot[slotIndex] = index;
+        }
+
+        private Vector2 GetTransferScroll(ClothQuickTransformMapData mapData, int slotIndex)
+        {
+            if (mapData == null || mapData.transferScrollBySlot == null)
+                return Vector2.zero;
+            if (mapData.transferScrollBySlot.TryGetValue(slotIndex, out var scroll))
+                return scroll;
+            return Vector2.zero;
+        }
+
+        private void SetTransferScroll(ClothQuickTransformMapData mapData, int slotIndex, Vector2 scroll)
+        {
+            if (mapData == null)
+                return;
+            if (mapData.transferScrollBySlot == null)
+                mapData.transferScrollBySlot = new Dictionary<int, Vector2>();
+            mapData.transferScrollBySlot[slotIndex] = scroll;
         }
 
         private void SwitchToCharForUI(ChaControl chaCtrl)
@@ -831,8 +882,10 @@ namespace ClothQuickTransform
             _currentOCIChar = ociChar;
             _currentMapData = mapData;
 
-            if (_currentMapData.selectedTransferIndex < 0 || _currentMapData.selectedTransferIndex >= _currentMapData.transferEntries.Count)
-                _currentMapData.selectedTransferIndex = _currentMapData.transferEntries.Count > 0 ? 0 : -1;
+            var entries = GetOrCreateTransferEntriesFor(chaCtrl, _slotIndex);
+            int selectedIndex = GetSelectedTransferIndex(_currentMapData, _slotIndex);
+            if (selectedIndex < 0 || selectedIndex >= entries.Count)
+                SetSelectedTransferIndex(_currentMapData, _slotIndex, entries.Count > 0 ? 0 : -1);
 
             ClearSelectedBoneHighlight();
             UpdateSelectedBoneHighlight();
@@ -856,13 +909,14 @@ namespace ClothQuickTransform
             if (_currentMapData == null)
                 return;
 
-            if (_currentMapData.transferEntries.Count > 0)
+            var entries = GetOrCreateTransferEntriesFor(chaCtrl, _slotIndex);
+            if (entries.Count > 0)
                 return;
 
-            var saved = GetSavedFor(chaCtrl);
+            var saved = GetSavedFor(chaCtrl, _slotIndex);
 
-            ClearMappings(_currentMapData.transferEntries, true, _currentMapData);
-            AutoMapWithSaved(chaCtrl, saved, _currentMapData.transferEntries, true);
+            ClearMappings(entries, true, _currentMapData, _slotIndex);
+            AutoMapWithSaved(chaCtrl, saved, entries, true);
         }
 
         // 외부 호출용 자동 매핑 진입점
@@ -899,11 +953,11 @@ namespace ClothQuickTransform
                 return;
             }
 
-            var entries = GetOrCreateTransferEntriesFor(chaCtrl);
-            var saved = GetSavedFor(chaCtrl) ?? CaptureAdjustments(entries);
+            var entries = GetOrCreateTransferEntriesFor(chaCtrl, _slotIndex);
+            var saved = GetSavedFor(chaCtrl, _slotIndex) ?? CaptureAdjustments(entries);
             var isCurrent = IsCurrentChar(chaCtrl);
             var mapData = TryGetMapData(chaCtrl, out var md, out _) ? md : null;
-            ClearMappings(entries, isCurrent, mapData);
+            ClearMappings(entries, isCurrent, mapData, _slotIndex);
             AutoMapWithSaved(chaCtrl, saved, entries, isCurrent);
         }
 
@@ -918,7 +972,7 @@ namespace ClothQuickTransform
             SkinnedMeshRenderer bodyRenderer = GetBodyRenderer(chaCtrl);
             if (bodyRenderer == null)
             {
-                UnityEngine.Debug.Log($">> AutoMapWithSaved: bodyRenderer null");
+                // UnityEngine.Debug.Log($">> AutoMapWithSaved: bodyRenderer null");
                 return;
             }
 
@@ -941,22 +995,22 @@ namespace ClothQuickTransform
                     }
                 }
             }
-            UnityEngine.Debug.Log($">> AutoMapWithSaved: bodyBones={bodyBonesByName.Count}");
+            // UnityEngine.Debug.Log($">> AutoMapWithSaved: bodyBones={bodyBonesByName.Count}");
 
             var clothRenderers = GetActiveClothRenderers(chaCtrl);
             if (clothRenderers.Count == 0)
             {
-                UnityEngine.Debug.Log($">> AutoMapWithSaved: no cloth renderers");
+                // UnityEngine.Debug.Log($">> AutoMapWithSaved: no cloth renderers");
                 return;
             }
 
             int savedCount = saved != null ? saved.Count : 0;
-            UnityEngine.Debug.Log($">> AutoMapWithSaved: clothRenderers={clothRenderers.Count} savedTransfers={savedCount}");
+            // UnityEngine.Debug.Log($">> AutoMapWithSaved: clothRenderers={clothRenderers.Count} savedTransfers={savedCount}");
 
             if (saved != null && savedCount > 0)
             {
                 string[] sampleSaved = saved.Keys.Take(5).ToArray();
-                UnityEngine.Debug.Log($">> AutoMapWithSaved: saved sample={string.Join(",", sampleSaved)}");
+                // UnityEngine.Debug.Log($">> AutoMapWithSaved: saved sample={string.Join(",", sampleSaved)}");
             }
 
             var transferByName = new Dictionary<string, TransferEntry>();
@@ -1022,49 +1076,12 @@ namespace ClothQuickTransform
                 }
             }
 
-            if (transferByName.Count > 0)
-            {
-                string[] sampleTransfer = transferByName.Keys.Take(5).ToArray();
-                UnityEngine.Debug.Log($">> AutoMapWithSaved: transfer sample={string.Join(",", sampleTransfer)}");
-            }
-
-            int matched = 0;
-            if (saved != null && savedCount > 0)
-            {
-                var savedSet = new HashSet<string>(saved.Keys);
-                matched = transferByName.Keys.Count(k => savedSet.Contains(k));
-            }
-            UnityEngine.Debug.Log($">> AutoMapWithSaved: appliedTransfers={applied} matchedByName={matched} totalTransfers={entries.Count}");
-
-            if (saved != null && savedCount > 0)
-            {
-                string sampleSaved = saved.Keys.FirstOrDefault();
-                UnityEngine.Debug.Log($">> AutoMapWithSaved: saved name detail={DescribeName(sampleSaved)}");
-            }
-            if (transferByName.Count > 0)
-            {
-                string sampleTransfer = transferByName.Keys.FirstOrDefault();
-                UnityEngine.Debug.Log($">> AutoMapWithSaved: transfer name detail={DescribeName(sampleTransfer)}");
-            }
-
-            UnityEngine.Debug.Log($">> saved: {saved}: savedCount: {savedCount}, transferByName.Count: {transferByName.Count}");
-
-            if (saved != null && savedCount > 0 && transferByName.Count > 0)
-            {
-                string sampleSaved = saved.Keys.FirstOrDefault();
-                string sampleTransfer = transferByName.Keys.FirstOrDefault();
-                bool eq = string.Equals(sampleSaved, sampleTransfer, StringComparison.Ordinal);
-                bool savedHasTransfer = saved.ContainsKey(sampleTransfer);
-                bool transferHasSaved = transferByName.ContainsKey(sampleSaved);
-                UnityEngine.Debug.Log($">> AutoMapWithSaved: compare eq={eq} savedHasTransfer={savedHasTransfer} transferHasSaved={transferHasSaved}");
-            }
-
-            StoreAdjustmentsFor(chaCtrl, CaptureAdjustments(entries));
+            StoreAdjustmentsFor(chaCtrl, CaptureAdjustments(entries), _slotIndex);
             if (updateSelection)
             {
                 if (TryGetMapData(chaCtrl, out var mapData, out _))
                 {
-                    mapData.selectedTransferIndex = entries.Count > 0 ? 0 : -1;
+                    SetSelectedTransferIndex(mapData, _slotIndex, entries.Count > 0 ? 0 : -1);
                 }
                 UpdateSelectedBoneHighlight();
             }
@@ -1090,12 +1107,6 @@ namespace ClothQuickTransform
             }
             return map;
         }
-        private Dictionary<string, SavedAdjustment> CaptureCurrentAdjustments()
-        {
-            var mapData = EnsureCurrentMapData();
-            return CaptureAdjustments(mapData != null ? mapData.transferEntries : null);
-        }
-
         private void ApplySavedAdjustment(TransferEntry entry, Dictionary<string, SavedAdjustment> saved)
         {
             if (entry == null || entry.transfer == null || saved == null)
@@ -1108,7 +1119,7 @@ namespace ClothQuickTransform
         }
 
         // 기존 렌더러 본 연결을 원래대로 되돌리고 생성 오브젝트를 정리한다.
-        private void ClearMappings(List<TransferEntry> entries, bool clearSelection, ClothQuickTransformMapData mapData)
+        private void ClearMappings(List<TransferEntry> entries, bool clearSelection, ClothQuickTransformMapData mapData, int slotIndex)
         {
             if (entries == null)
                 return;
@@ -1141,38 +1152,35 @@ namespace ClothQuickTransform
             if (clearSelection)
             {
                 if (mapData != null)
-                    mapData.selectedTransferIndex = -1;
+                    SetSelectedTransferIndex(mapData, slotIndex, -1);
                 ClearSelectedBoneHighlight();
             }
         }
 
         // dicKey가 있으면 dicKey로, 없으면 해시로 저장한다.
-        private void StoreAdjustmentsFor(ChaControl chaCtrl, Dictionary<string, SavedAdjustment> map)
+        private void StoreAdjustmentsFor(ChaControl chaCtrl, Dictionary<string, SavedAdjustment> map, int slotIndex)
         {
             if (chaCtrl == null || map == null)
                 return;
             if (TryGetMapData(chaCtrl, out var mapData, out _))
-                mapData.savedAdjustments = map;
+            {
+                if (mapData.savedAdjustmentsBySlot == null)
+                    mapData.savedAdjustmentsBySlot = new Dictionary<int, Dictionary<string, SavedAdjustment>>();
+                mapData.savedAdjustmentsBySlot[slotIndex] = map;
+            }
         }
 
-        private int GetCharKey(ChaControl chaCtrl)
-        {
-            if (chaCtrl == null)
-                return int.MinValue;
-
-            if (TryGetDicKey(chaCtrl, out int dicKey))
-                return dicKey;
-
-            return chaCtrl.GetHashCode();
-        }
-
-        private Dictionary<string, SavedAdjustment> GetSavedFor(ChaControl chaCtrl)
+        private Dictionary<string, SavedAdjustment> GetSavedFor(ChaControl chaCtrl, int slotIndex)
         {
             if (chaCtrl == null)
                 return null;
 
             if (TryGetMapData(chaCtrl, out var mapData, out _))
-                return mapData.savedAdjustments;
+            {
+                if (mapData.savedAdjustmentsBySlot != null
+                    && mapData.savedAdjustmentsBySlot.TryGetValue(slotIndex, out var map))
+                    return map;
+            }
 
             return null;
         }
@@ -1250,56 +1258,9 @@ namespace ClothQuickTransform
         {
             if (map.TryGetValue(savedDicKey, out var oci))
                 return oci;
-
-            // Handle scene import where dicKeys are remapped (new -> old).
-            foreach (var pair in SceneInfo_Import_Patches._newToOldKeys)
-            {
-                if (pair.Value == savedDicKey && map.TryGetValue(pair.Key, out oci))
-                    return oci;
-            }
-
             return null;
         }
-
-        private OCIChar FindOciCharByChaControl(ChaControl chaCtrl)
-        {
-            if (chaCtrl == null)
-                return null;
-            if (Studio.Studio.Instance == null)
-                return null;
-
-            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
-            {
-                var oci = kvp.Value as OCIChar;
-                if (oci == null)
-                    continue;
-                if (oci.GetChaControl() == chaCtrl)
-                    return oci;
-            }
-            return null;
-        }
-
-        private void ClearAllMapData()
-        {
-            if (Studio.Studio.Instance == null)
-                return;
-
-            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
-            {
-                var oci = kvp.Value as OCIChar;
-                if (oci == null)
-                    continue;
-                var mapData = GetMapData(oci, true);
-                if (mapData == null)
-                    continue;
-                ClearMappings(mapData.transferEntries, false, mapData);
-                mapData.savedAdjustments.Clear();
-                mapData.selectedTransferIndex = -1;
-                mapData.pendingAutoRemap = false;
-                mapData.transferScroll = Vector2.zero;
-            }
-        }
-
+        
         private SkinnedMeshRenderer GetBodyRenderer(ChaControl chaCtrl)
         {
             if (chaCtrl == null || chaCtrl.objBody == null)
@@ -1331,15 +1292,16 @@ namespace ClothQuickTransform
             if (clothes == null)
                 return results;
 
-            if (slotIndex < 0 || slotIndex >= clothes.Length)
+            int clothesIndex = slotIndex;
+            if (clothesIndex < 0 || clothesIndex >= clothes.Length)
                 return results;
 
             for (int i = 0; i < clothes.Length; i++)
             {
                 var go = clothes[i];
-                if (i != slotIndex)
+                if (i != clothesIndex)
                     continue;
-                if (go == null || !go.activeInHierarchy)
+                if (go == null)
                     continue;
 
                 var renderers = go.GetComponentsInChildren<SkinnedMeshRenderer>(true);
@@ -1354,6 +1316,8 @@ namespace ClothQuickTransform
         {
             return GetActiveClothRenderers(chaCtrl, _slotIndex);
         }
+
+        
 
         private HashSet<string> GetActiveClothBoneNames(ChaControl chaCtrl, int slotIndex)
         {
@@ -1455,16 +1419,6 @@ namespace ClothQuickTransform
             return cleaned;
         }
 
-        private string DescribeName(string name)
-        {
-            if (name == null)
-                return "null";
-            var codes = new List<string>(name.Length);
-            for (int i = 0; i < name.Length; i++)
-                codes.Add(((int)name[i]).ToString(CultureInfo.InvariantCulture));
-            return $"len={name.Length} text='{name}' codes=[{string.Join(",", codes)}]";
-        }
-
         // 선택된 본 위치에 디버그 마커를 배치한다.
         private void UpdateSelectedBoneHighlight()
         {
@@ -1475,13 +1429,15 @@ namespace ClothQuickTransform
                 return;
             }
 
-            if (mapData.selectedTransferIndex < 0 || mapData.selectedTransferIndex >= mapData.transferEntries.Count)
+            var entries = GetOrCreateTransferEntriesFor(mapData.ociChar != null ? mapData.ociChar.GetChaControl() : null, _slotIndex);
+            int selectedIndex = GetSelectedTransferIndex(mapData, _slotIndex);
+            if (selectedIndex < 0 || selectedIndex >= entries.Count)
             {
                 ClearSelectedBoneHighlight();
                 return;
             }
 
-            var entry = mapData.transferEntries[mapData.selectedTransferIndex];
+            var entry = entries[selectedIndex];
             if (entry == null || entry.transfer == null)
             {
                 ClearSelectedBoneHighlight();
@@ -1587,62 +1543,35 @@ namespace ClothQuickTransform
             public Vector3 position;
             public Vector3 scale;
         }
-
         #endregion
-    }
-
-#region Patches
-    [HarmonyPatch(typeof(SceneInfo), "Import", new[] { typeof(BinaryReader), typeof(Version) })]
-    internal static class SceneInfo_Import_Patches //This is here because I fucked up the save format making it impossible to import scenes correctly
-    {
-        internal static readonly Dictionary<int, int> _newToOldKeys = new Dictionary<int, int>();
-
-        private static void Prefix()
+        
+        #region Patches
+        [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
+        private static class Studio_InitScene_Patches
         {
-            _newToOldKeys.Clear();
+            private static bool Prefix(object __instance, bool _close)
+            {
+                _self.SceneInit();
+                return true;
+            }
         }
-    }
-    
-    // [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
-    // internal static class WorkspaceCtrl_OnSelectSingle_Patches
-    // {
-    //     private static bool Prefix(object __instance, TreeNodeObject _node)
-    //     {
-    //         ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-    //         if (objectCtrlInfo == null)
-    //             return true;
 
-    //         OCIChar ociChar = objectCtrlInfo as OCIChar;
-    //         if (ociChar != null)
-    //         {
-    //             ClothQuickTransform._self._currentOCIChar = ociChar;
-    //             if (ClothQuickTransform._self._ShowUI)
-    //                 ClothQuickTransform._self.RefreshMappingsForSelection(ociChar);
-    //         }
-    //         return true;
-    //     }
-    // }
-
-
-#if AISHOUJO || HONEYSELECT2
-    [HarmonyPatch(typeof(ChaControl), "ChangeClothesAsync", typeof(int), typeof(int), typeof(bool), typeof(bool))]
-    internal static class ChaControl_ChangeClothesAsync_Patches
-    {
-        private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange = false, bool asyncFlags = true)
+        [HarmonyPatch(typeof(ChaControl), "ChangeClothesAsync", typeof(int), typeof(int), typeof(bool), typeof(bool))]
+        internal static class ChaControl_ChangeClothesAsync_Patches
         {
-            var self = ClothQuickTransform._self;
-            if (self == null || __instance == null)
-                return;
+            private static void Postfix(ChaControl __instance, int kind, int id, bool forceChange = false, bool asyncFlags = true)
+            {
+                var self = ClothQuickTransform._self;
+                if (self == null || __instance == null)
+                    return;
 
-            if (!self.TryMarkPendingAutoRemap(__instance))
-                return;
+                if (!self.TryMarkPendingAutoRemap(__instance))
+                    return;
 
-            self.StartCoroutine(self.AutoMapDelayed(__instance));
+                self.StartCoroutine(self.AutoMapDelayed(__instance));
+            }
         }
+        #endregion        
     }
-#endif
-
-#endregion
-
 #endregion
 }

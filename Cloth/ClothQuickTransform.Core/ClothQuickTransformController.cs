@@ -42,31 +42,30 @@ namespace ClothQuickTransform
             return clothQuickTransformMapData;
         }
 
-        // 필요 시 맵 데이터를 생성하고 반환한다.
-        internal ClothQuickTransformMapData GetOrCreateData(OCIChar _ociChar)
+        // 캐릭터 별 맵 데이터를 생성하고 반환한다.
+        internal ClothQuickTransformMapData CreateData(OCIChar _ociChar)
         {
-            if (clothQuickTransformMapData == null)
-                clothQuickTransformMapData = new ClothQuickTransformMapData();
-            if (_ociChar != null)
-                clothQuickTransformMapData.ociChar = _ociChar;
-            return clothQuickTransformMapData;
-        }
+            if (_ociChar != null) {
+                if (clothQuickTransformMapData == null)
+                    clothQuickTransformMapData = new ClothQuickTransformMapData();
 
-        // 캐릭터 기준으로 맵 데이터 초기화한다.
-        internal void InitClothQuickTransformMapData(OCIChar _ociChar)
-        {
-            GetOrCreateData(_ociChar);
+                clothQuickTransformMapData.ociChar = _ociChar;
+            }
+            return clothQuickTransformMapData;
         }
     }
 
     class ClothQuickTransformMapData
     {
         public OCIChar ociChar;
-        public List<ClothQuickTransform.TransferEntry> transferEntries = new List<ClothQuickTransform.TransferEntry>();
-        public int selectedTransferIndex = -1;
-        public Dictionary<string, ClothQuickTransform.SavedAdjustment> savedAdjustments =
-            new Dictionary<string, ClothQuickTransform.SavedAdjustment>();
+        public Dictionary<int, List<ClothQuickTransform.TransferEntry>> transferEntriesBySlot =
+            new Dictionary<int, List<ClothQuickTransform.TransferEntry>>();
+        public Dictionary<int, int> selectedTransferIndexBySlot =
+            new Dictionary<int, int>();
+        public Dictionary<int, Dictionary<string, ClothQuickTransform.SavedAdjustment>> savedAdjustmentsBySlot =
+            new Dictionary<int, Dictionary<string, ClothQuickTransform.SavedAdjustment>>();
         public bool pendingAutoRemap;
-        public Vector2 transferScroll;
+        public Dictionary<int, Vector2> transferScrollBySlot =
+            new Dictionary<int, Vector2>();
     }
 }
