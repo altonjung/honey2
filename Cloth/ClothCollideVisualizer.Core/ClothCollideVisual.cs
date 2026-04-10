@@ -50,6 +50,9 @@ using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 using KKAPI.Chara;
 
+/*
+    cloth 가 변경되었을때, 변경된 cloth로 position 처리라던지 이런것들이 안되고 있어.. 이부분 update 처리 필요함
+*/
 namespace ClothCollideVisualizer
 {
 #if BEPINEX
@@ -819,7 +822,6 @@ namespace ClothCollideVisualizer
                 physicCollider.visualColliderAdded = false;
 
         }
-
 
         private float SliderRow(string label, float value, float min, float max, float resetValue, float step)
         {
