@@ -57,6 +57,7 @@ using static CharaUtils.Expression;
     onGUI 에서 설정된 정보들은 ClothQuickTransformMapData 내 속성에 정의되어 관리되어야 하며,
     scene write 시 ClothQuickTransformMapData 정보를 통해 xml 에 write 되어야 하고
     scene read 시  반대로 xml 에서 읽어 들인 속성을 ClothQuickTransformMapData 에 저장해야 하는 구조로 가야 함
+
 */
 namespace ClothQuickTransform
 {
