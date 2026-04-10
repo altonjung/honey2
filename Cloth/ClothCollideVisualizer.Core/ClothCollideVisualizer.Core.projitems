@@ -9,12 +9,13 @@
     <Import_RootNamespace>ClothCollideVisualizer.Core</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />    
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ClothCollideVisual.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ClothCollideVisualController.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ClothCollideVisualUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\toolbar_icon.png" />
-  </ItemGroup> 
+  </ItemGroup>
 </Project>

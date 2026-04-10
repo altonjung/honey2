@@ -51,7 +51,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.7.3";
+        public const string Version = "0.9.8.0";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -118,12 +118,11 @@ namespace WindPhysics
                 }
                 return _richLabel;
             }
-        }      
+        }
 
         #endregion
 
         #region Accessors
-        // internal static ConfigEntry<bool> ConfigKeyEnableWind { get; private set; }
         internal static ConfigEntry<float> Gravity { get; private set; }
         internal static ConfigEntry<float> WindDirection { get; private set; }
         internal static ConfigEntry<float> WindInterval { get; private set; }
@@ -141,15 +140,15 @@ namespace WindPhysics
             // Environment 
             Gravity = Config.Bind("All", "Gravity", -0.05f, new ConfigDescription("gravity", new AcceptableValueRange<float>(-0.1f, 0.1f)));
 
-            WindDirection = Config.Bind("All", "Direction", 0f, new ConfigDescription("wind direction from 0 to 360 degree", new AcceptableValueRange<float>(0.0f, 359.0f)));
+            WindDirection = Config.Bind("All", "Direction", 0.0f, new ConfigDescription("wind direction from 0 to 360 degree", new AcceptableValueRange<float>(0.0f, 359.0f)));
 
-            WindUpForce = Config.Bind("All", "ForceUp", 0.0f, new ConfigDescription("wind up force", new AcceptableValueRange<float>(0.0f, 0.5f)));
+            WindUpForce = Config.Bind("All", "ForceUp", 0.0f, new ConfigDescription("wind up force", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             WindForce = Config.Bind("All", "Force", 0.35f, new ConfigDescription("wind force", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            WindInterval = Config.Bind("All", "Interval", 2f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 60.0f)));
+            WindInterval = Config.Bind("All", "Interval", 2.0f, new ConfigDescription("wind spawn interval(sec)", new AcceptableValueRange<float>(0.0f, 60.0f)));
 
-            WindKeepTime = Config.Bind("All", "Keep", 1f, new ConfigDescription("wind keep time(sec)", new AcceptableValueRange<float>(0.1f, 2.0f)));
+            WindKeepTime = Config.Bind("All", "Keep", 1.0f, new ConfigDescription("wind keep time(sec)", new AcceptableValueRange<float>(0.1f, 60.0f)));
 
             WindAmplitude = Config.Bind("All", "Amplitude", 1.0f, new ConfigDescription("wind amplitude", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
@@ -274,14 +273,18 @@ namespace WindPhysics
                 studio.cameraCtrl.noCtrlCondition = null;
             }
 
-            // WindData data = GetCurrentData();
             var controller = GetCurrentControl();
-            WindData data = controller.GetData();
-            if (data == null)
+            WindData data = null;
+            if (controller != null)
             {
-                OCIChar curOciChar = GetCurrentOCI();                
-                data = controller.CreateWindData(curOciChar.GetChaControl());
-            }        
+                data = controller.GetData();
+                if (data == null)
+                {
+                    OCIChar curOciChar = GetCurrentOCI();
+                    if (curOciChar != null && curOciChar.GetChaControl() != null)
+                        data = controller.CreateWindData(curOciChar.GetChaControl());
+                }
+            }
 
             if (data != null)
             {
@@ -295,10 +298,8 @@ namespace WindPhysics
                     ApplyScenePreset("water");                    
                 if (GUILayout.Button("space"))
                     ApplyScenePreset("space");
-#if FEATURE_PRESET_RAIN
-                if (GUILayout.Button("rain"))
-                    ApplyScenePreset("rain");
-#endif
+                // if (GUILayout.Button("rain"))
+                //     ApplyScenePreset("rain");
                 GUILayout.EndHorizontal();
     // Global
                 GUILayout.Label("<color=orange>Global</color>", RichLabel);
@@ -320,7 +321,18 @@ namespace WindPhysics
                 ClampWindKeepTimeToInterval();
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(new GUIContent("Keep", "Wind Keep Time"), GUILayout.Width(80));
-                WindKeepTime.Value = GUILayout.HorizontalSlider(WindKeepTime.Value, 0.1f, Mathf.Min(2.0f, WindInterval.Value));
+                float keepMin = 0.1f;
+                if (WindInterval.Value <= keepMin)
+                {
+                    WindKeepTime.Value = keepMin;
+                    GUI.enabled = false;
+                    GUILayout.HorizontalSlider(WindKeepTime.Value, keepMin, keepMin + 0.001f);
+                    GUI.enabled = true;
+                }
+                else
+                {
+                    WindKeepTime.Value = GUILayout.HorizontalSlider(WindKeepTime.Value, keepMin, WindInterval.Value);
+                }
                 GUILayout.Label(WindKeepTime.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
 
@@ -334,28 +346,28 @@ namespace WindPhysics
                 // Force
                 GUILayout.BeginHorizontal();             
                 GUILayout.Label(new GUIContent("Force", "Wind Force"), GUILayout.Width(80));
-                WindForce.Value = GUILayout.HorizontalSlider(WindForce.Value, 0.1f, 1.0f);
+                WindForce.Value = GUILayout.HorizontalSlider(WindForce.Value, 0.0f, 1.0f);
                 GUILayout.Label(WindForce.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
 
                 // Force up
                 GUILayout.BeginHorizontal();              
                 GUILayout.Label(new GUIContent("Force Up", "Wind ForceUp"),  GUILayout.Width(80));
-                WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.0f, 0.5f);
+                WindUpForce.Value = GUILayout.HorizontalSlider(WindUpForce.Value, 0.0f, 1.0f);
                 GUILayout.Label(WindUpForce.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal(); 
 
                 // Gravity
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
-                Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.5f, 0.2f);
+                Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
                 GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
 
     // Hair
                 GUILayout.Label("<color=orange>Hair</color>", RichLabel);
                 GUILayout.BeginHorizontal();            
-                GUILayout.Label(new GUIContent("E", "Elastic"), GUILayout.Width(20));
+                GUILayout.Label(new GUIContent("Elastic", "Elastic"), GUILayout.Width(80));
                 data.HairElastic = GUILayout.HorizontalSlider(data.HairElastic, 0.0f, 1.0f);
                 GUILayout.Label(data.HairElastic.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();        
@@ -363,7 +375,7 @@ namespace WindPhysics
                 GUILayout.Label("<color=orange>Accessory</color>", RichLabel);;
                 GUILayout.BeginHorizontal();
             
-                GUILayout.Label(new GUIContent("D", "Elastic"), GUILayout.Width(20));
+                GUILayout.Label(new GUIContent("Elastic", "Elastic"), GUILayout.Width(80));
                 data.AccesoriesElastic = GUILayout.HorizontalSlider(data.AccesoriesElastic, 0.0f, 1.0f);
                 GUILayout.Label(data.AccesoriesElastic.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
@@ -394,9 +406,13 @@ namespace WindPhysics
                 else
                 {
                     if (GUILayout.Button("Active")) {
-                        controller.ExecuteWindEffect(GetCurrentOCI().GetChaControl());
-                        data.enabled = true;
-                    }   
+                        OCIChar curOciChar = GetCurrentOCI();
+                        if (controller != null && curOciChar != null && curOciChar.GetChaControl() != null)
+                        {
+                            controller.ExecuteWindEffect(curOciChar.GetChaControl());
+                            data.enabled = true;
+                        }
+                    }
                 }
 
                 if(GUILayout.Button("Default"))
@@ -456,33 +472,43 @@ namespace WindPhysics
             if (_windDirLine == null)
                 return;
 
-            WindData data = GetCurrentData();
-
-            if (data != null) {
-                // 변화 감지
-                float current = WindDirection.Value;
-                if (!Mathf.Approximately(current, _lastWindDirValue))
-                {
-                    _lastWindDirValue = current;
-                    _windDirVisibleUntil = Time.time + _windDirVisibleDuration;
-                }
-
-                // 표시 여부 판단
-                bool visible = Time.time <= _windDirVisibleUntil;
-                _windDirLine.enabled = visible;
-                if (!visible)
-                    return;
-                
-                Vector3 origin = data.head_bone.position
-                    + Vector3.up * 0.2f
-                    - data.head_bone.forward * 0.5f;
-
-                float rad = (current + 180f) * Mathf.Deg2Rad;
-                Vector3 dir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad));
-
-                _windDirLine.SetPosition(0, origin);
-                _windDirLine.SetPosition(1, origin + dir * _windDirLength);
+            // Only show the direction helper while plugin UI is open.
+            if (!_ShowUI || !StudioAPI.InsideStudio)
+            {
+                _windDirLine.enabled = false;
+                return;
             }
+
+            WindData data = GetCurrentData();
+            if (data == null)
+            {
+                _windDirLine.enabled = false;
+                return;
+            }
+
+            // 변화 감지
+            float current = WindDirection.Value;
+            if (!Mathf.Approximately(current, _lastWindDirValue))
+            {
+                _lastWindDirValue = current;
+                _windDirVisibleUntil = Time.time + _windDirVisibleDuration;
+            }
+
+            // 표시 여부 판단
+            bool visible = Time.time <= _windDirVisibleUntil;
+            _windDirLine.enabled = visible;
+            if (!visible)
+                return;
+
+            Vector3 origin = data.head_bone.position
+                + Vector3.up * 0.2f
+                - data.head_bone.forward * 0.5f;
+
+            float rad = (current + 180f) * Mathf.Deg2Rad;
+            Vector3 dir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad));
+
+            _windDirLine.SetPosition(0, origin);
+            _windDirLine.SetPosition(1, origin + dir * _windDirLength);
 
         }
 #endif
@@ -523,15 +549,6 @@ namespace WindPhysics
 
         private void ApplyScenePreset(string preset)
         {
-            // 기본 옵션(글로벌 바람 설정만 복원)
-            Gravity.Value = (float)Gravity.DefaultValue;
-            WindDirection.Value = (float)WindDirection.DefaultValue;
-            WindForce.Value = (float)WindForce.DefaultValue;
-            WindUpForce.Value = (float)WindUpForce.DefaultValue;
-            WindInterval.Value = (float)WindInterval.DefaultValue;
-            WindKeepTime.Value = (float)WindKeepTime.DefaultValue;
-            WindAmplitude.Value = (float)WindAmplitude.DefaultValue;
-
             if (preset == "park")
             {
                 WindForce.Value = 0.3f;
@@ -552,18 +569,13 @@ namespace WindPhysics
                 WindForce.Value = 0.03f;
                 Gravity.Value = 0.02f;
             }
-#if FEATURE_PRESET_RAIN
             else if (preset == "rain")
             {
                 WindForce.Value = 0.5f;
                 Gravity.Value = -0.08f;
-                WindInterval.Value = 1.2f;
-                WindKeepTime.Value = 0.8f;
-                WindAmplitude.Value = 2.0f;
             }
-#endif
 
-            Gravity.Value = Mathf.Clamp(Gravity.Value, -0.5f, 0.2f);
+            Gravity.Value = Mathf.Clamp(Gravity.Value, -0.1f, 0.1f);
             ClampWindKeepTimeToInterval();
         }
 
@@ -578,11 +590,12 @@ namespace WindPhysics
             if (WindInterval == null || WindKeepTime == null)
                 return;
 
-            float interval = Mathf.Clamp(WindInterval.Value, 0.1f, 60f);
+            float interval = Mathf.Clamp(WindInterval.Value, 0.0f, 60f);
             if (!Mathf.Approximately(interval, WindInterval.Value))
                 WindInterval.Value = interval;
 
-            float keep = Mathf.Clamp(WindKeepTime.Value, 0.1f, Mathf.Min(2.0f, interval));
+            float keepMax = Mathf.Max(0.1f, interval);
+            float keep = Mathf.Clamp(WindKeepTime.Value, 0.1f, keepMax);
             if (!Mathf.Approximately(keep, WindKeepTime.Value))
                 WindKeepTime.Value = keep;
         }
@@ -590,82 +603,6 @@ namespace WindPhysics
         #endregion
 
         #region Patches
-        // [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
-        // internal static class WorkspaceCtrl_OnSelectSingle_Patches
-        // {
-        //     private static bool Prefix(object __instance, TreeNodeObject _node)
-        //     {
-
-        //         ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-
-        //         if (selectedCtrlInfo == null)
-        //            return true;
-
-        //         OCIChar ociChar =  selectedCtrlInfo as OCIChar;
-
-        //         if (ociChar != null)
-        //         {
-        //             ChaControl chaCtrl = ociChar.GetChaControl();
-        //             var controller = chaCtrl.GetComponent<WindPhysicsController>();
-        //             if (controller != null)
-        //             {
-        //                 WindData windData = controller.GetWindData();
-        //                 if (windData == null)
-        //                 {
-        //                     controller.ExecuteWindEffect(chaCtrl);
-        //                 }
-        //                 else
-        //                 {
-        //                     if (windData.wind_status != Status.RUN)
-        //                         controller.ExecuteWindEffect(chaCtrl);
-        //                 }
-        //             }             
-        //         }
-
-        //         return true;
-        //     }
-        // }
-
-        // [HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectMultiple))]
-        // private static class WorkspaceCtrl_OnSelectMultiple_Patches
-        // {
-        //     private static bool Prefix(object __instance)
-        //     {
-
-        //         foreach (TreeNodeObject node in Studio.Studio.instance.treeNodeCtrl.selectNodes)
-        //         {
-        //             ObjectCtrlInfo selectedCtrlInfo = Studio.Studio.GetCtrlInfo(node);
-
-        //             if (selectedCtrlInfo == null)
-        //                 return true;
-
-        //             OCIChar ociChar =  selectedCtrlInfo as OCIChar;
-
-        //             if (ociChar != null)
-        //             {
-        //                 ChaControl chaCtrl = ociChar.GetChaControl();
-        //                 var controller = chaCtrl.GetComponent<WindPhysicsController>();                        
-
-        //                 if (controller != null)
-        //                 {
-        //                     WindData windData = controller.GetWindData();
-        //                     if (windData == null)
-        //                     {
-        //                         controller.ExecuteWindEffect(chaCtrl);
-        //                     }
-        //                     else
-        //                     {
-        //                         if (windData.wind_status != Status.RUN)
-        //                             controller.ExecuteWindEffect(chaCtrl);
-        //                     }
-        //                 }               
-        //             }                    
-        //         }            
-
-        //         return true;
-        //     }
-        // }
-
         // (cltoh 할당때문에 반드시 delay 처리해야함)
         [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
         internal static class OCIChar_ChangeChara_Patches

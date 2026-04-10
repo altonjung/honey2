@@ -53,8 +53,7 @@ using static CharaUtils.Expression;
 
 /*
 
-    추가 개발
-     - scenewrite, sceneread 처리가 안됨    
+    추가 개발   
      - DAN bone 보정 확장
 
     주의 사항
@@ -91,7 +90,7 @@ namespace JointCorrectionSlider
     {
         #region Constants
         public const string Name = "JointCorrectionSlider";
-        public const string Version = "0.9.0.2";
+        public const string Version = "0.9.1.0";
         public const string GUID = "com.alton.illusionplugins.JointCorrectionSlider";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -317,7 +316,7 @@ namespace JointCorrectionSlider
                     continue;
                 }
 
-                JointCorrectionSliderData data = GetData(ociChar);
+                JointCorrectionSliderData data = GetDataAndCreate(ociChar);
 
                 // config 노드를 순회해 보정값을 읽는다.
                 foreach (XmlNode boneNode in charNode.SelectNodes("config"))
@@ -327,18 +326,14 @@ namespace JointCorrectionSlider
                     if (!string.Equals(configName, "correction", StringComparison.OrdinalIgnoreCase))
                         continue;
     
-#if FEATURE_SHOULDER_CORRECTION
                     data.LeftShoulderValue = ReadFloat(boneNode, "leftShoulder", data.LeftShoulderValue);
                     data.RightShoulderValue = ReadFloat(boneNode, "rightShoulder", data.RightShoulderValue);
-#endif
                     data.LeftArmUpperValue = ReadFloat(boneNode, "leftArm", data.LeftArmUpperValue);
                     data.RightArmUpperValue = ReadFloat(boneNode, "rightArm", data.RightArmUpperValue);
                     data.LeftArmLowerValue = ReadFloat(boneNode, "leftArmLower", data.LeftArmLowerValue);
                     data.RightArmLowerValue = ReadFloat(boneNode, "rightArmLower", data.RightArmLowerValue);
-#if FEATURE_ELBOW_CORRECTION
                     data.LeftElbowValue = ReadFloat(boneNode, "leftElbow", data.LeftElbowValue);
                     data.RightElbowValue = ReadFloat(boneNode, "rightElbow", data.RightElbowValue);
-#endif
                     data.LeftLegValue = ReadFloat(boneNode, "leftLeg", data.LeftLegValue);
                     data.RightLegValue = ReadFloat(boneNode, "rightLeg", data.RightLegValue);
                     data.LeftKneeValue = ReadFloat(boneNode, "leftKnee", data.LeftKneeValue);
@@ -358,7 +353,7 @@ namespace JointCorrectionSlider
                 ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(treeNode);
                 OCIChar ociChar = objectCtrlInfo as OCIChar;
 
-                JointCorrectionSliderData data = GetData(ociChar);
+                JointCorrectionSliderData data = GetDataAndCreate(ociChar);
 
                 // 각 character 노드 아래 config 노드로 JointCorrectionSliderData 값을 저장한다.
                 if (ociChar != null && data != null) {
@@ -373,20 +368,19 @@ namespace JointCorrectionSlider
 
                     writer.WriteStartElement("config");
                     writer.WriteAttributeString("name", "correction");
-#if FEATURE_SHOULDER_CORRECTION
-                    WriteValueNode(writer, "leftShoulder", data.LeftShoulderValue);
 
+                    WriteValueNode(writer, "leftShoulder", data.LeftShoulderValue);
                     WriteValueNode(writer, "rightShoulder", data.RightShoulderValue);
-#endif
+
                     WriteValueNode(writer, "leftArm", data.LeftArmUpperValue);
                     WriteValueNode(writer, "rightArm", data.RightArmUpperValue);
 
                     WriteValueNode(writer, "leftArmLower", data.LeftArmLowerValue);
                     WriteValueNode(writer, "rightArmLower", data.RightArmLowerValue);
-#if FEATURE_ELBOW_CORRECTION
+
                     WriteValueNode(writer, "leftElbow", data.LeftElbowValue);
                     WriteValueNode(writer, "rightElbow", data.RightElbowValue);
-#endif
+
                     WriteValueNode(writer, "leftLeg", data.LeftLegValue);
                     WriteValueNode(writer, "rightLeg", data.RightLegValue);
                     WriteValueNode(writer, "leftKnee", data.LeftKneeValue);
@@ -540,7 +534,7 @@ namespace JointCorrectionSlider
                     data._prevRightKnee = data.RightKneeValue;
                     SetScriptInfo(currentOCIChar, 3, data.RightKneeValue);
                 }
-#if FEATURE_SHOULDER_CORRECTION
+
                 if (data.LeftShoulderValue != data._prevLeftShoulder)
                 {
                     data._prevLeftShoulder = data.LeftShoulderValue;
@@ -551,8 +545,7 @@ namespace JointCorrectionSlider
                     data._prevRightShoulder = data.RightShoulderValue;
                     SetScriptInfo(currentOCIChar, 9, data.RightShoulderValue);
                 }
-#endif
-#if FEATURE_ELBOW_CORRECTION
+
                 if (data.LeftElbowValue != data._prevLeftElbow)
                 {
                     data._prevLeftElbow = data.LeftElbowValue;
@@ -563,7 +556,6 @@ namespace JointCorrectionSlider
                     data._prevRightElbow = data.RightElbowValue;
                     SetScriptInfo(currentOCIChar, 11, data.RightElbowValue);
                 }
-#endif
             }
         }
 
@@ -573,13 +565,12 @@ namespace JointCorrectionSlider
 
             if (data != null)
             {
-#if FEATURE_SHOULDER_CORRECTION
                 if (data._shoulder02_s_L != null)
                     ApplyBoneTransform(data._shoulder02_s_L, data.LeftShoulderValue, ref data._shoulder02BaseSetL, ref data._shoulder02BasePosL, ref data._shoulder02BaseScaleL, TargetDirection.X_POS);
 
                 if (data._shoulder02_s_R != null)
                     ApplyBoneTransform(data._shoulder02_s_R, data.RightShoulderValue, ref data._shoulder02BaseSetR, ref data._shoulder02BasePosR, ref data._shoulder02BaseScaleR, TargetDirection.X_POS);
-#endif                
+
             }
         }
 
@@ -619,7 +610,7 @@ namespace JointCorrectionSlider
             return null;
         }
 
-        private JointCorrectionSliderData GetData(OCIChar ociChar)
+        private JointCorrectionSliderData GetDataAndCreate(OCIChar ociChar)
         {
             if (ociChar == null || ociChar.GetChaControl() == null)
                 return null;
@@ -670,25 +661,24 @@ namespace JointCorrectionSlider
             }
 
             // ================= UI =================
+
             JointCorrectionSliderData data = GetCurrentData();
+
+            if (data == null)
+            {
+                data = GetDataAndCreate(GetCurrentOCI());
+            }
+
             if (data != null)
             {
                 DrawStepSelector(ref _correctionStepIndex, "Step");
                 float correctionStep = SliderStepOptions[_correctionStepIndex];
 
-#if FEATURE_SHOULDER_CORRECTION
                 // UnityEngine.Debug.Log($">> data.LeftShoulderValue  {data.LeftShoulderValue}");
-#if FEATURE_PUBLIC
-                GUILayout.Label("<color=red>scene save not support in public ver</color>", RichLabel);
-                GUILayout.Label("<color=grey>Shoulder</color>", RichLabel);
-                data.LeftShoulderValue = DrawCorrectionRow("Shdr(L)", "Left", data.LeftShoulderValue, 0.0f, 0.0f, IsModifiedValue(data.LeftShoulderValue), correctionStep);
-                data.RightShoulderValue = DrawCorrectionRow("Shdr(R)", "Right", data.RightShoulderValue, 0.0f, 0.0f, IsModifiedValue(data.RightShoulderValue), correctionStep);
-#else 
                 GUILayout.Label("<color=orange>Shoulder</color>", RichLabel);
                 data.LeftShoulderValue = DrawCorrectionRow("Shdr(L)", "Left", data.LeftShoulderValue, -1.0f, 1.0f, IsModifiedValue(data.LeftShoulderValue), correctionStep);
                 data.RightShoulderValue = DrawCorrectionRow("Shdr(R)", "Right", data.RightShoulderValue, -1.0f, 1.0f, IsModifiedValue(data.RightShoulderValue), correctionStep);
-#endif
-#endif            
+
                 // Top
                 GUILayout.Label("<color=orange>Arm_Up</color>", RichLabel);
                 data.LeftArmUpperValue = DrawCorrectionRow("ArmUp(L)", "Left", data.LeftArmUpperValue, -1.0f, 1.0f, IsModifiedValue(data.LeftArmUpperValue), correctionStep);
@@ -697,11 +687,11 @@ namespace JointCorrectionSlider
                 GUILayout.Label("<color=orange>Arm_Dn</color>", RichLabel);
                 data.LeftArmLowerValue = DrawCorrectionRow("ArmDn(L)", "Left", data.LeftArmLowerValue, -1.0f, 1.0f, IsModifiedValue(data.LeftArmLowerValue), correctionStep);
                 data.RightArmLowerValue = DrawCorrectionRow("ArmDn(R)", "Right", data.RightArmLowerValue, -1.0f, 1.0f, IsModifiedValue(data.RightArmLowerValue), correctionStep);
-#if FEATURE_ELBOW_CORRECTION
+
                 GUILayout.Label("<color=orange>Elbow</color>", RichLabel);
                 data.LeftElbowValue = DrawCorrectionRow("Elbow(L)", "Left", data.LeftElbowValue, -1.0f, 1.0f, IsModifiedValue(data.LeftElbowValue), correctionStep);
                 data.RightElbowValue = DrawCorrectionRow("Elbow(R)", "Right", data.RightElbowValue, -1.0f, 1.0f, IsModifiedValue(data.RightElbowValue), correctionStep);
-#endif
+
                 // Bottom
                 GUILayout.Label("<color=orange>Thigh</color>", RichLabel);            
                 data.LeftLegValue = DrawCorrectionRow("Thigh(L)", "Left", data.LeftLegValue, -1.0f, 1.0f, IsModifiedValue(data.LeftLegValue), correctionStep);
@@ -711,6 +701,7 @@ namespace JointCorrectionSlider
                 data.LeftKneeValue = DrawCorrectionRow("Knee(L)", "Back", data.LeftKneeValue, -1.0f, 1.0f, IsModifiedValue(data.LeftKneeValue), correctionStep);
                 data.RightKneeValue = DrawCorrectionRow("Knee(R)", "Back", data.RightKneeValue, -1.0f, 1.0f, IsModifiedValue(data.RightKneeValue), correctionStep);
 #if FEATURE_DAN_CORRECTION
+                GUILayout.Label("<color=orange>Dan</color>", RichLabel);   
                 data.DanScaleValue = DrawCorrectionRow("Dan", "Scale", data.DanScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanScaleValue), correctionStep);
                 data.DanLengthValue = DrawCorrectionRow("Dan", "Length", data.DanLengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanLengthValue), correctionStep);
 #endif
@@ -811,7 +802,6 @@ namespace JointCorrectionSlider
 			_ShowUI = false;     
         }
 
-#if FEATURE_SHOULDER_CORRECTION
         private const float Shoulder02PosXRange = 0.8f;
         private const float Shoulder02ScaleMin = 0.5f;
         private const float Shoulder02ScaleMax = 1.5f;
@@ -871,40 +861,9 @@ namespace JointCorrectionSlider
             tr.localPosition = newPos;
             tr.localScale = baseScale * scaleFactor;
         }
-#endif
         #endregion
         
-        #region Patches        
-        ////[HarmonyPatch(typeof(WorkspaceCtrl), nameof(WorkspaceCtrl.OnSelectSingle), typeof(TreeNodeObject))]
-        ////internal static class WorkspaceCtrl_OnSelectSingle_Patches
-        ////{
-        ////    private static bool Prefix(object __instance, TreeNodeObject _node)
-        ////    {
-        ////        ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);   
-        ////        if (objectCtrlInfo == null)
-        ////            return true;
-                    
-        ////        OCIChar ociChar = objectCtrlInfo as OCIChar;
-
-        ////        if (ociChar != null)
-        ////        {
-        ////            _self._currentOCIChar = ociChar;
-        ////            ChaControl chaControl = ociChar.GetChaControl();
-
-        ////            if (chaControl != null)
-        ////            {
-        ////                var controller = chaControl.GetComponent<JointCorrectionSliderController>();
-        ////                if (controller)
-        ////                {
-        ////                    if (controller.GetData() == null)
-        ////                        controller.CreateData(chaControl);
-        ////                }
-        ////              }
-        ////        }
-        ////        return true;
-        ////    }
-        //}
-
+        #region Patches
         [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
         private static class Studio_InitScene_Patches
         {
@@ -915,7 +874,6 @@ namespace JointCorrectionSlider
             }
         }
         
-#if FEATURE_JOINT_CORRECTION
        [HarmonyPatch(typeof(ChaControl), "InitializeExpression", typeof(int), typeof(bool))]
         private static class ChaControl_InitializeExpression_Patches
         {
@@ -1124,7 +1082,6 @@ namespace JointCorrectionSlider
                 return false;
             }
         }
-#endif
         #endregion
     }
 

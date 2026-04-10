@@ -30,7 +30,7 @@
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\bin\HS2\</OutputPath>
-    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX;FEATURE_JOINT_CORRECTION;FEATURE_ELBOW_CORRECTION;FEATURE_SHOULDER_CORRECTION;FEATURE_SCENE_SAVE</DefineConstants>
+    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX;FEATURE_JOINT_CORRECTION;FEATURE_SCENE_SAVE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

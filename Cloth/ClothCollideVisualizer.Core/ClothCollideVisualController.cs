@@ -45,11 +45,40 @@ namespace ClothCollideVisualizer
         }
 
         // 캐릭터 기준으로 물리 콜라이더 데이터 컨테이너를 초기화한다.
-        internal void InitPhysicCollider(OCIChar _ociChar)
+        internal PhysicCollider CreateData(OCIChar _ociChar)
         {
             physicCollider = new PhysicCollider();
             physicCollider.ociChar = _ociChar;
+            physicCollider.chaCtrl = _ociChar.GetChaControl();
+
+            SupportExtraClothCollider(physicCollider.chaCtrl, physicCollider);
+
+            return physicCollider;
         }
+
+        internal void SupportExtraClothCollider(ChaControl chaCtrl, PhysicCollider physicCollider)
+        {
+            if (chaCtrl == null || physicCollider == null || chaCtrl.objClothes == null)
+                return;
+
+            var clothTop = chaCtrl.objClothes.Length > 0 ? chaCtrl.objClothes[0] : null;
+            var clothBottom = chaCtrl.objClothes.Length > 1 ? chaCtrl.objClothes[1] : null;
+
+            if (clothTop != null) {
+                Cloth[] clothes = clothTop.GetComponentsInChildren<Cloth>(true);
+                if (clothes.Length > 0) {
+                    ClothCollideVisualUtils.AllocateClothColliders(physicCollider, ClothCollideVisualUtils.topManifestXml, "top", "Adjustable", clothes, true);
+                }
+            }
+            
+            if (clothBottom != null) {
+                Cloth[] clothes = clothBottom.GetComponentsInChildren<Cloth>(true);
+
+                if (clothes.Length > 0) {
+                    ClothCollideVisualUtils.AllocateClothColliders(physicCollider, ClothCollideVisualUtils.bottomManifestXml, "bottom", "Adjustable", clothes, false);
+                }
+            }            
+        }        
 
         // 생성했던 디버그 오브젝트와 캐시를 모두 정리한다.
         internal void RemovePhysicCollier()
@@ -95,6 +124,8 @@ namespace ClothCollideVisualizer
     class PhysicCollider
     {
         public OCIChar ociChar;
+        public ChaControl chaCtrl;
+        public bool visualColliderAdded;
         public ClothInfo[] clothInfos;
 
     //    public ClothInfo[] accessoryInfos;
@@ -107,6 +138,10 @@ namespace ClothCollideVisualizer
 
         public List<DebugColliderEntry> debugEntries = new List<DebugColliderEntry>();
         public Dictionary<Collider, DebugColliderEntry> debugEntryBySource = new Dictionary<Collider, DebugColliderEntry>();
+
+
+        public List<SphereColliderPair> sphereColliders = new List < SphereColliderPair >();
+        public List<CapsuleColliderData> capsuleColliders = new List<CapsuleColliderData>();
 
         public PhysicCollider()
         {

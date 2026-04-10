@@ -68,13 +68,12 @@ namespace JointCorrectionSlider
             if (charControl.sex == 0)
                 bone_prefix_str = "cm_";
 
-        #if FEATURE_SHOULDER_CORRECTION
             correctionData._shoulder02_s_L = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Shoulder02_s_L");
             correctionData._shoulder02_s_R = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Shoulder02_s_R");
 
             correctionData._shoulder02BaseSetL = false;
             correctionData._shoulder02BaseSetR = false;
-#endif
+
 #if FEATURE_DAN_CORRECTION
             correctionData._dan_root = chaControl.objAnim.transform.FindLoop("cm_J_dan_s");
             correctionData._dan_top = chaControl.objAnim.transform.FindLoop("cm_J_dan_f_top");
@@ -103,10 +102,9 @@ namespace JointCorrectionSlider
 
         public ChaControl charControl;
 
-#if FEATURE_SHOULDER_CORRECTION
         public float LeftShoulderValue = 0.0f;
         public float RightShoulderValue = 0.0f;
-#endif
+
         public float LeftArmUpperValue = 0.0f;
         public float RightArmUpperValue = 0.0f;
         public float LeftArmLowerValue = 0.0f;
@@ -143,9 +141,9 @@ namespace JointCorrectionSlider
         public float _prevRightArmDn = 0f;
         public float _prevLeftElbow = 0f;
         public float _prevRightElbow = 0f;
-
-
-#if FEATURE_SHOULDER_CORRECTION        
+#if FEATURE_DAN_CORRECTION        
+        public float _prevDan = 0f;
+#endif
         public Transform _shoulder02_s_L;
         public Transform _shoulder02_s_R;
 
@@ -155,27 +153,25 @@ namespace JointCorrectionSlider
         public UnityEngine.Vector3 _shoulder02BaseScaleR;
         public bool _shoulder02BaseSetL;
         public bool _shoulder02BaseSetR;
-#endif
 
 #if FEATURE_DAN_CORRECTION
         public Transform _dan_root;
         public Transform _dan_top;
 
-       public  UnityEngine.Vector3 _danScaleBasePos;
-       public  UnityEngine.Vector3 _danLengthBasePos;
-       public  UnityEngine.Vector3 _danScaleBaseScale;
-       public  UnityEngine.Vector3 _danLengthBaseScale;
-       public  bool _danScaleBaseSet;
-       public  bool _danLengthBaseSet;
+        public  UnityEngine.Vector3 _danScaleBasePos;
+        public  UnityEngine.Vector3 _danLengthBasePos;
+        public  UnityEngine.Vector3 _danScaleBaseScale;
+        public  UnityEngine.Vector3 _danLengthBaseScale;
+        public  bool _danScaleBaseSet;
+        public  bool _danLengthBaseSet;
 #endif
 
 
         internal void Reset()
         {
-#if FEATURE_SHOULDER_CORRECTION
             LeftShoulderValue = 0.0f;
             RightShoulderValue = 0.0f;
-#endif
+
             LeftElbowValue = 0.0f;
             RightElbowValue = 0.0f;
             LeftArmUpperValue = 0.0f;

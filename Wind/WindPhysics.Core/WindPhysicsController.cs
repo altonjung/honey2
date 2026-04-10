@@ -241,30 +241,32 @@ namespace WindPhysics
             float clothStiffness = windData.ClothStiffness;
             //float clothForce = windData.ClotheForce;
 
-            float windWave = Mathf.Max(Mathf.Sin(time * WindPhysics.WindAmplitude.Value), 0f);
+            float windWave = Mathf.Sin(time * WindPhysics.WindAmplitude.Value);
             float upWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(windWave, 0f));
             float downWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(-windWave, 0f));
+            float verticalWave = upWave - downWave;
 
             Vector3 hairFinalWind = windEffect * windForce;
-            hairFinalWind.y += windWave * windUpForce * factor;
+            hairFinalWind.y += verticalWave * windUpForce * factor;
 
             Vector3 accessoriesFinalWind = windEffect * windForce;
-            accessoriesFinalWind.y += windWave * windUpForce * factor;
+            accessoriesFinalWind.y += verticalWave * windUpForce * factor;
 
             Vector3 baseWind = windEffect.sqrMagnitude > 0f ? windEffect.normalized : Vector3.zero;
             Vector3 externalWind = baseWind * windForce;
             float noise = (Mathf.PerlinNoise(time * 0.8f, 0f) - 0.5f) * 2f;
 
             const float upBoost = 5.0f;
-            const float downReduce = 0.15f;
 
-            Vector3 randomWind =
-                baseWind * noise * windForce +
-                Vector3.up * (upWave * windUpForce * upBoost - downWave * windUpForce * downReduce);
+            Vector3 randomDirectionalWind = baseWind * noise * windForce;
+            Vector3 randomVerticalWind = Vector3.up * (verticalWave * windUpForce * upBoost);
+            Vector3 randomWind = randomDirectionalWind + randomVerticalWind;
 
-            Vector3 clothExternalUp = Vector3.up * gravity;
+            // Keep upward lift, but preserve directional wind even when gravity is non-negative.
+            Vector3 clothExternalUp = (Vector3.up * gravity) + (externalWind * 600f * factor);
             Vector3 clothExternalDown = externalWind * 600f * factor;
-            Vector3 clothRandomUp = randomWind * 400f * factor;
+            // In upward-gravity mode, avoid strong horizontal noise that can cancel WindDirection.
+            Vector3 clothRandomUp = randomVerticalWind * 400f * factor;
             Vector3 clothRandomDown = randomWind * 1600f * factor;
 
             Transform headTr = windData.head_bone;

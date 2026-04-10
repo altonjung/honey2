@@ -66,7 +66,7 @@ namespace ClothCollideVisualizer
     {
         #region Constants
         public const string Name = "ClothCollideVisualizer";
-        public const string Version = "0.9.1.0";
+        public const string Version = "0.9.2.0";
         public const string GUID = "com.alton.illusionplugins.clothcollidevisualizer";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -155,33 +155,24 @@ namespace ClothCollideVisualizer
                 false, this, val =>
                 {
                     _ShowUI = val;
+                    var controller = GetCurrentControl();
                     if (val == false)
                     {
-                        OCIChar ociChar = GetCurrentOCI();
-                        if (ociChar != null)
+                        if (controller != null)
                         {
-                            var controller = GetCurrentControl(ociChar);
-                            if (controller != null)
-                            {
-                                PhysicCollider data = controller.GetData();
-                                SetDebugVisualsVisible(data, false);
-                                ClearHighlight(data);
-                            }
+                            PhysicCollider data = controller.GetData();
+                            SetDebugVisualsVisible(data, false);
+                            ClearHighlight(data);
                         }
                     }
                     else
                     {
-                        OCIChar ociChar = GetCurrentOCI();
-                        if (ociChar != null)
+                        if (controller != null)
                         {
-                            var controller = GetCurrentControl(ociChar);
-                            if (controller != null)
-                            {
-                                PhysicCollider data = controller.GetData();
-                                SetDebugVisualsVisible(data, true);
-                                if (_selectedDebugEntry != null && _selectedDebugEntry.source != null)
-                                    HighlightSelectedCollider(_selectedDebugEntry.source, data.debugCollideRenderers);
-                            }
+                            PhysicCollider data = controller.GetData();
+                            SetDebugVisualsVisible(data, true);
+                            if (_selectedDebugEntry != null && _selectedDebugEntry.source != null)
+                                HighlightSelectedCollider(_selectedDebugEntry.source, data.debugCollideRenderers);
                         }
                     }
                 });
@@ -203,21 +194,416 @@ namespace ClothCollideVisualizer
 #endif
 
         protected override void Update()
+        {            
+        }
+
+        protected override void OnGUI()
         {
             if (_loaded == false)
                 return;
+
+            if (StudioAPI.InsideStudio) {            
+                if (_ShowUI == false)             
+                    return;
+
+                _windowRect = GUILayout.Window(_uniqueId + 1, _windowRect, WindowFunc, "ClothCollideVisualizer " + Version);
+            }                
         }
 
+#if FEATURE_SCENE_SAVE
+        private void OnSceneLoad(string path)
+        {            
+            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
+            if (data == null)
+                return;
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml((string)data.data["sceneInfo"]);
+            XmlNode node = doc.FirstChild;
+            if (node == null)
+                return;
+            SceneLoad(path, node);
+        }
+
+        private void OnSceneImport(string path)
+        {
+            Logger.LogMessage($"Import not support");
+        }
+
+        private void OnSceneSave(string path)
+        {
+            using (StringWriter stringWriter = new StringWriter())
+            using (XmlTextWriter xmlWriter = new XmlTextWriter(stringWriter))
+            {
+                xmlWriter.WriteStartElement("root");
+                SceneWrite(path, xmlWriter);
+                xmlWriter.WriteEndElement();
+
+                PluginData data = new PluginData();
+                data.version = ClothCollideVisualizer._saveVersion;
+                data.data.Add("sceneInfo", stringWriter.ToString());
+
+                // UnityEngine.Debug.Log($">> visualizer sceneInfo {stringWriter.ToString()}");
+
+                ExtendedSave.SetSceneExtendedDataById(_extSaveKey, data);
+            }
+        }
+
+        private void SceneLoad(string path, XmlNode node)
+        {
+            if (node == null)
+                return;
+            this.ExecuteDelayed2(() =>
+            {
+                List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
+
+                List<OCIChar> ociChars = dic
+                    .Select(kv => kv.Value as OCIChar)
+                    .Where(c => c != null)       
+                    .ToList();
+
+                SceneRead(node, ociChars);
+
+                // delete collider treeNodeObjects
+                List<TreeNodeObject> deleteTargets = new List<TreeNodeObject>();
+                foreach (TreeNodeObject treeNode in Singleton<Studio.Studio>.Instance.treeNodeCtrl.m_TreeNodeObject)
+                {
+                    if (treeNode.m_TextName.text == GROUP_CAPSULE_COLLIDER || treeNode.m_TextName.text == GROUP_SPHERE_COLLIDER)
+                    {
+                        treeNode.enableDelete = true;
+                        deleteTargets.Add(treeNode);
+                    }
+                }
+
+                foreach (TreeNodeObject target  in deleteTargets)
+                {
+                    Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(target);
+                }
+            }, 20);
+        }
+
+        private void SceneRead(XmlNode node, List<OCIChar> ociChars)
+        {
+            var ociCharByDicKey = new Dictionary<int, OCIChar>();
+            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
+            {
+                var oci = kvp.Value as OCIChar;
+                if (oci != null)
+                    ociCharByDicKey[kvp.Key] = oci;
+            }
+
+            var ociCharByHash = new Dictionary<int, OCIChar>();
+            foreach (var oci in ociChars)
+            {
+                if (oci == null)
+                    continue;
+
+                int hash = oci.GetChaControl().GetHashCode();
+                if (!ociCharByHash.ContainsKey(hash))
+                    ociCharByHash.Add(hash, oci);
+            }
+
+            var ociCharByName = new Dictionary<string, OCIChar>(StringComparer.Ordinal);
+            foreach (var oci in ociChars)
+            {
+                if (oci == null || oci.charInfo == null)
+                    continue;
+
+                string charName = oci.charInfo.name;
+                if (string.IsNullOrEmpty(charName))
+                    continue;
+
+                if (!ociCharByName.ContainsKey(charName))
+                    ociCharByName.Add(charName, oci);
+            }
+
+            foreach (XmlNode charNode in node.SelectNodes("character"))
+            {
+                OCIChar ociChar = null;
+
+                string dicKeyText = charNode.Attributes["dicKey"]?.Value;
+                if (!string.IsNullOrEmpty(dicKeyText) && int.TryParse(dicKeyText, out int dicKeyValue))
+                    ociChar = FindOciCharByDicKey(ociCharByDicKey, dicKeyValue);
+
+                if (ociChar == null)
+                {
+                    string hash = charNode.Attributes["hash"]?.Value;
+                    if (!string.IsNullOrEmpty(hash) && int.TryParse(hash, out int hashValue))
+                        ociCharByHash.TryGetValue(hashValue, out ociChar);
+                }
+
+                if (ociChar == null)
+                {
+                    string charName = charNode.Attributes["name"]?.Value;
+                    if (!string.IsNullOrEmpty(charName))
+                        ociCharByName.TryGetValue(charName, out ociChar);
+                }
+
+                if (ociChar == null)
+                {
+                    continue;
+                }
+    
+                ClothCollideVisualizerController controller = GetControl(ociChar);
+                if (controller != null) {
+                    controller.CreateData(ociChar);
+                }                
+
+                foreach (XmlNode boneNode in charNode.SelectNodes("bone"))
+                {
+                    string colliderName = boneNode.Attributes["name"]?.Value;
+                    if (string.IsNullOrEmpty(colliderName)) continue;
+
+                    Transform bone = FindColliderByName(ociChar, colliderName);
+                    if (bone == null)
+                    {
+                        // UnityEngine.Debug.LogWarning($">> SceneRead: collider '{colliderName}' not found in {charName}");
+                        continue;
+                    }
+
+                    // position
+                    XmlNode posNode = boneNode.SelectSingleNode("position");
+                    if (posNode != null)
+                    {
+                        bone.localPosition = new Vector3(
+                            ParseFloat(posNode.Attributes["x"]?.Value),
+                            ParseFloat(posNode.Attributes["y"]?.Value),
+                            ParseFloat(posNode.Attributes["z"]?.Value)
+                        );
+                    }
+
+                    // rotation
+                    XmlNode rotNode = boneNode.SelectSingleNode("rotation");
+                    if (rotNode != null)
+                    {
+                        bone.localEulerAngles = new Vector3(
+                            ParseFloat(rotNode.Attributes["x"]?.Value),
+                            ParseFloat(rotNode.Attributes["y"]?.Value),
+                            ParseFloat(rotNode.Attributes["z"]?.Value)
+                        );
+                    }
+
+                    // scale
+                    XmlNode scaleNode = boneNode.SelectSingleNode("scale");
+                    if (scaleNode != null)
+                    {
+                        bone.localScale = new Vector3(
+                            ParseFloat(scaleNode.Attributes["x"]?.Value),
+                            ParseFloat(scaleNode.Attributes["y"]?.Value),
+                            ParseFloat(scaleNode.Attributes["z"]?.Value)
+                        );
+                    }
+                }
+            }
+        }
+
+        private Transform FindColliderByName(OCIChar ociChar, string colliderName)
+        {
+            var capColliders = ociChar.charInfo.objBodyBone
+                .transform
+                .GetComponentsInChildren<CapsuleCollider>();
+
+            foreach (CapsuleCollider capCollider in capColliders) {
+                if (capCollider != null) {
+                    string collider_name = "";
+                    int idx = capCollider.name.IndexOf('-');
+                    if (idx >= 0)
+                        collider_name = capCollider.name.Substring(0, idx);
+                    else
+                        collider_name = capCollider.name;
+
+                    if (colliderName == collider_name)
+                        return capCollider.transform;
+                }
+            }
+
+            var sphereColliders = ociChar.charInfo.objBodyBone
+                .transform
+                .GetComponentsInChildren<SphereCollider>();            
+
+            foreach (SphereCollider sphereCollider in sphereColliders) {
+                if (sphereCollider != null) {
+                    string collider_name = "";
+                    int idx = sphereCollider.name.IndexOf('-');
+                    if (idx >= 0)
+                        collider_name = sphereCollider.name.Substring(0, idx);
+                    else
+                        collider_name = sphereCollider.name;
+
+                    if (colliderName == collider_name)
+                        return sphereCollider.transform;
+                }
+            }
+
+            return null;
+        }
+
+        // 유틸: 문자열을 float 값으로 파싱한다.
+        private float ParseFloat(string value)
+        {
+            if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float result))
+                return result;
+            return 0f;
+        }
+
+        private void SceneWrite(string path, XmlTextWriter writer)
+        {
+            List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
+
+            List<OCIChar> ociChars = dic
+                .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo를 OCIChar로 캐스팅
+                .Where(c => c != null)               // null 항목 제거
+                .ToList();
+
+            foreach (OCIChar ociChar in ociChars)
+            {
+                int dicKey;
+                bool hasDicKey = TryGetDicKey(ociChar.GetChaControl(), out dicKey);
+
+                writer.WriteStartElement("character");
+                if (hasDicKey)
+                    writer.WriteAttributeString("dicKey", dicKey.ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("hash", ociChar.GetChaControl().GetHashCode().ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("name", ociChar.charInfo != null ? ociChar.charInfo.name : string.Empty);
+
+                List<SphereCollider> scolliders = ociChar.charInfo.objBodyBone
+                    .transform
+                    .GetComponentsInChildren<SphereCollider>()
+                    .OrderBy(col => col.gameObject.name) // 이름순 정렬
+                    .ToList();
+
+                List<Transform> targetCollider = new List<Transform>();
+
+                foreach (var col in scolliders)
+                {
+                    if (col == null) continue;
+
+                    if (col.gameObject.name.Contains("Cloth colliders"))
+                    {
+                        targetCollider.Add(col.gameObject.transform);
+                    }
+                }
+
+                // capsule collider
+                List<CapsuleCollider> ccolliders = ociChar.charInfo.objBodyBone
+                    .transform
+                    .GetComponentsInChildren<CapsuleCollider>(true)
+                    .OrderBy(col => col.gameObject.name)
+                    .ToList();
+
+                foreach (var col in ccolliders)
+                {
+
+                    if (col == null) continue;
+
+                    if (col.gameObject.name.Contains("Cloth colliders"))
+                    {
+                        targetCollider.Add(col.gameObject.transform);
+                    }
+                }
+
+                string collider_name = "";
+                foreach (Transform collider in targetCollider)
+                {
+                    int idx = collider.name.IndexOf('-');
+                    if (idx >= 0)
+                        collider_name = collider.name.Substring(0, idx);
+                    else
+                        collider_name = collider.name;
+
+                    writer.WriteStartElement("bone");
+                    writer.WriteAttributeString("name", collider_name);
+
+                    // position
+                    writer.WriteStartElement("position");
+                    writer.WriteAttributeString("x", collider.localPosition.x.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("y", collider.localPosition.y.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("z", collider.localPosition.z.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteEndElement();
+
+                    // rotation
+                    writer.WriteStartElement("rotation");
+                    writer.WriteAttributeString("x", collider.localEulerAngles.x.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("y", collider.localEulerAngles.y.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("z", collider.localEulerAngles.z.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteEndElement();
+
+                    // scale
+                    writer.WriteStartElement("scale");
+                    writer.WriteAttributeString("x", collider.localScale.x.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("y", collider.localScale.y.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("z", collider.localScale.z.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteEndElement();
+
+                    writer.WriteEndElement(); // collider
+                }
+
+                writer.WriteEndElement(); // character
+            }             
+        }
+
+        private bool TryGetDicKey(ChaControl chaCtrl, out int dicKey)
+        {
+            dicKey = 0;
+            if (chaCtrl == null)
+                return false;
+
+            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
+            {
+                var oci = kvp.Value as OCIChar;
+                if (oci == null)
+                    continue;
+
+                if (oci.GetChaControl() == chaCtrl)
+                {
+                    dicKey = kvp.Key;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private OCIChar FindOciCharByDicKey(Dictionary<int, OCIChar> map, int savedDicKey)
+        {
+            if (map.TryGetValue(savedDicKey, out var oci))
+                return oci;
+
+            return null;
+        }
+#endif
         // 현재 스튜디오에서 선택된 OCIChar를 가져온다.
         private OCIChar GetCurrentOCI()
         {
-            OCIChar ociChar = GetLastOCICharFromStudio();
+            if (Studio.Studio.Instance == null || Studio.Studio.Instance.treeNodeCtrl == null)
+                return null;
 
-            return ociChar;
+            TreeNodeObject node  = Studio.Studio.Instance.treeNodeCtrl.selectNodes
+                .LastOrDefault();
+
+            return  node != null ? Studio.Studio.GetCtrlInfo(node) as OCIChar : null;
         }
 
-        internal PhysicCollider GetCurrentData(OCIChar ociChar)
+        internal ClothCollideVisualizerController GetCurrentControl()
         {
+            OCIChar ociChar = GetCurrentOCI();
+            if (ociChar != null)
+            {
+                return ociChar.GetChaControl().GetComponent<ClothCollideVisualizerController>();
+            }
+            return null;
+        }
+        internal ClothCollideVisualizerController GetControl(OCIChar ociChar)
+        {
+            if (ociChar != null)
+            {
+                return ociChar.GetChaControl().GetComponent<ClothCollideVisualizerController>();
+            }
+            return null;
+        }
+
+        internal PhysicCollider GetCurrentData()
+        {
+            OCIChar ociChar = GetCurrentOCI();
             if (ociChar == null || ociChar.GetChaControl() == null)
                 return null;
 
@@ -230,28 +616,18 @@ namespace ClothCollideVisualizer
             return null;
         }
 
-        internal ClothCollideVisualizerController GetCurrentControl(OCIChar ociChar)
+        private PhysicCollider GetDataAndCreate(OCIChar ociChar)
         {
-            return ociChar.GetChaControl().GetComponent<ClothCollideVisualizerController>();
+            if (ociChar == null || ociChar.GetChaControl() == null)
+                return null;
+
+            var controller = ociChar.GetChaControl().GetComponent<ClothCollideVisualizerController>();
+            if (controller == null)
+                return null;
+
+            return controller.GetData() ?? controller.CreateData(ociChar);            
         }
 
-        // private ClothCollideVisualizerController GetCurrentControl()
-        // {
-        //     if (_currentOCIChar != null && _currentOCIChar.GetChaControl() != null) {
-        //         return _currentOCIChar.GetChaControl().GetComponent<ClothCollideVisualizerController>();         
-        //     }
-             
-        //     return null;      
-        // }    
-
-        protected override void OnGUI()
-        {
-            if (_ShowUI == false)
-                return;
-
-            if (StudioAPI.InsideStudio)
-                _windowRect = GUILayout.Window(_uniqueId + 1, _windowRect, WindowFunc, "ClothCollideVisualizer " + Version);
-        }
 
         // 플러그인 메인 윈도우 UI를 그린다.
         private void WindowFunc(int id)
@@ -271,23 +647,26 @@ namespace ClothCollideVisualizer
             }
 
             OCIChar ociChar = GetCurrentOCI();
+            PhysicCollider physicCollider = GetCurrentData();
 
-            if (ociChar != null && !ExistVisualColliders(ociChar))
-            {
-                AddVisualColliders(ociChar);
-            }
-            
-            PhysicCollider physicCollider = GetCurrentData(ociChar);
-
-            // UnityEngine.Debug.Log($">> physicCollider {physicCollider}");  
+            if (physicCollider == null)
+                physicCollider = GetDataAndCreate(ociChar);
 
             if (physicCollider != null)
             {
+                if (!physicCollider.visualColliderAdded)
+                    AddVisualColliders(ociChar);
+
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button(_showDebugVisuals ? "Hide Wireframe/Text" : "Show Wireframe/Text"))
                 {
                     _showDebugVisuals = !_showDebugVisuals;
                     SetDebugVisualsVisible(physicCollider, _showDebugVisuals);
+                }
+                if (GUILayout.Button("Force Refresh"))
+                {
+                    ForceRefreshVisualColliders(ociChar);
+                    physicCollider = GetDataAndCreate(ociChar);
                 }
                 GUILayout.EndHorizontal();
 
@@ -297,8 +676,12 @@ namespace ClothCollideVisualizer
                     var entry = physicCollider.debugEntries[i];
                     string label = entry != null ? entry.name : "(null)";
                     bool isModified = IsEntryModified(entry);
+                    bool isAdjustableEntry = (entry != null && entry.source != null && IsAdjustableCollider(entry.source))
+                        || (!string.IsNullOrEmpty(label) && label.IndexOf("Adjustable", StringComparison.OrdinalIgnoreCase) >= 0);
                     Color prevContentColor = GUI.contentColor;
-                    GUI.contentColor = isModified ? ModifiedEntryColor : UnmodifiedEntryColor;
+                    GUI.contentColor = isAdjustableEntry
+                        ? new Color(1f, 0.55f, 0f, 1f)
+                        : (isModified ? ModifiedEntryColor : UnmodifiedEntryColor);
                     if (GUILayout.Toggle(_selectedDebugIndex == i, label, GUI.skin.button))
                     {
                         if (_selectedDebugIndex != i)
@@ -400,6 +783,43 @@ namespace ClothCollideVisualizer
             GUI.Box(rect, GUIContent.none);
             GUILayout.Space(10);
         }
+
+        private void ForceRefreshVisualColliders(OCIChar ociChar)
+        {
+            if (ociChar == null || ociChar.GetChaControl() == null)
+                return;
+
+            var controller = _self.GetControl(ociChar);
+            if (controller == null)
+                return;
+
+            controller.RemovePhysicCollier();
+            CleanupVisualsByName(ociChar);
+            _selectedDebugEntry = null;
+            _selectedDebugIndex = -1;
+
+            AddVisualColliders(ociChar);
+        }
+
+        private void ForceRemoveVisualColliders(OCIChar ociChar)
+        {
+            if (ociChar == null || ociChar.GetChaControl() == null)
+                return;
+
+            var controller = _self.GetControl(ociChar);
+            if (controller == null)
+                return;
+
+            controller.RemovePhysicCollier();
+            CleanupVisualsByName(ociChar);
+            _selectedDebugEntry = null;
+            _selectedDebugIndex = -1;
+            PhysicCollider physicCollider = controller.GetData();
+            if (physicCollider != null)
+                physicCollider.visualColliderAdded = false;
+
+        }
+
 
         private float SliderRow(string label, float value, float min, float max, float resetValue, float step)
         {
@@ -515,308 +935,7 @@ namespace ClothCollideVisualizer
                 && Mathf.Abs(Mathf.DeltaAngle(a.z, b.z)) < TransformCompareEpsilon;
         }
 
-        // 씬 로드/임포트 시 공통 초기화가 필요할 경우 이 지점에서 처리한다.
-        private void SceneInit()
-        {
-        }
 
-#if FEATURE_SCENE_SAVE
-        private void OnSceneLoad(string path)
-        {
-            SceneInit();
-            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
-            if (data == null)
-                return;
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml((string)data.data["sceneInfo"]);
-            XmlNode node = doc.FirstChild;
-            if (node == null)
-                return;
-            SceneLoad(path, node);
-        }
-
-        private void OnSceneImport(string path)
-        {
-            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
-            if (data == null)
-                return;
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml((string)data.data["sceneInfo"]);
-            XmlNode node = doc.FirstChild;
-            if (node == null)
-                return;
-            SceneImport(path, node);
-        }
-
-        private void OnSceneSave(string path)
-        {
-            using (StringWriter stringWriter = new StringWriter())
-            using (XmlTextWriter xmlWriter = new XmlTextWriter(stringWriter))
-            {
-                xmlWriter.WriteStartElement("root");
-                SceneWrite(path, xmlWriter);
-                xmlWriter.WriteEndElement();
-
-                PluginData data = new PluginData();
-                data.version = ClothCollideVisualizer._saveVersion;
-                data.data.Add("sceneInfo", stringWriter.ToString());
-
-                // UnityEngine.Debug.Log($">> visualizer sceneInfo {stringWriter.ToString()}");
-
-                ExtendedSave.SetSceneExtendedDataById(_extSaveKey, data);
-            }
-        }
-
-        private void SceneLoad(string path, XmlNode node)
-        {
-            if (node == null)
-                return;
-            this.ExecuteDelayed2(() =>
-            {
-                List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
-
-                List<OCIChar> ociChars = dic
-                    .Select(kv => kv.Value as OCIChar)
-                    .Where(c => c != null)       
-                    .ToList();
-
-                SceneRead(node, ociChars);
-
-                // delete collider treeNodeObjects
-                List<TreeNodeObject> deleteTargets = new List<TreeNodeObject>();
-                foreach (TreeNodeObject treeNode in Singleton<Studio.Studio>.Instance.treeNodeCtrl.m_TreeNodeObject)
-                {
-                    if (treeNode.m_TextName.text == GROUP_CAPSULE_COLLIDER || treeNode.m_TextName.text == GROUP_SPHERE_COLLIDER)
-                    {
-                        treeNode.enableDelete = true;
-                        deleteTargets.Add(treeNode);
-                    }
-                }
-
-                foreach (TreeNodeObject target  in deleteTargets)
-                {
-                    Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(target);
-                }
-            }, 20);
-        }
-
-        private void SceneImport(string path, XmlNode node)
-        {
-            Dictionary<int, ObjectCtrlInfo> toIgnore = new Dictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
-            this.ExecuteDelayed2(() =>
-            {
-                List<KeyValuePair<int, ObjectCtrlInfo>> dic = Studio.Studio.Instance.dicObjectCtrl.Where(e => toIgnore.ContainsKey(e.Key) == false).OrderBy(e => SceneInfo_Import_Patches._newToOldKeys[e.Key]).ToList();
-
-                List<OCIChar> ociChars = dic
-                    .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo 
-                    .Where(c => c != null)               // null 
-                    .ToList();
-
-                SceneRead(node, ociChars);
-            }, 20);
-        }
-
-        private void SceneRead(XmlNode node, List<OCIChar> ociChars)
-        {            
-            foreach (XmlNode charNode in node.SelectNodes("character"))
-            {
-                string charName = charNode.Attributes["name"]?.Value;
-                if (string.IsNullOrEmpty(charName)) continue;
-                OCIChar ociChar = ociChars.FirstOrDefault(c => c.charInfo.name == charName);
-                if (ociChar == null)
-                {
-                    // UnityEngine.Debug.LogWarning($">> SceneRead: Character '{charName}' not found!");
-                    continue;
-                }
-       
-
-                foreach (XmlNode boneNode in charNode.SelectNodes("bone"))
-                {
-                    string colliderName = boneNode.Attributes["name"]?.Value;
-                    if (string.IsNullOrEmpty(colliderName)) continue;
-
-                    Transform bone = FindColliderByName(ociChar, colliderName);
-                    if (bone == null)
-                    {
-                        // UnityEngine.Debug.LogWarning($">> SceneRead: collider '{colliderName}' not found in {charName}");
-                        continue;
-                    }
-
-                    // position
-                    XmlNode posNode = boneNode.SelectSingleNode("position");
-                    if (posNode != null)
-                    {
-                        bone.localPosition = new Vector3(
-                            ParseFloat(posNode.Attributes["x"]?.Value),
-                            ParseFloat(posNode.Attributes["y"]?.Value),
-                            ParseFloat(posNode.Attributes["z"]?.Value)
-                        );
-                    }
-
-                    // rotation
-                    XmlNode rotNode = boneNode.SelectSingleNode("rotation");
-                    if (rotNode != null)
-                    {
-                        bone.localEulerAngles = new Vector3(
-                            ParseFloat(rotNode.Attributes["x"]?.Value),
-                            ParseFloat(rotNode.Attributes["y"]?.Value),
-                            ParseFloat(rotNode.Attributes["z"]?.Value)
-                        );
-                    }
-
-                    // scale
-                    XmlNode scaleNode = boneNode.SelectSingleNode("scale");
-                    if (scaleNode != null)
-                    {
-                        bone.localScale = new Vector3(
-                            ParseFloat(scaleNode.Attributes["x"]?.Value),
-                            ParseFloat(scaleNode.Attributes["y"]?.Value),
-                            ParseFloat(scaleNode.Attributes["z"]?.Value)
-                        );
-                    }
-                }
-            }
-        }
-
-        private Transform FindColliderByName(OCIChar ociChar, string colliderName)
-        {
-            var capColliders = ociChar.charInfo.objBodyBone
-                .transform
-                .GetComponentsInChildren<CapsuleCollider>();
-
-            foreach (CapsuleCollider capCollider in capColliders) {
-                if (capCollider != null) {
-                    string collider_name = "";
-                    int idx = capCollider.name.IndexOf('-');
-                    if (idx >= 0)
-                        collider_name = capCollider.name.Substring(0, idx);
-                    else
-                        collider_name = capCollider.name;
-
-                    if (colliderName == collider_name)
-                        return capCollider.transform;
-                }
-            }
-
-            var sphereColliders = ociChar.charInfo.objBodyBone
-                .transform
-                .GetComponentsInChildren<SphereCollider>();            
-
-            foreach (SphereCollider sphereCollider in sphereColliders) {
-                if (sphereCollider != null) {
-                    string collider_name = "";
-                    int idx = sphereCollider.name.IndexOf('-');
-                    if (idx >= 0)
-                        collider_name = sphereCollider.name.Substring(0, idx);
-                    else
-                        collider_name = sphereCollider.name;
-
-                    if (colliderName == collider_name)
-                        return sphereCollider.transform;
-                }
-            }
-
-            return null;
-        }
-
-        // 유틸: 문자열을 float 값으로 파싱한다.
-        private float ParseFloat(string value)
-        {
-            if (float.TryParse(value, out float result))
-                return result;
-            return 0f;
-        }
-
-        private void SceneWrite(string path, XmlTextWriter writer)
-        {
-            List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
-
-            List<OCIChar> ociChars = dic
-                .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo를 OCIChar로 캐스팅
-                .Where(c => c != null)               // null 항목 제거
-                .ToList();
-
-            foreach (OCIChar ociChar in ociChars)
-            {
-                writer.WriteStartElement("character");
-                writer.WriteAttributeString("name", "" + ociChar.charInfo.name);
-
-                List<SphereCollider> scolliders = ociChar.charInfo.objBodyBone
-                    .transform
-                    .GetComponentsInChildren<SphereCollider>()
-                    .OrderBy(col => col.gameObject.name) // 이름순 정렬
-                    .ToList();
-
-                List<Transform> targetCollider = new List<Transform>();
-
-                foreach (var col in scolliders)
-                {
-                    if (col == null) continue;
-
-                    if (col.gameObject.name.Contains("Cloth colliders"))
-                    {
-                        targetCollider.Add(col.gameObject.transform);
-                    }
-                }
-
-                // capsule collider
-                List<CapsuleCollider> ccolliders = ociChar.charInfo.objBodyBone
-                    .transform
-                    .GetComponentsInChildren<CapsuleCollider>(true)
-                    .OrderBy(col => col.gameObject.name)
-                    .ToList();
-
-                foreach (var col in ccolliders)
-                {
-
-                    if (col == null) continue;
-
-                    if (col.gameObject.name.Contains("Cloth colliders"))
-                    {
-                        targetCollider.Add(col.gameObject.transform);
-                    }
-                }
-
-                string collider_name = "";
-                foreach (Transform collider in targetCollider)
-                {
-                    int idx = collider.name.IndexOf('-');
-                    if (idx >= 0)
-                        collider_name = collider.name.Substring(0, idx);
-                    else
-                        collider_name = collider.name;
-
-                    writer.WriteStartElement("bone");
-                    writer.WriteAttributeString("name", collider_name);
-
-                    // position
-                    writer.WriteStartElement("position");
-                    writer.WriteAttributeString("x", collider.localPosition.x.ToString());
-                    writer.WriteAttributeString("y", collider.localPosition.y.ToString());
-                    writer.WriteAttributeString("z", collider.localPosition.z.ToString());
-                    writer.WriteEndElement();
-
-                    // rotation
-                    writer.WriteStartElement("rotation");
-                    writer.WriteAttributeString("x", collider.localEulerAngles.x.ToString());
-                    writer.WriteAttributeString("y", collider.localEulerAngles.y.ToString());
-                    writer.WriteAttributeString("z", collider.localEulerAngles.z.ToString());
-                    writer.WriteEndElement();
-
-                    // scale
-                    writer.WriteStartElement("scale");
-                    writer.WriteAttributeString("x", collider.localScale.x.ToString());
-                    writer.WriteAttributeString("y", collider.localScale.y.ToString());
-                    writer.WriteAttributeString("z", collider.localScale.z.ToString());
-                    writer.WriteEndElement();
-
-                    writer.WriteEndElement(); // collider
-                }
-
-                writer.WriteEndElement(); // character
-            }             
-        }
-#endif
         #endregion
 
         #region Public Methods
@@ -826,19 +945,13 @@ namespace ClothCollideVisualizer
         #region Private Methods
         private void Init()
         {
-            UIUtility.Init();
             _loaded = true;
         }
-
-        private static OCIChar GetLastOCICharFromStudio()
+        
+        private void SceneInit()
         {
-            if (Studio.Studio.Instance == null || Studio.Studio.Instance.treeNodeCtrl == null)
-                return null;
-
-            TreeNodeObject node  = Studio.Studio.Instance.treeNodeCtrl.selectNodes
-                .LastOrDefault();
-
-            return  node != null ? Studio.Studio.GetCtrlInfo(node) as OCIChar : null;
+            Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+			_ShowUI = false;     
         }
 
         private static IEnumerator ExecuteAfterFrame(OCIChar ociChar, int frameCount)
@@ -846,7 +959,6 @@ namespace ClothCollideVisualizer
             for (int i = 0; i < frameCount; i++)
                 yield return null;
                 
-
             if (ociChar != null && _ShowUI)
                 _self.AddVisualColliders(ociChar);
         }
@@ -891,6 +1003,7 @@ namespace ClothCollideVisualizer
         private static void CreateCapsuleWireframe(CapsuleCollider capsule, Transform parent, string name, List<GameObject> debugObjects, Dictionary<Collider, List<Renderer>> debugCollideRenderers)
         {
             Camera cam = Camera.main;
+            bool isAdjustable = IsAdjustableCollider(capsule);
 
             // Root
             GameObject root = new GameObject(capsule.name + "_CapsuleWire");
@@ -919,7 +1032,7 @@ namespace ClothCollideVisualizer
             LineRenderer lr = lineObj.AddComponent<LineRenderer>();
             lr.useWorldSpace = false;
             lr.material = new Material(Shader.Find("Unlit/Color"));
-            lr.material.color = Color.green;
+            lr.material.color = GetBaseColliderColor(capsule, 0.75f);
             lr.widthMultiplier = 0.01f;
 
             List<Vector3> points = new List<Vector3>();
@@ -964,7 +1077,7 @@ namespace ClothCollideVisualizer
 
             // 콜라이더 이름 텍스트 생성
             Vector3 textPos = axis * (halfHeight * 0.5f + 0.1f);
-            CreateTextDebugLocal(root.transform, textPos, name, cam, debugObjects, debugCollideRenderers);
+            CreateTextDebugLocal(root.transform, textPos, name, cam, debugObjects, debugCollideRenderers, isAdjustable);
 
             if (_showDebugVisuals == false)
             {
@@ -975,6 +1088,7 @@ namespace ClothCollideVisualizer
         private static void CreateSphereWireframe(SphereCollider sphere, Transform parent, string name, List<GameObject> debugObjects, Dictionary<Collider, List<Renderer>> debugCollideRenderers)
         {
             Camera cam = Camera.main;
+            bool isAdjustable = IsAdjustableCollider(sphere);
 
             GameObject root = new GameObject(sphere.name + "_SphereWire");
             root.transform.SetParent(parent, false);
@@ -988,7 +1102,7 @@ namespace ClothCollideVisualizer
             LineRenderer lr = lineObj.AddComponent<LineRenderer>();
             lr.useWorldSpace = false;
             lr.material = new Material(Shader.Find("Unlit/Color"));
-            lr.material.color = Color.green;
+            lr.material.color = GetBaseColliderColor(sphere, 0.75f);
             lr.widthMultiplier = 0.01f;
 
             List<Vector3> points = new List<Vector3>();
@@ -1026,7 +1140,7 @@ namespace ClothCollideVisualizer
 
             // 콜라이더 이름 텍스트 생성
             Vector3 textPos = sphere.center + Vector3.up * (radius + 0.05f);
-            CreateTextDebugLocal(root.transform, textPos, name, cam, debugObjects, debugCollideRenderers);
+            CreateTextDebugLocal(root.transform, textPos, name, cam, debugObjects, debugCollideRenderers, isAdjustable);
 
             if (_showDebugVisuals == false)
             {
@@ -1034,7 +1148,7 @@ namespace ClothCollideVisualizer
             }
         }
 
-        private static void CreateTextDebugLocal(Transform parent, Vector3 localPos, string text, Camera cam, List<GameObject> debugObjects, Dictionary<Collider, List<Renderer>> debugCollideRenderers)
+        private static void CreateTextDebugLocal(Transform parent, Vector3 localPos, string text, Camera cam, List<GameObject> debugObjects, Dictionary<Collider, List<Renderer>> debugCollideRenderers, bool isAdjustable = false)
         {
             GameObject textObj = new GameObject(text + "_" + "TextDebug");
             textObj.transform.SetParent(parent, false);
@@ -1043,7 +1157,7 @@ namespace ClothCollideVisualizer
             TextMesh tm = textObj.AddComponent<TextMesh>();
             tm.text = text;
             tm.fontSize = 35;
-            tm.color = Color.yellow;
+            tm.color = isAdjustable ? new Color(1f, 0.55f, 0f, 1f) : Color.yellow;
             tm.characterSize = 0.05f;
             tm.anchor = TextAnchor.MiddleCenter;
 
@@ -1087,17 +1201,13 @@ namespace ClothCollideVisualizer
                     // 선택된 콜라이더는 빨간색으로 강조하고 나머지는 타입별 기본색을 유지한다.
                     if (kvp.Key == selected)
                     {
-                        c.r = 1f; c.g = 0f; c.b = 0f; // 선택된 콜라이더 강조색
+                        c = IsAdjustableCollider(kvp.Key)
+                            ? new Color(1f, 0.55f, 0f, 1f)
+                            : new Color(1f, 0f, 0f, 1f);
                     }
                     else
                     {
-                        // 선택되지 않은 콜라이더는 타입별 기본색 적용 (반투명)
-                        if (kvp.Key is CapsuleCollider)
-                            c = new Color(0f, 1f, 0.5f, 0.5f);
-                        else if (kvp.Key is SphereCollider)
-                            c = new Color(0f, 1f, 0f, 0.5f);
-                        else if (kvp.Key is BoxCollider)
-                            c = new Color(0.5f, 1f, 0f, 0.5f);
+                        c = GetBaseColliderColor(kvp.Key, 0.5f);
                     }
                     rend.material.color = c;
                 }
@@ -1116,14 +1226,46 @@ namespace ClothCollideVisualizer
                     if (rend == null)
                         continue;
 
-                    if (kvp.Key is CapsuleCollider)
-                        rend.material.color = new Color(0f, 1f, 0.5f, 0.5f);
-                    else if (kvp.Key is SphereCollider)
-                        rend.material.color = new Color(0f, 1f, 0f, 0.5f);
-                    else if (kvp.Key is BoxCollider)
-                        rend.material.color = new Color(0.5f, 1f, 0f, 0.5f);
+                    rend.material.color = GetBaseColliderColor(kvp.Key, 0.5f);
                 }
             }
+        }
+
+        private static bool IsAdjustableCollider(Collider collider)
+        {
+            if (collider == null)
+                return false;
+
+            if (!string.IsNullOrEmpty(collider.name) &&
+                collider.name.IndexOf("Adjustable", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            Transform tr = collider.transform;
+            while (tr != null)
+            {
+                if (!string.IsNullOrEmpty(tr.name) &&
+                    tr.name.IndexOf("Adjustable", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+
+                tr = tr.parent;
+            }
+
+            return false;
+        }
+
+        private static Color GetBaseColliderColor(Collider collider, float alpha)
+        {
+            if (IsAdjustableCollider(collider))
+                return new Color(1f, 0.55f, 0f, alpha);
+
+            if (collider is CapsuleCollider)
+                return new Color(0f, 1f, 0.5f, alpha);
+            if (collider is SphereCollider)
+                return new Color(0f, 1f, 0f, alpha);
+            if (collider is BoxCollider)
+                return new Color(0.5f, 1f, 0f, alpha);
+
+            return new Color(0f, 1f, 0f, alpha);
         }
 
         private static void InitCollider(PhysicCollider value)
@@ -1156,39 +1298,18 @@ namespace ClothCollideVisualizer
                 value.debugEntryBySource.Clear();                
         }
 
-        // 현재 캐릭터에 시각화 데이터가 이미 생성되어 있는지 확인한다.
-        private static bool ExistVisualColliders(OCIChar ociChar)
-        {
-            if (ociChar != null)
-            {
-                var controller = ociChar.GetChaControl().GetComponent<ClothCollideVisualizerController>();
-                UnityEngine.Debug.Log($">> controller {controller}");
-
-                if (controller != null)
-                {
-                    PhysicCollider physicCollider = controller.GetData();
-
-                    if (physicCollider != null)
-                        return true;
-                    else
-                        return false;
-                }
-            }
-            return false;
-        }
-
         // 선택된 캐릭터의 Cloth Collider를 탐색해 디버그 시각화를 생성한다.
         private void AddVisualColliders(OCIChar ociChar)
         {
             if (ociChar != null)
             {
-                var controller = _self.GetCurrentControl(ociChar);
+                var controller = _self.GetControl(ociChar);
                 if (controller != null)
                 {
                     PhysicCollider physicCollider = controller.GetData();
 
                     if (physicCollider == null)
-                        controller.InitPhysicCollider(ociChar);
+                        controller.CreateData(ociChar);
 
                     physicCollider = controller.GetData();
                     if (physicCollider == null)
@@ -1333,23 +1454,24 @@ namespace ClothCollideVisualizer
 
                     SetDebugVisualsVisible(physicCollider, _showDebugVisuals);
 
-                    UnityEngine.Debug.Log($">> AddVisualColliders");     
+                    physicCollider.visualColliderAdded = true;
+
+                    // UnityEngine.Debug.Log($">> AddVisualColliders");     
                 }        
             }
         }
 
-        #region Patches
-        [HarmonyPatch(typeof(SceneInfo), "Import", new[] { typeof(BinaryReader), typeof(global::System.Version) })]
-        private static class SceneInfo_Import_Patches //This is here because I fucked up the save format making it impossible to import scenes correctly
+        #region Patches         
+        [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
+        private static class Studio_InitScene_Patches
         {
-            internal static readonly Dictionary<int, int> _newToOldKeys = new Dictionary<int, int>();
-
-            private static void Prefix()
+            private static bool Prefix(object __instance, bool _close)
             {
-                _newToOldKeys.Clear();
+                _self.SceneInit();
+                return true;
             }
-        }        
-        
+        }
+
         [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
         internal static class OCIChar_ChangeChara_Patches
         {
@@ -1359,13 +1481,11 @@ namespace ClothCollideVisualizer
 
                 if (ociChar != null)
                 {
-                    var controller = _self.GetCurrentControl(ociChar);
+                    var controller = _self.GetControl(ociChar);
                     if (controller != null)
                     {
                         // 교체 전 데이터/디버그 오브젝트 정리
-                        controller.RemovePhysicCollier();
-                        _self.CleanupVisualsByName(ociChar);
-                        __instance.GetChaControl().StartCoroutine(ExecuteAfterFrame(ociChar, 10));
+                        _self.ForceRemoveVisualColliders(ociChar);
                     }
                 }
             }
@@ -1380,13 +1500,11 @@ namespace ClothCollideVisualizer
 
                 if (ociChar != null)
                 {
-                    var controller = _self.GetCurrentControl(ociChar);
+                    var controller = _self.GetControl(ociChar);
                     if (controller != null)
                     {
                         // 변경 전 데이터/디버그 오브젝트 정리
-                        controller.RemovePhysicCollier();
-                        _self.CleanupVisualsByName(ociChar);
-                        __instance.StartCoroutine(ExecuteAfterFrame(ociChar, 10));
+                        _self.ForceRemoveVisualColliders(ociChar);
                     }
                 }
             }
@@ -1401,21 +1519,16 @@ namespace ClothCollideVisualizer
 
                 if (ociChar != null)
                 {
-                    var controller = _self.GetCurrentControl(ociChar);
+                    var controller = _self.GetControl(ociChar);
                     if (controller != null)
                     {
                         // 변경 전 데이터/디버그 오브젝트 정리
-                        controller.RemovePhysicCollier();
-                        _self.CleanupVisualsByName(ociChar);
-                        __instance.StartCoroutine(ExecuteAfterFrame(ociChar, 10));
+                        _self.ForceRemoveVisualColliders(ociChar);
                     }
                 }
             }
         }
 
-
         #endregion
     }
 }
-
-

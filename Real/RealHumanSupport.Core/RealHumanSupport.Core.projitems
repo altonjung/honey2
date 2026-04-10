@@ -9,12 +9,12 @@
     <Import_RootNamespace>RealHumanSupport.Core</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />    
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)RealHumanSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)RealHumanSupportController.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\toolbar_icon.png" />
-  </ItemGroup>  
+  </ItemGroup>
 </Project>

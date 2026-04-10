@@ -76,9 +76,6 @@ using KKAPI.Chara;
         - collide가 생성된 대상 OCIItem 가 재 선택시 생성되었던 collide가 다시 시각화 되어야 함..
         - 이처리를 위해선 collide 이름에 특별한 명칭을 부여하여, OCItem 선택시 collide 찾기가 용이해야함
         - collide 삭제 버튼을 제공하여 삭제될 수 있어야 함
-
-    확인사항:
-        - 이게 성능 이슈가 좀 있는거 같아.. collider 생성 시점 많이 느려지는 느낌이 존재해..원인을 한번 확인해봐..
 */
 namespace ClothCollideBinder
 {
@@ -103,6 +100,11 @@ namespace ClothCollideBinder
         private const int _saveVersion = 0;
         private const string _extSaveKey = "cloth_collide_binder";
 #endif
+        private const int ClothSlotCount = 7;
+        private static readonly string[] ClothSlotLabels = new[]
+        {
+            "Top", "Bottom", "Bra", "Pants", "Gloves", "Stockings", "Shoes"
+        };
         #endregion
 
 #if IPA
@@ -114,8 +116,13 @@ namespace ClothCollideBinder
         #region Private Types
         private enum ClothBindingTarget
         {
-            Top,
-            Bottom
+            Top = 0,
+            Bottom = 1,
+            Bra = 2,
+            Pants = 3,
+            Gloves = 4,
+            Stockings = 5,
+            Shoes = 6
         }
 
         private enum ExternalColliderType
@@ -150,7 +157,7 @@ namespace ClothCollideBinder
         private sealed class BinderState
         {
             public OCIChar ociChar;
-            public ClothInfo[] clothInfos = Enumerable.Range(0, 8).Select(_ => new ClothInfo()).ToArray();
+            public ClothInfo[] clothInfos = Enumerable.Range(0, ClothSlotCount).Select(_ => new ClothInfo()).ToArray();
             public List<ExternalItemColliderBinding> externalItemColliderBindings = new List<ExternalItemColliderBinding>();
             public bool bindingsDirty;
         }
@@ -176,6 +183,8 @@ namespace ClothCollideBinder
         private Vector3 _pendingColliderCenter = Vector3.zero;
         private float _pendingColliderRadius = 0.2f;
         private float _pendingColliderHeight = 0.6f;
+        private GameObject _selectedItemMarkerObject;
+        private OCIItem _selectedMarkerItem;
 
         private const int _uniqueId = ('C' << 24) | ('C' << 16) | ('V' << 8) | 'S';
         
@@ -183,6 +192,9 @@ namespace ClothCollideBinder
         private GUIStyle _richLabel;
 
         private const string EXTERNAL_COLLIDER_OBJECT_PREFIX = "CC_ExternalCollider_";
+        private const string SELECTED_ITEM_MARKER_OBJECT_NAME = "CC_SelectedOCIItemMarker";
+        private static readonly Color BOUND_ITEM_COLOR = new Color(1f, 0.35f, 0.35f, 1f);
+        private static readonly Color DEFAULT_ITEM_COLOR = Color.white;
 
         private GUIStyle RichLabel
         {
@@ -227,6 +239,8 @@ namespace ClothCollideBinder
                 false, this, val =>
                 {
                     _ShowUI = val;
+                    if (!val)
+                        ClearSelectedOciItemMarker();
                 });
             ToolbarManager.AddLeftToolbarControl(_toolbarButton);
 
@@ -251,58 +265,63 @@ namespace ClothCollideBinder
             ProcessDirtyRebuilds();
         }
 
+        #endregion
+        
+        #region Private Methods
         private OCIChar GetCurrentOCI()
         {
-            OCIChar ociChar = GetLastOCICharFromStudio();
+            if (Studio.Studio.Instance == null || Studio.Studio.Instance.treeNodeCtrl == null)
+                return null;
 
-            return ociChar;
+            TreeNodeObject node  = Studio.Studio.Instance.treeNodeCtrl.selectNodes
+                .LastOrDefault();
+
+            return  node != null ? Studio.Studio.GetCtrlInfo(node) as OCIChar : null;
         }
         
-        private Cloth GetClothTop()
+        private Cloth GetCloth(int clothIndex)
         {
-            OCIChar ociChar = GetCurrentOCI();
-            if (ociChar != null)
-            {
-                if (ociChar.GetChaControl().objClothes[0] != null)
-                {
-                    Cloth[] clothes = ociChar.GetChaControl().objClothes[0].transform.GetComponentsInChildren<Cloth>(true);
-
-                    if (clothes.Length > 0)
-                    {
-                        return clothes[0];
-                    }
-                }
-            }
-
-            return null;        
+            return GetCloth(GetCurrentOCI(), clothIndex);
         }
 
-        private Cloth GetClothBottom()
+        private static Cloth GetCloth(OCIChar ociChar, int clothIndex)
         {
-            OCIChar ociChar = GetCurrentOCI();
-            if (ociChar != null)
-            {
-                if (ociChar.GetChaControl().objClothes[1] != null)
-                {
-                    Cloth[] clothes = ociChar.GetChaControl().objClothes[1].transform.GetComponentsInChildren<Cloth>(true);
+            if (clothIndex < 0 || clothIndex >= ClothSlotCount)
+                return null;
 
-                    if (clothes.Length > 0)
-                    {
-                        return clothes[0];
-                    }
-                }
-            }
+            ChaControl chaControl = ociChar != null ? ociChar.GetChaControl() : null;
+            if (chaControl == null || chaControl.objClothes == null || clothIndex >= chaControl.objClothes.Length)
+                return null;
 
-            return null;             
+            GameObject clothObj = chaControl.objClothes[clothIndex];
+            if (clothObj == null)
+                return null;
+
+            Cloth[] clothes = clothObj.transform.GetComponentsInChildren<Cloth>(true);
+            if (clothes == null || clothes.Length == 0)
+                return null;
+
+            return clothes[0];
         }
 
         protected override void OnGUI()
         {
-            if (_ShowUI == false)
+            if (_loaded == false)
                 return;
 
-            if (StudioAPI.InsideStudio)
+            if (StudioAPI.InsideStudio) {            
+                if (_ShowUI == false)
+                {
+                    ClearSelectedOciItemMarker();
+                    return;
+                }
+
                 _windowRect = GUILayout.Window(_uniqueId + 1, _windowRect, WindowFunc, "ClothCollideBinder " + Version);
+            }
+            else
+            {
+                ClearSelectedOciItemMarker();
+            }
         }
 
         private void WindowFunc(int id)
@@ -334,6 +353,7 @@ namespace ClothCollideBinder
             } else
             {
                 GUILayout.Label("<color=white>Nothing to select</color>", RichLabel);   
+                ClearSelectedOciItemMarker();
             }
 
             if (!string.IsNullOrEmpty(GUI.tooltip))
@@ -347,6 +367,7 @@ namespace ClothCollideBinder
             {
                 studio.cameraCtrl.noCtrlCondition = null;
                 _ShowUI = false;
+                ClearSelectedOciItemMarker();
             }
             GUILayout.EndHorizontal();
 
@@ -454,38 +475,46 @@ namespace ClothCollideBinder
             if (physicCollider != null && physicCollider.ociChar != null && physicCollider.ociChar.charInfo != null)
                 GUILayout.Label($"Character: {physicCollider.ociChar.charInfo.name}");
 
-            Cloth clothTop = GetClothTop();
-            Cloth clothBottom = GetClothBottom();
-            bool hasTop = clothTop != null;
-            bool hasBottom = clothBottom != null;
-
-            if (!hasTop && !hasBottom)
+            bool[] hasClothByIndex = new bool[ClothSlotCount];
+            bool hasSelectableTarget = false;
+            OCIChar currentOci = physicCollider != null ? physicCollider.ociChar : GetCurrentOCI();
+            for (int i = 0; i < ClothSlotCount; i++)
             {
-                GUILayout.Label("<color=white>No cloth found in Top/Bottom slot</color>", RichLabel);
+                hasClothByIndex[i] = GetCloth(currentOci, i) != null;
+                if (IsClothTargetButtonEnabled(i, hasClothByIndex[i]))
+                    hasSelectableTarget = true;
+            }
+
+            if (!hasSelectableTarget)
+            {
+                GUILayout.Label("<color=white>No selectable cloth target found</color>", RichLabel);
+                UpdateSelectedOciItemMarker(null);
                 return;
             }
 
-            if (_selectedClothTarget == ClothBindingTarget.Top && !hasTop)
-                _selectedClothTarget = ClothBindingTarget.Bottom;
-            if (_selectedClothTarget == ClothBindingTarget.Bottom && !hasBottom)
-                _selectedClothTarget = ClothBindingTarget.Top;
+            int selectedClothIndex = (int)_selectedClothTarget;
+            if (selectedClothIndex < 0 || selectedClothIndex >= ClothSlotCount || !IsClothTargetButtonEnabled(selectedClothIndex, hasClothByIndex[selectedClothIndex]))
+                _selectedClothTarget = FindFirstSelectableClothTarget(hasClothByIndex);
 
             GUILayout.Label("<color=orange>1) Cloth Target</color>", RichLabel);
-            GUILayout.BeginHorizontal();
             bool prevEnabled = GUI.enabled;
-
-            GUI.enabled = hasTop;
-            if (GUILayout.Toggle(_selectedClothTarget == ClothBindingTarget.Top, "Top", GUI.skin.button))
-                _selectedClothTarget = ClothBindingTarget.Top;
-
-            GUI.enabled = hasBottom;
-            if (GUILayout.Toggle(_selectedClothTarget == ClothBindingTarget.Bottom, "Bottom", GUI.skin.button))
-                _selectedClothTarget = ClothBindingTarget.Bottom;
-
+            for (int rowStart = 0; rowStart < ClothSlotCount; rowStart += 4)
+            {
+                GUILayout.BeginHorizontal();
+                int rowEnd = Mathf.Min(rowStart + 4, ClothSlotCount);
+                for (int i = rowStart; i < rowEnd; i++)
+                {
+                    bool enabled = IsClothTargetButtonEnabled(i, hasClothByIndex[i]);
+                    GUI.enabled = enabled;
+                    ClothBindingTarget clothTarget = (ClothBindingTarget)i;
+                    if (GUILayout.Toggle(_selectedClothTarget == clothTarget, ClothSlotLabels[i], GUI.skin.button))
+                        _selectedClothTarget = clothTarget;
+                }
+                GUILayout.EndHorizontal();
+            }
             GUI.enabled = prevEnabled;
-            GUILayout.EndHorizontal();
 
-            GUILayout.Label($"Selected: {_selectedClothTarget}");
+            GUILayout.Label($"Selected: {GetClothTargetLabel(_selectedClothTarget)}");
 
             GUILayout.Space(4f);
             GUILayout.Label("<color=orange>2) OCIItem List</color>", RichLabel);
@@ -499,12 +528,14 @@ namespace ClothCollideBinder
             if (_cachedOciItems.Count == 0)
             {
                 GUILayout.Label("<color=white>No OCIItem in scene</color>", RichLabel);
+                UpdateSelectedOciItemMarker(null);
                 return;
             }
 
             if (_selectedItemIndex < 0 || _selectedItemIndex >= _cachedOciItems.Count)
                 _selectedItemIndex = 0;
 
+            Color previousContentColor = GUI.contentColor;
             _itemScroll = GUILayout.BeginScrollView(_itemScroll, GUI.skin.box, GUILayout.Height(150));
             for (int i = 0; i < _cachedOciItems.Count; i++)
             {
@@ -512,18 +543,27 @@ namespace ClothCollideBinder
                 if (item == null)
                     continue;
 
+                bool hasBinding = HasExternalItemColliderBinding(physicCollider, item);
                 string label = ResolveItemDisplayName(item);
+                GUI.contentColor = hasBinding ? BOUND_ITEM_COLOR : DEFAULT_ITEM_COLOR;
                 if (GUILayout.Toggle(_selectedItemIndex == i, label, GUI.skin.button))
                 {
                     if (_selectedItemIndex != i)
                         _selectedItemIndex = i;
                 }
+                GUI.contentColor = previousContentColor;
             }
             GUILayout.EndScrollView();
+            GUI.contentColor = previousContentColor;
 
             OCIItem selectedItem = GetSelectedExternalItem();
             if (selectedItem == null)
+            {
+                UpdateSelectedOciItemMarker(null);
                 return;
+            }
+
+            UpdateSelectedOciItemMarker(selectedItem);
 
             ExternalItemColliderBinding binding = FindExternalItemColliderBinding(physicCollider, selectedItem);
             bool selectionChanged = _lastUiItem != selectedItem || _lastUiClothTarget != _selectedClothTarget;
@@ -550,7 +590,7 @@ namespace ClothCollideBinder
             if (binding != null)
             {
                 if (binding.clothTarget != _selectedClothTarget)
-                    GUILayout.Label($"<color=yellow>Bound To: {binding.clothTarget} (Remove to change)</color>", RichLabel);
+                    GUILayout.Label($"<color=yellow>Bound To: {GetClothTargetLabel(binding.clothTarget)} (Remove to change)</color>", RichLabel);
                 if (binding.colliderType != _pendingColliderType)
                     GUILayout.Label($"<color=yellow>Collider Type Locked: {binding.colliderType} (Remove to change)</color>", RichLabel);
             }
@@ -623,12 +663,153 @@ namespace ClothCollideBinder
             GUILayout.EndHorizontal();
         }
 
+        private static bool IsClothTargetButtonEnabled(int clothIndex, bool hasCloth)
+        {
+            if (!hasCloth)
+                return false;
+
+            if (clothIndex == (int)ClothBindingTarget.Bra || clothIndex == (int)ClothBindingTarget.Pants)
+            {
+#if FEATURE_SUPPORT_INNER_CLOTH
+                return true;
+#else
+                return false;
+#endif
+            }
+
+            return true;
+        }
+
+        private static ClothBindingTarget FindFirstSelectableClothTarget(bool[] hasClothByIndex)
+        {
+            if (hasClothByIndex == null)
+                return ClothBindingTarget.Top;
+
+            int limit = Mathf.Min(hasClothByIndex.Length, ClothSlotCount);
+            for (int i = 0; i < limit; i++)
+            {
+                if (IsClothTargetButtonEnabled(i, hasClothByIndex[i]))
+                    return (ClothBindingTarget)i;
+            }
+            return ClothBindingTarget.Top;
+        }
+
+        private static string GetClothTargetLabel(ClothBindingTarget clothTarget)
+        {
+            int index = (int)clothTarget;
+            if (index < 0 || index >= ClothSlotLabels.Length)
+                return clothTarget.ToString();
+            return ClothSlotLabels[index];
+        }
+
         private OCIItem GetSelectedExternalItem()
         {
             if (_selectedItemIndex < 0 || _selectedItemIndex >= _cachedOciItems.Count)
                 return null;
 
             return _cachedOciItems[_selectedItemIndex];
+        }
+
+        private void UpdateSelectedOciItemMarker(OCIItem selectedItem)
+        {
+            if (selectedItem == null)
+            {
+                ClearSelectedOciItemMarker();
+                return;
+            }
+
+            GameObject target = ResolveOciItemTarget(selectedItem);
+            if (target == null)
+            {
+                ClearSelectedOciItemMarker();
+                return;
+            }
+
+            bool needsRecreate =
+                _selectedItemMarkerObject == null ||
+                _selectedMarkerItem != selectedItem ||
+                _selectedItemMarkerObject.transform.parent != target.transform;
+
+            if (needsRecreate)
+            {
+                ClearSelectedOciItemMarker();
+                _selectedItemMarkerObject = CreateSelectedOciItemMarker(target);
+                _selectedMarkerItem = selectedItem;
+            }
+
+            if (_selectedItemMarkerObject == null)
+                return;
+
+            float yOffset = CalculateSelectedMarkerYOffset(target);
+            _selectedItemMarkerObject.transform.localPosition = new Vector3(0f, yOffset, 0f);
+            _selectedItemMarkerObject.transform.localRotation = Quaternion.identity;
+            _selectedItemMarkerObject.transform.localScale = Vector3.one;
+        }
+
+        private void ClearSelectedOciItemMarker()
+        {
+            if (_selectedItemMarkerObject != null)
+                GameObject.Destroy(_selectedItemMarkerObject);
+
+            _selectedItemMarkerObject = null;
+            _selectedMarkerItem = null;
+        }
+
+        private static GameObject CreateSelectedOciItemMarker(GameObject target)
+        {
+            if (target == null)
+                return null;
+
+            GameObject marker = new GameObject(SELECTED_ITEM_MARKER_OBJECT_NAME);
+            marker.transform.SetParent(target.transform, false);
+            marker.transform.localPosition = Vector3.zero;
+            marker.transform.localRotation = Quaternion.identity;
+            marker.transform.localScale = Vector3.one;
+
+            CreateSelectedMarkerLine(
+                marker.transform,
+                "Shaft",
+                new[] { new Vector3(0f, 0f, 0f), new Vector3(0f, 0.30f, 0f) });
+            CreateSelectedMarkerLine(
+                marker.transform,
+                "Head_Left",
+                new[] { new Vector3(0f, 0.30f, 0f), new Vector3(-0.09f, 0.21f, 0f) });
+            CreateSelectedMarkerLine(
+                marker.transform,
+                "Head_Right",
+                new[] { new Vector3(0f, 0.30f, 0f), new Vector3(0.09f, 0.21f, 0f) });
+
+            return marker;
+        }
+
+        private static void CreateSelectedMarkerLine(Transform parent, string lineName, Vector3[] points)
+        {
+            if (parent == null || points == null || points.Length < 2)
+                return;
+
+            GameObject lineObject = new GameObject(lineName);
+            lineObject.transform.SetParent(parent, false);
+
+            LineRenderer lineRenderer = lineObject.AddComponent<LineRenderer>();
+            ConfigureWireLineRenderer(lineRenderer, 0.012f, Color.green);
+            lineRenderer.positionCount = points.Length;
+            lineRenderer.SetPositions(points);
+        }
+
+        private static float CalculateSelectedMarkerYOffset(GameObject target)
+        {
+            if (target == null)
+                return 0.6f;
+
+            Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
+            if (renderers == null || renderers.Length == 0)
+                return 0.6f;
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+
+            return Mathf.Max(0.3f, bounds.extents.y + 0.2f);
         }
 
         private static ExternalItemColliderBinding FindExternalItemColliderBinding(BinderState physicCollider, OCIItem ociItem)
@@ -638,6 +819,11 @@ namespace ClothCollideBinder
 
             return physicCollider.externalItemColliderBindings
                 .FirstOrDefault(v => v != null && v.ociItem == ociItem);
+        }
+
+        private static bool HasExternalItemColliderBinding(BinderState physicCollider, OCIItem ociItem)
+        {
+            return FindExternalItemColliderBinding(physicCollider, ociItem) != null;
         }
 
         private void RefreshExternalItemList(BinderState physicCollider)
@@ -651,6 +837,7 @@ namespace ClothCollideBinder
             if (physicCollider == null)
                 return;
 
+            bool removedInvalidBinding = false;
             List<ExternalItemColliderBinding> invalidBindings = physicCollider.externalItemColliderBindings
                 .Where(v => v == null || v.ociItem == null || !_cachedOciItems.Contains(v.ociItem))
                 .ToList();
@@ -670,10 +857,15 @@ namespace ClothCollideBinder
                     GameObject.Destroy(invalid.visualObject);
 
                 physicCollider.externalItemColliderBindings.Remove(invalid);
+                removedInvalidBinding = true;
             }
 
-            CleanupDuplicateBindings(physicCollider);
-            MarkBindingsDirty(physicCollider);
+            if (_selectedMarkerItem != null && !_cachedOciItems.Contains(_selectedMarkerItem))
+                ClearSelectedOciItemMarker();
+
+            bool removedDuplicate = CleanupDuplicateBindings(physicCollider);
+            if (removedInvalidBinding || removedDuplicate)
+                MarkBindingsDirty(physicCollider);
         }
 
         private void AddOrUpdateExternalColliderBinding(
@@ -792,10 +984,10 @@ namespace ClothCollideBinder
                 state.bindingsDirty = true;
         }
 
-        private void CleanupDuplicateBindings(BinderState state)
+        private bool CleanupDuplicateBindings(BinderState state)
         {
             if (state == null || state.externalItemColliderBindings == null || state.externalItemColliderBindings.Count == 0)
-                return;
+                return false;
 
             var seen = new HashSet<OCIItem>();
             var duplicates = new List<ExternalItemColliderBinding>();
@@ -808,7 +1000,7 @@ namespace ClothCollideBinder
             }
 
             if (duplicates.Count == 0)
-                return;
+                return false;
 
             foreach (var dup in duplicates)
             {
@@ -820,6 +1012,8 @@ namespace ClothCollideBinder
                     GameObject.Destroy(dup.visualObject);
                 state.externalItemColliderBindings.Remove(dup);
             }
+
+            return true;
         }
 
         private void ProcessDirtyRebuilds()
@@ -1122,34 +1316,40 @@ namespace ClothCollideBinder
             if (allCloths.Count == 0)
                 return;
 
-            List<Cloth> topCloths = GetClothsByTarget(physicCollider, ClothBindingTarget.Top);
-            List<Cloth> bottomCloths = GetClothsByTarget(physicCollider, ClothBindingTarget.Bottom);
-            var topSet = new HashSet<Cloth>(topCloths);
-            var bottomSet = new HashSet<Cloth>(bottomCloths);
+            var clothSetsByTarget = new HashSet<Cloth>[ClothSlotCount];
+            for (int i = 0; i < ClothSlotCount; i++)
+                clothSetsByTarget[i] = new HashSet<Cloth>(GetClothsByTarget(physicCollider, (ClothBindingTarget)i));
 
-            List<CapsuleCollider> topCapsules = physicCollider.externalItemColliderBindings
-                .Where(v => v != null && v.collider != null && v.clothTarget == ClothBindingTarget.Top && v.colliderType == ExternalColliderType.Capsule)
-                .Select(v => v.collider as CapsuleCollider)
-                .Where(v => v != null)
-                .ToList();
+            var capsuleCollidersByTarget = new List<CapsuleCollider>[ClothSlotCount];
+            var sphereCollidersByTarget = new List<SphereCollider>[ClothSlotCount];
+            for (int i = 0; i < ClothSlotCount; i++)
+            {
+                capsuleCollidersByTarget[i] = new List<CapsuleCollider>();
+                sphereCollidersByTarget[i] = new List<SphereCollider>();
+            }
 
-            List<CapsuleCollider> bottomCapsules = physicCollider.externalItemColliderBindings
-                .Where(v => v != null && v.collider != null && v.clothTarget == ClothBindingTarget.Bottom && v.colliderType == ExternalColliderType.Capsule)
-                .Select(v => v.collider as CapsuleCollider)
-                .Where(v => v != null)
-                .ToList();
+            foreach (ExternalItemColliderBinding binding in physicCollider.externalItemColliderBindings)
+            {
+                if (binding == null || binding.collider == null)
+                    continue;
 
-            List<SphereCollider> topSpheres = physicCollider.externalItemColliderBindings
-                .Where(v => v != null && v.collider != null && v.clothTarget == ClothBindingTarget.Top && v.colliderType == ExternalColliderType.Sphere)
-                .Select(v => v.collider as SphereCollider)
-                .Where(v => v != null)
-                .ToList();
+                int targetIndex = (int)binding.clothTarget;
+                if (targetIndex < 0 || targetIndex >= ClothSlotCount)
+                    continue;
 
-            List<SphereCollider> bottomSpheres = physicCollider.externalItemColliderBindings
-                .Where(v => v != null && v.collider != null && v.clothTarget == ClothBindingTarget.Bottom && v.colliderType == ExternalColliderType.Sphere)
-                .Select(v => v.collider as SphereCollider)
-                .Where(v => v != null)
-                .ToList();
+                if (binding.colliderType == ExternalColliderType.Capsule)
+                {
+                    CapsuleCollider capsule = binding.collider as CapsuleCollider;
+                    if (capsule != null)
+                        capsuleCollidersByTarget[targetIndex].Add(capsule);
+                }
+                else if (binding.colliderType == ExternalColliderType.Sphere)
+                {
+                    SphereCollider sphere = binding.collider as SphereCollider;
+                    if (sphere != null)
+                        sphereCollidersByTarget[targetIndex].Add(sphere);
+                }
+            }
 
             foreach (Cloth cloth in allCloths)
             {
@@ -1160,13 +1360,14 @@ namespace ClothCollideBinder
                     .Where(v => v != null && !v.name.StartsWith(EXTERNAL_COLLIDER_OBJECT_PREFIX))
                     .ToList();
 
-                IEnumerable<CapsuleCollider> addCapsules = Enumerable.Empty<CapsuleCollider>();
-                if (topSet.Contains(cloth))
-                    addCapsules = addCapsules.Concat(topCapsules);
-                if (bottomSet.Contains(cloth))
-                    addCapsules = addCapsules.Concat(bottomCapsules);
+                for (int targetIndex = 0; targetIndex < ClothSlotCount; targetIndex++)
+                {
+                    if (!clothSetsByTarget[targetIndex].Contains(cloth))
+                        continue;
 
-                capsules.AddRange(addCapsules.Where(v => v != null && !capsules.Contains(v)));
+                    List<CapsuleCollider> addCapsules = capsuleCollidersByTarget[targetIndex];
+                    capsules.AddRange(addCapsules.Where(v => v != null && !capsules.Contains(v)));
+                }
                 cloth.capsuleColliders = capsules.ToArray();
 
                 List<ClothSphereColliderPair> spherePairs = (cloth.sphereColliders ?? Array.Empty<ClothSphereColliderPair>())
@@ -1175,21 +1376,22 @@ namespace ClothCollideBinder
                         (v.second == null || !v.second.name.StartsWith(EXTERNAL_COLLIDER_OBJECT_PREFIX)))
                     .ToList();
 
-                IEnumerable<SphereCollider> addSpheres = Enumerable.Empty<SphereCollider>();
-                if (topSet.Contains(cloth))
-                    addSpheres = addSpheres.Concat(topSpheres);
-                if (bottomSet.Contains(cloth))
-                    addSpheres = addSpheres.Concat(bottomSpheres);
-
-                foreach (SphereCollider sphere in addSpheres)
+                for (int targetIndex = 0; targetIndex < ClothSlotCount; targetIndex++)
                 {
-                    bool exists = spherePairs.Any(v => v.first == sphere || v.second == sphere);
-                    if (!exists)
+                    if (!clothSetsByTarget[targetIndex].Contains(cloth))
+                        continue;
+
+                    List<SphereCollider> addSpheres = sphereCollidersByTarget[targetIndex];
+                    foreach (SphereCollider sphere in addSpheres)
                     {
-                        ClothSphereColliderPair pair = new ClothSphereColliderPair();
-                        pair.first = sphere;
-                        pair.second = null;
-                        spherePairs.Add(pair);
+                        bool exists = spherePairs.Any(v => v.first == sphere || v.second == sphere);
+                        if (!exists)
+                        {
+                            ClothSphereColliderPair pair = new ClothSphereColliderPair();
+                            pair.first = sphere;
+                            pair.second = null;
+                            spherePairs.Add(pair);
+                        }
                     }
                 }
 
@@ -1202,7 +1404,7 @@ namespace ClothCollideBinder
             if (physicCollider == null || physicCollider.clothInfos == null)
                 return new List<Cloth>();
 
-            int clothInfoIndex = clothTarget == ClothBindingTarget.Top ? 0 : 1;
+            int clothInfoIndex = (int)clothTarget;
             if (clothInfoIndex < 0 || clothInfoIndex >= physicCollider.clothInfos.Length)
                 return new List<Cloth>();
 
@@ -1226,17 +1428,12 @@ namespace ClothCollideBinder
             if (ociItem == null)
                 return "(null)";
 
-            return ociItem.treeNodeObject.textName;// ociItem.treeNodeObject.textName;
-        }
-
-        private void SceneInit()
-        {
+            return ociItem.treeNodeObject.textName; // ociItem.itemInfo.GetObjectCtrlInfo().Getname;// ociItem.treeNodeObject.textName;
         }
 
 #if FEATURE_SCENE_SAVE
         private void OnSceneLoad(string path)
         {
-            SceneInit();
             PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
             if (data == null)
                 return;
@@ -1250,15 +1447,7 @@ namespace ClothCollideBinder
 
         private void OnSceneImport(string path)
         {
-            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
-            if (data == null)
-                return;
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml((string)data.data["sceneInfo"]);
-            XmlNode node = doc.FirstChild;
-            if (node == null)
-                return;
-            SceneImport(path, node);
+            Logger.LogMessage($"Import not support");
         }
 
         private void OnSceneSave(string path)
@@ -1282,47 +1471,15 @@ namespace ClothCollideBinder
 
         private void SceneLoad(string path, XmlNode node)
         {
-            //     if (node == null)
-            //         return;
-            //     this.ExecuteDelayed2(() =>
-            //     {
-            //         List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
-
-            //         List<OCIChar> ociChars = dic
-            //             .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo를 OCIChar로 캐스팅
-            //             .Where(c => c != null)               // null 제거 (OCIChar가 아닌 경우 스킵)
-            //             .ToList();
-
-            //         SceneRead(node, ociChars);
-
-            //         // delete collider treeNodeObjects
-            //         List<TreeNodeObject> deleteTargets = new List<TreeNodeObject>();
-            //         foreach (TreeNodeObject treeNode in Singleton<Studio.Studio>.Instance.treeNodeCtrl.m_TreeNodeObject)
-            //         {
-            //             if (treeNode.m_TextName.text == GROUP_CAPSULE_COLLIDER || treeNode.m_TextName.text == GROUP_SPHERE_COLLIDER)
-            //             {
-            //                 treeNode.enableDelete = true;
-            //                 deleteTargets.Add(treeNode);
-            //             }
-            //         }
-
-            //         foreach (TreeNodeObject target  in deleteTargets)
-            //         {
-            //             Singleton<Studio.Studio>.Instance.treeNodeCtrl.DeleteNode(target);
-            //         }
-            //     }, 20);
-        }
-
-        private void SceneImport(string path, XmlNode node)
-        {
-            Dictionary<int, ObjectCtrlInfo> toIgnore = new Dictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
+            if (node == null)
+                return;
             this.ExecuteDelayed2(() =>
             {
-                List<KeyValuePair<int, ObjectCtrlInfo>> dic = Studio.Studio.Instance.dicObjectCtrl.Where(e => toIgnore.ContainsKey(e.Key) == false).OrderBy(e => SceneInfo_Import_Patches._newToOldKeys[e.Key]).ToList();
+                List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
 
                 List<OCIChar> ociChars = dic
-                    .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo를 OCIChar로 캐스팅
-                    .Where(c => c != null)               // null 제거 (OCIChar가 아닌 경우 스킵)
+                    .Select(kv => kv.Value as OCIChar)
+                    .Where(c => c != null)
                     .ToList();
 
                 SceneRead(node, ociChars);
@@ -1330,232 +1487,251 @@ namespace ClothCollideBinder
         }
 
         private void SceneRead(XmlNode node, List<OCIChar> ociChars)
-        {            
+        {
+            var ociCharByDicKey = new Dictionary<int, OCIChar>();
+            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
+            {
+                var oci = kvp.Value as OCIChar;
+                if (oci != null)
+                    ociCharByDicKey[kvp.Key] = oci;
+            }
+
+            var ociCharByHash = new Dictionary<int, OCIChar>();
+            foreach (var oci in ociChars)
+            {
+                if (oci == null)
+                    continue;
+                int hash = oci.GetChaControl().GetHashCode();
+                if (!ociCharByHash.ContainsKey(hash))
+                    ociCharByHash.Add(hash, oci);
+            }
+
+            var ociCharByName = new Dictionary<string, OCIChar>(StringComparer.Ordinal);
+            foreach (var oci in ociChars)
+            {
+                if (oci == null || oci.charInfo == null)
+                    continue;
+                string name = oci.charInfo.name;
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                if (!ociCharByName.ContainsKey(name))
+                    ociCharByName.Add(name, oci);
+            }
+
+            var ociItemByDicKey = new Dictionary<int, OCIItem>();
+            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
+            {
+                var ociItem = kvp.Value as OCIItem;
+                if (ociItem != null)
+                    ociItemByDicKey[kvp.Key] = ociItem;
+            }
+
+            var ociItemByHash = new Dictionary<int, OCIItem>();
+            foreach (var ociItem in ociItemByDicKey.Values)
+            {
+                if (ociItem == null)
+                    continue;
+                int hash = ociItem.GetHashCode();
+                if (!ociItemByHash.ContainsKey(hash))
+                    ociItemByHash.Add(hash, ociItem);
+            }
+
+            var ociItemByName = new Dictionary<string, OCIItem>(StringComparer.Ordinal);
+            foreach (var ociItem in ociItemByDicKey.Values)
+            {
+                if (ociItem == null)
+                    continue;
+                string name = ResolveItemDisplayName(ociItem);
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                if (!ociItemByName.ContainsKey(name))
+                    ociItemByName.Add(name, ociItem);
+            }
+
             foreach (XmlNode charNode in node.SelectNodes("character"))
             {
-                string charName = charNode.Attributes["name"]?.Value;
-                if (string.IsNullOrEmpty(charName)) continue;
+                OCIChar ociChar = null;
 
-                // 이름으로 ociChar 찾기
-                OCIChar ociChar = ociChars.FirstOrDefault(c => c.charInfo.name == charName);
+                string dicKeyText = charNode.Attributes["dicKey"]?.Value;
+                if (!string.IsNullOrEmpty(dicKeyText) && int.TryParse(dicKeyText, out int dicKeyValue))
+                    ociChar = FindOciCharByDicKey(ociCharByDicKey, dicKeyValue);
+
                 if (ociChar == null)
                 {
-                    // UnityEngine.Debug.LogWarning($">> SceneRead: Character '{charName}' not found!");
-                    continue;
+                    string hashText = charNode.Attributes["hash"]?.Value;
+                    if (!string.IsNullOrEmpty(hashText) && int.TryParse(hashText, out int hashValue))
+                        ociCharByHash.TryGetValue(hashValue, out ociChar);
                 }
 
-
-                // bone 목록 순회
-                foreach (XmlNode boneNode in charNode.SelectNodes("bone"))
+                if (ociChar == null)
                 {
-                    string colliderName = boneNode.Attributes["name"]?.Value;
-                    if (string.IsNullOrEmpty(colliderName)) continue;
+                    string name = charNode.Attributes["name"]?.Value;
+                    if (!string.IsNullOrEmpty(name))
+                        ociCharByName.TryGetValue(name, out ociChar);
+                }
 
-                    Transform bone = FindColliderByName(ociChar, colliderName);
-                    if (bone == null)
+                if (ociChar == null)
+                    continue;
+
+                RemoveBinderState(ociChar);
+                BinderState state = EnsureBinderState(ociChar);
+                if (state == null)
+                    continue;
+
+                foreach (XmlNode bindingNode in charNode.SelectNodes("binding"))
+                {
+                    OCIItem ociItem = null;
+
+                    string itemDicKeyText = bindingNode.Attributes["itemDicKey"]?.Value;
+                    if (!string.IsNullOrEmpty(itemDicKeyText) && int.TryParse(itemDicKeyText, out int itemDicKey))
+                        ociItem = FindOciItemByDicKey(ociItemByDicKey, itemDicKey);
+
+                    if (ociItem == null)
                     {
-                        // UnityEngine.Debug.LogWarning($">> SceneRead: collider '{colliderName}' not found in {charName}");
+                        string itemHashText = bindingNode.Attributes["itemHash"]?.Value;
+                        if (!string.IsNullOrEmpty(itemHashText) && int.TryParse(itemHashText, out int itemHash))
+                            ociItemByHash.TryGetValue(itemHash, out ociItem);
+                    }
+
+                    if (ociItem == null)
+                    {
+                        string itemName = bindingNode.Attributes["itemName"]?.Value;
+                        if (!string.IsNullOrEmpty(itemName))
+                            ociItemByName.TryGetValue(itemName, out ociItem);
+                    }
+
+                    if (ociItem == null)
                         continue;
-                    }
 
-                    // position
-                    XmlNode posNode = boneNode.SelectSingleNode("position");
-                    if (posNode != null)
-                    {
-                        bone.localPosition = new Vector3(
-                            ParseFloat(posNode.Attributes["x"]?.Value),
-                            ParseFloat(posNode.Attributes["y"]?.Value),
-                            ParseFloat(posNode.Attributes["z"]?.Value)
-                        );
-                    }
+                    if (!Enum.TryParse(bindingNode.Attributes["clothTarget"]?.Value, true, out ClothBindingTarget clothTarget))
+                        clothTarget = ClothBindingTarget.Top;
 
-                    // rotation
-                    XmlNode rotNode = boneNode.SelectSingleNode("rotation");
-                    if (rotNode != null)
-                    {
-                        bone.localEulerAngles = new Vector3(
-                            ParseFloat(rotNode.Attributes["x"]?.Value),
-                            ParseFloat(rotNode.Attributes["y"]?.Value),
-                            ParseFloat(rotNode.Attributes["z"]?.Value)
-                        );
-                    }
+                    if (!Enum.TryParse(bindingNode.Attributes["colliderType"]?.Value, true, out ExternalColliderType colliderType))
+                        continue;
+                    if (colliderType == ExternalColliderType.None)
+                        continue;
 
-                    // scale
-                    XmlNode scaleNode = boneNode.SelectSingleNode("scale");
-                    if (scaleNode != null)
-                    {
-                        bone.localScale = new Vector3(
-                            ParseFloat(scaleNode.Attributes["x"]?.Value),
-                            ParseFloat(scaleNode.Attributes["y"]?.Value),
-                            ParseFloat(scaleNode.Attributes["z"]?.Value)
-                        );
-                    }
+                    Vector3 center = new Vector3(
+                        ParseFloat(bindingNode.Attributes["centerX"]?.Value),
+                        ParseFloat(bindingNode.Attributes["centerY"]?.Value),
+                        ParseFloat(bindingNode.Attributes["centerZ"]?.Value));
+                    float radius = ParseFloat(bindingNode.Attributes["radius"]?.Value);
+                    float height = ParseFloat(bindingNode.Attributes["height"]?.Value);
+
+                    AddOrUpdateExternalColliderBinding(
+                        state,
+                        ociItem,
+                        clothTarget,
+                        colliderType,
+                        center,
+                        radius > 0f ? radius : 0.2f,
+                        height > 0f ? height : 0.6f);
                 }
             }
-        }
-
-        private Transform FindColliderByName(OCIChar ociChar, string colliderName)
-        {
-            var capColliders = ociChar.charInfo.objBodyBone
-                .transform
-                .GetComponentsInChildren<CapsuleCollider>();
-
-            foreach (CapsuleCollider capCollider in capColliders) {
-                if (capCollider != null) {
-                    string collider_name = "";
-                    int idx = capCollider.name.IndexOf('-');
-                    if (idx >= 0)
-                        collider_name = capCollider.name.Substring(0, idx);
-                    else
-                        collider_name = capCollider.name;
-
-                    if (colliderName == collider_name)
-                        return capCollider.transform;
-                }
-            }
-
-            var sphereColliders = ociChar.charInfo.objBodyBone
-                .transform
-                .GetComponentsInChildren<SphereCollider>();            
-
-            foreach (SphereCollider sphereCollider in sphereColliders) {
-                if (sphereCollider != null) {
-                    string collider_name = "";
-                    int idx = sphereCollider.name.IndexOf('-');
-                    if (idx >= 0)
-                        collider_name = sphereCollider.name.Substring(0, idx);
-                    else
-                        collider_name = sphereCollider.name;
-
-                    if (colliderName == collider_name)
-                        return sphereCollider.transform;
-                }
-            }
-
-            return null;
         }
 
         // 유틸: 문자열 float 파싱
         private float ParseFloat(string value)
         {
-            if (float.TryParse(value, out float result))
+            if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float result))
                 return result;
             return 0f;
         }
 
         private void SceneWrite(string path, XmlTextWriter writer)
         {
-            // List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
+            var dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
+            var ociCharByDicKey = dic
+                .Where(kv => kv.Value is OCIChar)
+                .ToDictionary(kv => kv.Key, kv => kv.Value as OCIChar);
 
-            // List<OCIChar> ociChars = dic
-            //     .Select(kv => kv.Value as OCIChar)   // ObjectCtrlInfo를 OCIChar로 캐스팅
-            //     .Where(c => c != null)               // null 제거 (OCIChar가 아닌 경우 스킵)
-            //     .ToList();
+            foreach (var kv in ociCharByDicKey)
+            {
+                int charDicKey = kv.Key;
+                OCIChar ociChar = kv.Value;
+                if (ociChar == null)
+                    continue;
 
-            // foreach (OCIChar ociChar in ociChars)
-            // {
-            //     writer.WriteStartElement("character");
-            //     writer.WriteAttributeString("name", "" + ociChar.charInfo.name);
+                BinderState state = GetCurrentData(ociChar);
+                if (state == null || state.externalItemColliderBindings == null || state.externalItemColliderBindings.Count == 0)
+                    continue;
 
-            //     List<SphereCollider> scolliders = ociChar.charInfo.objBodyBone
-            //         .transform
-            //         .GetComponentsInChildren<SphereCollider>()
-            //         .OrderBy(col => col.gameObject.name) // 이름 기준 정렬
-            //         .ToList();
+                writer.WriteStartElement("character");
+                writer.WriteAttributeString("dicKey", charDicKey.ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("hash", ociChar.GetChaControl().GetHashCode().ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("name", ociChar.charInfo != null ? ociChar.charInfo.name : string.Empty);
 
-            //     List<Transform> targetCollider = new List<Transform>();
+                foreach (var binding in state.externalItemColliderBindings)
+                {
+                    if (binding == null || binding.ociItem == null)
+                        continue;
 
-            //     foreach (var col in scolliders)
-            //     {
-            //         if (col == null) continue; // Destroy된 경우 스킵
+                    int itemDicKey;
+                    bool hasItemDicKey = TryGetItemDicKey(binding.ociItem, out itemDicKey);
 
-            //         if (col.gameObject.name.Contains("Cloth colliders"))
-            //         {
-            //             targetCollider.Add(col.gameObject.transform);
-            //         }
-            //     }
+                    writer.WriteStartElement("binding");
+                    if (hasItemDicKey)
+                        writer.WriteAttributeString("itemDicKey", itemDicKey.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("itemHash", binding.ociItem.GetHashCode().ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("itemName", ResolveItemDisplayName(binding.ociItem));
+                    writer.WriteAttributeString("clothTarget", binding.clothTarget.ToString());
+                    writer.WriteAttributeString("colliderType", binding.colliderType.ToString());
+                    writer.WriteAttributeString("centerX", binding.center.x.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("centerY", binding.center.y.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("centerZ", binding.center.z.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("radius", binding.radius.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteAttributeString("height", binding.height.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteEndElement();
+                }
 
-            //     // capsule collider
-            //     List<CapsuleCollider> ccolliders = ociChar.charInfo.objBodyBone
-            //         .transform
-            //         .GetComponentsInChildren<CapsuleCollider>(true)
-            //         .OrderBy(col => col.gameObject.name) // 이름 기준 정렬
-            //         .ToList();
+                writer.WriteEndElement();
+            }
+        }
 
-            //     foreach (var col in ccolliders)
-            //     {
+        private bool TryGetItemDicKey(OCIItem ociItem, out int dicKey)
+        {
+            dicKey = 0;
+            if (ociItem == null)
+                return false;
 
-            //         if (col == null) continue; // Destroy된 경우 스킵
+            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
+            {
+                var sceneItem = kvp.Value as OCIItem;
+                if (sceneItem != null && sceneItem == ociItem)
+                {
+                    dicKey = kvp.Key;
+                    return true;
+                }
+            }
+            return false;
+        }
 
-            //         if (col.gameObject.name.Contains("Cloth colliders"))
-            //         {
-            //             targetCollider.Add(col.gameObject.transform);
-            //         }
-            //     }
+        private OCIChar FindOciCharByDicKey(Dictionary<int, OCIChar> map, int savedDicKey)
+        {
+            if (map.TryGetValue(savedDicKey, out var oci))
+                return oci;
+            return null;
+        }
 
-            //     string collider_name = "";
-            //     foreach (Transform collider in targetCollider)
-            //     {
-            //         int idx = collider.name.IndexOf('-');
-            //         if (idx >= 0)
-            //             collider_name = collider.name.Substring(0, idx);
-            //         else
-            //             collider_name = collider.name;
-
-            //         writer.WriteStartElement("bone");
-            //         writer.WriteAttributeString("name", collider_name);
-
-            //         // position
-            //         writer.WriteStartElement("position");
-            //         writer.WriteAttributeString("x", collider.localPosition.x.ToString());
-            //         writer.WriteAttributeString("y", collider.localPosition.y.ToString());
-            //         writer.WriteAttributeString("z", collider.localPosition.z.ToString());
-            //         writer.WriteEndElement();
-
-            //         // rotation
-            //         writer.WriteStartElement("rotation");
-            //         writer.WriteAttributeString("x", collider.localEulerAngles.x.ToString());
-            //         writer.WriteAttributeString("y", collider.localEulerAngles.y.ToString());
-            //         writer.WriteAttributeString("z", collider.localEulerAngles.z.ToString());
-            //         writer.WriteEndElement();
-
-            //         // scale
-            //         writer.WriteStartElement("scale");
-            //         writer.WriteAttributeString("x", collider.localScale.x.ToString());
-            //         writer.WriteAttributeString("y", collider.localScale.y.ToString());
-            //         writer.WriteAttributeString("z", collider.localScale.z.ToString());
-            //         writer.WriteEndElement();
-
-            //         writer.WriteEndElement(); // collider
-            //     }
-
-            //     writer.WriteEndElement(); // character
-            // }             
+        private OCIItem FindOciItemByDicKey(Dictionary<int, OCIItem> map, int savedDicKey)
+        {
+            if (map.TryGetValue(savedDicKey, out var ociItem))
+                return ociItem;
+            return null;
         }
 #endif
-        #endregion
-
-        #region Public Methods
-
-        #endregion
-
-        #region Private Methods
+        
         private void Init()
         {
-            UIUtility.Init();
             _loaded = true;
         }
 
-        private static OCIChar GetLastOCICharFromStudio()
+        private void SceneInit()
         {
-            if (Studio.Studio.Instance == null || Studio.Studio.Instance.treeNodeCtrl == null)
-                return null;
-
-            TreeNodeObject node  = Studio.Studio.Instance.treeNodeCtrl.selectNodes
-                .LastOrDefault();
-
-            return  node != null ? Studio.Studio.GetCtrlInfo(node) as OCIChar : null;
-        }
+            Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+			_ShowUI = false;
+            ClearSelectedOciItemMarker();
+        }    
 
         private static List<OCIItem> GetAllOCIItemFromStudio()
         {
@@ -1578,8 +1754,6 @@ namespace ClothCollideBinder
             if (ociChar != null && _ShowUI)
                 _self.EnsureBinderState(ociChar);
         }
-
-        #endregion
 
         private BinderState GetCurrentData(OCIChar ociChar)
         {
@@ -1606,15 +1780,20 @@ namespace ClothCollideBinder
             state.ociChar = ociChar;
 
             var clothes = ociChar.GetChaControl() != null ? ociChar.GetChaControl().objClothes : null;
+            bool clothInfoChanged = false;
             for (int i = 0; i < state.clothInfos.Length; i++)
             {
                 GameObject clothObj = (clothes != null && i < clothes.Length) ? clothes[i] : null;
+                bool hasCloth = clothObj != null && clothObj.GetComponentsInChildren<Cloth>(true).Length > 0;
+                if (state.clothInfos[i].clothObj != clothObj || state.clothInfos[i].hasCloth != hasCloth)
+                    clothInfoChanged = true;
                 state.clothInfos[i].clothObj = clothObj;
-                state.clothInfos[i].hasCloth = clothObj != null && clothObj.GetComponentsInChildren<Cloth>(true).Length > 0;
+                state.clothInfos[i].hasCloth = hasCloth;
             }
 
-            CleanupDuplicateBindings(state);
-            MarkBindingsDirty(state);
+            bool removedDuplicate = CleanupDuplicateBindings(state);
+            if (clothInfoChanged || removedDuplicate)
+                MarkBindingsDirty(state);
             return state;
         }
 
@@ -1643,19 +1822,19 @@ namespace ClothCollideBinder
             state.externalItemColliderBindings.Clear();
             _binderStateByChar.Remove(key);
         }
+        #endregion
 
-        #region Patches
-        [HarmonyPatch(typeof(SceneInfo), "Import", new[] { typeof(BinaryReader), typeof(global::System.Version) })]
-        private static class SceneInfo_Import_Patches //This is here because I fucked up the save format making it impossible to import scenes correctly
+        #region Patches        
+        [HarmonyPatch(typeof(Studio.Studio), "InitScene", typeof(bool))]
+        private static class Studio_InitScene_Patches
         {
-            internal static readonly Dictionary<int, int> _newToOldKeys = new Dictionary<int, int>();
-
-            private static void Prefix()
+            private static bool Prefix(object __instance, bool _close)
             {
-                _newToOldKeys.Clear();
+                _self.SceneInit();
+                return true;
             }
-        }        
-        
+        }
+
         [HarmonyPatch(typeof(OCIChar), "ChangeChara", new[] { typeof(string) })]
         internal static class OCIChar_ChangeChara_Patches
         {

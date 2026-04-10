@@ -52,9 +52,7 @@ namespace RealHumanSupport
             realHumanData.TearDropLevel = 0.3f;
             realHumanData.BreathInterval = 1.5f;
             realHumanData.BreathStrong = 0.45f;
-    #if FEATURE_EXTRA_COLLIDER_SCALE            
-            realHumanData.ExtraColliderScale = 1.0f;
-    #endif
+    
         }
 
         internal static void SupportBodyBumpEffect(ChaControl chaCtrl, RealHumanData realHumanData)
@@ -519,7 +517,6 @@ namespace RealHumanSupport
                 realHumanData.m_skin_head.SetTexture(realHumanData.head_bumpmap_type, realHumanData.headOriginTexture);
             }
         }
-
 
         internal static Texture2D RenderTextureToTexture2D(RenderTexture rt)
         {
@@ -1339,9 +1336,6 @@ namespace RealHumanSupport
 
             float baseScale = 1.0f;
 
-#if FEATURE_EXTRA_COLLIDER_SCALE
-            baseScale = realHumanData.ExtraColliderScale;
-#endif
             // hair dynamic bone 연결 대상 finger collider 생성
             List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();       
 
@@ -1389,6 +1383,10 @@ namespace RealHumanSupport
             float kosi2_radius = 1.17f * baseScale;
 
             extraHairColliders.Add(AddExtraDynamicBoneCollider(kosi2Object, DynamicBoneColliderBase.Direction.X, kosi2_radius, kosi2_radius * 2.8f, new Vector3(0.0f, -0.15f, -0.05f)));
+            realHumanData.extraHairColliders = extraHairColliders
+                .Where(v => v != null)
+                .Distinct()
+                .ToList();
 
             foreach (var bone in realHumanData.hairDynamicBones)
             {
@@ -1674,21 +1672,11 @@ namespace RealHumanSupport
 
         internal void UpdateRealHumanData()
         {
-            // UnityEngine.Debug.Log($">> InitRealHumanData {chaCtrl}");
+            // UnityEngine.Debug.Log($">> UpdateRealHumanData {realHumanData.chaCtrl.objClothes.Length}");
             if (realHumanData.chaCtrl != null && realHumanData.chaCtrl.sex == 1)
             {
-                Cloth[] clothes = realHumanData.chaCtrl.objClothes[0].transform.GetComponentsInChildren<Cloth>(true);
-
-                if (clothes != null && clothes.Length > 0)
-                {
-                    realHumanData.cloth_top = clothes[0];
-                }
-                clothes = realHumanData.chaCtrl.objClothes[1].transform.GetComponentsInChildren<Cloth>(true);
-
-                if (clothes != null && clothes.Length > 0)
-                {
-                    realHumanData.cloth_bottom = clothes[1];
-                }
+                if (realHumanData.extraHairColliders != null)
+                    realHumanData.extraHairColliders.Clear();
 
                 if (realHumanData.coroutine != null)
                 {
@@ -1858,7 +1846,7 @@ namespace RealHumanSupport
 #endif
                 SupportEyeFastBlinkEffect(realHumanData.chaCtrl, realHumanData);
                 SupportBodyBumpEffect(realHumanData.chaCtrl, realHumanData);
-                SupportFaceBumpEffect(realHumanData.chaCtrl, realHumanData);
+                SupportFaceBumpEffect(realHumanData.chaCtrl, realHumanData);                
 
                 status = Status.RUN;
                 if (realHumanData.coroutine == null)
@@ -2182,10 +2170,6 @@ namespace RealHumanSupport
         // 코루틴 제어
         public bool coroutine_pause;
 
-        public Cloth cloth_top;
-
-        public Cloth cloth_bottom;
-
         public List<BAreaData> areas = new List<BAreaData>();
 
         // hair down 제어
@@ -2193,6 +2177,7 @@ namespace RealHumanSupport
         public Transform neck_bone;
         public Transform root_bone;  // hair down 지원인데, 확인 필요..
         public List<DynamicBone> hairDynamicBones = new List<DynamicBone>(); // hair down 지원인데, 확인 필요..
+        public List<DynamicBoneCollider> extraHairColliders = new List<DynamicBoneCollider>();
 
         // 가슴/엉덩이에 gravity 제어
         public DynamicBone_Ver02 rightBoob;
@@ -2304,9 +2289,6 @@ namespace RealHumanSupport
         public float TearDropLevel = 0.3f;
         public float BreathInterval = 1.5f;
         public float BreathStrong = 0.45f;
-#if FEATURE_EXTRA_COLLIDER_SCALE
-        public float  ExtraColliderScale = 1.0f;
-#endif
 
         public RealHumanData()
         {
