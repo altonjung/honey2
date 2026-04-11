@@ -855,7 +855,8 @@ namespace ClothQuickTransform
             if (!hasPrefix)
                 return false;
 
-            return normalizedBoneName.IndexOf("_s_", StringComparison.Ordinal) >= 0;
+            return normalizedBoneName.IndexOf("_s_", StringComparison.Ordinal) >= 0
+                || normalizedBoneName.EndsWith("_s", StringComparison.Ordinal);
         }
 
         internal IEnumerator AutoMapDelayed(ChaControl chaCtrl)

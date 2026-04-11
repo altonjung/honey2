@@ -186,8 +186,6 @@ namespace RealHumanSupport
 #if FEATURE_WINK_SUPPORT         
         internal static ConfigEntry<KeyboardShortcut> ConfigWinkShortcut { get; private set; }
 #endif
-        internal static ConfigEntry<bool> HairDownActive { get; private set; }
-
         internal static ConfigEntry<bool> TearDropActive { get; private set; }
 
         internal static ConfigEntry<bool> EyeShakeActive { get; private set; }
@@ -204,8 +202,6 @@ namespace RealHumanSupport
         {
             base.Awake();
             string support_type = "Studio";
-
-            HairDownActive = Config.Bind(support_type, "Hair Down", true, new ConfigDescription("Enable/Disable"));
 
             EyeShakeActive = Config.Bind(support_type, "Eye Shaking", true, new ConfigDescription("Enable/Disable"));
 
@@ -406,7 +402,6 @@ namespace RealHumanSupport
                 GUILayout.Label(data.BreathInterval.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal();
 
-    ///////////////////
                 GUILayout.Label("<color=orange>Tear</color>", RichLabel);
 
                 GUILayout.BeginHorizontal();
@@ -415,14 +410,14 @@ namespace RealHumanSupport
                 GUILayout.Label(data.TearDropLevel.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal(); 
 
-    ///////////////////            
                 DrawExtraHairColliderEditor(data);
 
                 if (GUILayout.Button("Force Refresh"))
                 {
                     RealHumanSupportController controller = GetCurrentControl();
-                    if (controller != null)
+                    if (controller != null) {
                         controller.ExecuteRealHumanEffect(data.chaCtrl);
+                    }
                 }
 
                 if (TearDropActive.Value) {
