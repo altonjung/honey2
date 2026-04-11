@@ -29,12 +29,12 @@ namespace ClothCollideVisualizer
                 <cloth>
                     <SphereColliderPair>
                         <first boneName='cf_J_Kosi02' radius='1.2' center='0.00, 0.00, 0.00' />
-                        <second boneName='cf_J_LegUp00_L' radius='0.85' center='0.05, 0.02, 0.00' />
+                        <second boneName='cf_J_LegUp00_L' radius='0.9' center='0.04, 0.02, 0.00' />
                     </SphereColliderPair>
-                    <SphereColliderPair>
-                        <first boneName='cf_J_Kosi02' radius='1.2' center='0.00, 0.00, 0.00' />
-                        <second boneName='cf_J_LegUp00_R' radius='0.85' center='-0.05, 0.02, 0.00' />
-                    </SphereColliderPair>
+                        <SphereColliderPair>
+                            <first boneName='cf_J_Kosi02' radius='1.2' center='0.00, 0.00, 0.00' />
+                            <second boneName='cf_J_LegUp00_R' radius='0.9' center='-0.04, 0.02, 0.00' />
+                        </SphereColliderPair>
                 </cloth>
             </AI_ClothColliders>";
 
@@ -187,7 +187,7 @@ namespace ClothCollideVisualizer
             if (chaCtrl == null || sphereColliderData == null)
                 return null;
 
-            string colliderName = $"{ColliderPrefix}_{sphereColliderData.BoneName}";
+            string colliderName = $"{ColliderPrefix}{sphereColliderData.BoneName}";
             if (!string.IsNullOrEmpty(sphereColliderData.UniqueId))
                 colliderName += $"_{sphereColliderData.UniqueId}";
 
@@ -223,7 +223,7 @@ namespace ClothCollideVisualizer
             if (chaCtrl == null || capsuleColliderData == null)
                 return null;
 
-            string colliderName = $"{ColliderPrefix}_{capsuleColliderData.BoneName}";
+            string colliderName = $"{ColliderPrefix}{capsuleColliderData.BoneName}";
             if (!string.IsNullOrEmpty(capsuleColliderData.ColliderNamePostfix))
                 colliderName += $"_{capsuleColliderData.ColliderNamePostfix}";
 
@@ -235,6 +235,64 @@ namespace ClothCollideVisualizer
                 capsuleColliderData.CollierHeight,
                 capsuleColliderData.ColliderCenter,
                 capsuleColliderData.Direction);
+        }
+
+        internal static void RemoveAllocatedClothColliders(PhysicCollider physicCollider, bool isTop)
+        {
+            if (physicCollider == null || physicCollider.chaCtrl == null)
+                return;
+
+            string targetClothName = isTop ? ClothTopName : ClothBottomName;
+            ChaControl chaCtrl = physicCollider.chaCtrl;
+
+            foreach (CapsuleColliderData capsule in physicCollider.capsuleColliders
+                         .Where(v => v != null && string.Equals(v.ClothName, targetClothName, StringComparison.OrdinalIgnoreCase)))
+            {
+                RemoveCapsuleColliderObject(chaCtrl, capsule);
+            }
+
+            foreach (SphereColliderPair pair in physicCollider.sphereColliders
+                         .Where(v => v != null && string.Equals(v.ClothName, targetClothName, StringComparison.OrdinalIgnoreCase)))
+            {
+                RemoveSphereColliderObject(chaCtrl, pair.first);
+                RemoveSphereColliderObject(chaCtrl, pair.second);
+            }
+        }
+
+        private static void RemoveSphereColliderObject(ChaControl chaCtrl, SphereColliderData sphereColliderData)
+        {
+            if (chaCtrl == null || sphereColliderData == null)
+                return;
+
+            Transform bone = chaCtrl.objBodyBone.transform.FindLoop(sphereColliderData.BoneName);
+            if (bone == null)
+                return;
+
+            string colliderName = $"{ColliderPrefix}{sphereColliderData.BoneName}";
+            if (!string.IsNullOrEmpty(sphereColliderData.UniqueId))
+                colliderName += $"_{sphereColliderData.UniqueId}";
+
+            Transform colliderObject = bone.transform.Find(colliderName);
+            if (colliderObject != null)
+                UnityEngine.Object.Destroy(colliderObject.gameObject);
+        }
+
+        private static void RemoveCapsuleColliderObject(ChaControl chaCtrl, CapsuleColliderData capsuleColliderData)
+        {
+            if (chaCtrl == null || capsuleColliderData == null)
+                return;
+
+            Transform bone = chaCtrl.objBodyBone.transform.FindLoop(capsuleColliderData.BoneName);
+            if (bone == null)
+                return;
+
+            string colliderName = $"{ColliderPrefix}{capsuleColliderData.BoneName}";
+            if (!string.IsNullOrEmpty(capsuleColliderData.ColliderNamePostfix))
+                colliderName += $"_{capsuleColliderData.ColliderNamePostfix}";
+
+            Transform colliderObject = bone.transform.Find(colliderName);
+            if (colliderObject != null)
+                UnityEngine.Object.Destroy(colliderObject.gameObject);
         }
 
         private static CapsuleCollider AddCapsuleCollider(ChaControl chaCtrl, string rootBoneName, string colliderName, float colliderRadius = 0.5f, float collierHeight = 0f, Vector3 colliderCenter = new Vector3(), int colliderDirection = 0)

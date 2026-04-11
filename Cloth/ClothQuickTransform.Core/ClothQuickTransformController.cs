@@ -64,7 +64,8 @@ namespace ClothQuickTransform
             new Dictionary<int, int>();
         public Dictionary<int, Dictionary<string, ClothQuickTransform.SavedAdjustment>> savedAdjustmentsBySlot =
             new Dictionary<int, Dictionary<string, ClothQuickTransform.SavedAdjustment>>();
-        public bool pendingAutoRemap;
+        // 의상 슬롯별 리맵 대기 상태(동시에 여러 슬롯 변경 가능)
+        public HashSet<int> pendingAutoRemapSlots = new HashSet<int>();
         public Dictionary<int, Vector2> transferScrollBySlot =
             new Dictionary<int, Vector2>();
     }

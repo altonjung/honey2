@@ -54,7 +54,7 @@ using KKAPI.Chara;
     Agent 코드 수행
 
     목적
-    - 활성화된 캐릭터가 착용한 Cloth 컴포넌트와 외부 Item에 임의로 부여한 Collider에 대해 상호작용 효과를 제공한다.
+    - 활성화된 캐릭터가 착용한 Cloth 컴포넌트와 외부 Item에 임의로 부여한 Collider에 대해 상호작용 효과를 제공
 
     용어
     - OCIChar: 캐릭터 
@@ -62,20 +62,15 @@ using KKAPI.Chara;
     - OCIItem: 아이템(공, 테이블, 의자 등)
         > GetAllOCIItemFromStudio 함수를 통해 현재 씬내 전체 아이템 목록 획득
 
-
     요구 기능
-    1) UI 생성
-    1.1) 현재 씬내 현재 캐릭터내 cloth 컴포넌트를 조회 하여 UI 제공
-        - 상의/하의 Cloth 선택 UI 가 필요하고 각 정보는 GetClothTop()/GetClothBottom() 통해서 획득
-    1.2) 현재 씬내 조회된 OCIItem 목록 선택 UI 제공
-    1.3) OCIItem 목록에서 사용자가 선택한 Item에 대해 Capsule/Sphere Collider 생성 UI 제공        
-        - capsule/sphere 중 선택한 대상에 대한 생성 버튼 제공
-        - Center(X, Y, Z), Radius, Height 조정 가능 UI 제공 필요((녹색 실선으로 collide 속성값 변경 부분 실시간 확인 제공)
-    1.4) Binding 버튼 클릭 시, 선택한 Cloth의 충돌 매핑에 Item Collider를 추가
-    1.5) 아래는 고도화 기능 (나중에 해달라고 할때 하면 됨..)
-        - collide가 생성된 대상 OCIItem 가 재 선택시 생성되었던 collide가 다시 시각화 되어야 함..
-        - 이처리를 위해선 collide 이름에 특별한 명칭을 부여하여, OCItem 선택시 collide 찾기가 용이해야함
-        - collide 삭제 버튼을 제공하여 삭제될 수 있어야 함
+        1) onGUI 내에 아래 UI를 구성해야 한다.
+            1.1) 현재 캐릭터내 cloth 컴포넌트 기반 상의/하의 버튼 UI 제공
+                - 상의/하의 Cloth 선택 UI 가 필요하고 각 정보는 GetClothTop()/GetClothBottom() 통해서 획득
+            1.2) 씬내 조회된 OCIItem 목록 선택 UI 제공
+            1.3) OCIItem 목록에서 사용자가 선택한 Item에 대해 Capsule/Sphere Collider 생성 UI 제공        
+                - capsule/sphere 중 선택한 대상에 대한 생성 버튼 제공
+                - Center(X, Y, Z), Radius, Height 조정 가능 UI 제공 필요((녹색 실선으로 collide 속성값 변경 부분 실시간 확인 제공)
+            1.4) Binding 버튼 클릭 시, 선택한 Cloth의 충돌 매핑에 Item Collider를 추가 제공    
 */
 namespace ClothCollideBinder
 {

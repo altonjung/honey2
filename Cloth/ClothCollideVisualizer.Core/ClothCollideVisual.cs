@@ -51,7 +51,26 @@ using KKAPI.Utilities;
 using KKAPI.Chara;
 
 /*
-    cloth 가 변경되었을때, 변경된 cloth로 position 처리라던지 이런것들이 안되고 있어.. 이부분 update 처리 필요함
+    Agent 코드 수행
+
+    목적
+    - 활성화된 캐릭터가 착용한 Cloth 컴포넌트의 각 bone 정보를 시각화하고 position, scale 처리를 제공
+
+    용어
+    - OCIChar: 캐릭터 
+        > GetCurrentOCI 함수를 통해 현재 씬내 활성화된 캐리터를 획득
+
+    요구 기능
+        1) onGUI 내에 아래 UI를 구성해야 한다.
+            1.1) 현재 씬내 현재 캐릭터 대상 cloth 컴포넌트 에 매핑된 collide 정보 조회
+            1.2) 조회된 collide 클릭 시  정보 시각화 (녹색실선)
+            1.3) 시각화된 collide 는 position, scale 정보를 onGUI 에서 editing 되도록 제공
+            1.4) 시각화된 collide의 position, scale 정보는 각 캐릭터 정보마다 보유해야 하며, ClothCollideVisualController.cs 내 PhysicCollider class 에서 관리되어야 한다.        
+        2) sceneWrite, sceneRead가 가능한데, 현재 씬을 저장 후 다시 복원하는 기능이다.
+            >  캐릭터 별 PhysicCollider 는 GetCurrentData() 를 통해, 현재 활성화된 캐릭터 데이터를 획득할 수 있다.
+            2.1) sceneWrite 시 씬내 각 캐릭터의 각 PhysicCollider 가 보유한 collide 이름과 collide 의 속성(position, scale) 정보를 xml에 저장한다.
+            2.2) sceneRead는 시 씬내 각 캐릭터의 각 PhysicCollider 에 1.5.1에서 저장한 xml 정보를 다시 PhysicCollider 로 업데이트 해야 한다.
+
 */
 namespace ClothCollideVisualizer
 {
@@ -86,6 +105,9 @@ namespace ClothCollideVisualizer
 
         private const string GROUP_CAPSULE_COLLIDER = "Group: (C)Colliders";
         private const string GROUP_SPHERE_COLLIDER = "Group: (S)Colliders";
+        private const int SlotTop = 0;
+        private const int SlotBottom = 1;
+        private const string ColliderSupportPrefix = "Cloth colliders support_";
 
         #region Private Types
         #endregion
@@ -101,6 +123,7 @@ namespace ClothCollideVisualizer
         private static bool _showDebugVisuals = true;
 
         private Vector2 _debugScroll;
+        private string _colliderFilterText = string.Empty;
         private int _selectedDebugIndex = -1;
         private DebugColliderEntry _selectedDebugEntry;
         
@@ -347,97 +370,426 @@ namespace ClothCollideVisualizer
                 }
     
                 ClothCollideVisualizerController controller = GetControl(ociChar);
-                if (controller != null) {
-                    controller.CreateData(ociChar);
-                }                
+                if (controller == null)
+                    continue;
+
+                PhysicCollider physicCollider = controller.GetData() ?? controller.CreateData(ociChar);
+                if (physicCollider == null)
+                    continue;
 
                 foreach (XmlNode boneNode in charNode.SelectNodes("bone"))
                 {
                     string colliderName = boneNode.Attributes["name"]?.Value;
                     if (string.IsNullOrEmpty(colliderName)) continue;
 
-                    Transform bone = FindColliderByName(ociChar, colliderName);
-                    if (bone == null)
-                    {
-                        // UnityEngine.Debug.LogWarning($">> SceneRead: collider '{colliderName}' not found in {charName}");
-                        continue;
-                    }
+                    ColliderTransformInfo transformInfo = new ColliderTransformInfo();
+                    string slotText = boneNode.Attributes["slot"]?.Value;
+                    string legacyClothKey = boneNode.Attributes["clothKey"]?.Value;
+                    int slot = SlotTop;
+                    bool hasSlot = !string.IsNullOrEmpty(slotText) && int.TryParse(slotText, out slot);
 
                     // position
                     XmlNode posNode = boneNode.SelectSingleNode("position");
                     if (posNode != null)
                     {
-                        bone.localPosition = new Vector3(
+                        // legacy: position은 Transform.localPosition
+                        transformInfo.localPosition = new Vector3(
                             ParseFloat(posNode.Attributes["x"]?.Value),
                             ParseFloat(posNode.Attributes["y"]?.Value),
                             ParseFloat(posNode.Attributes["z"]?.Value)
                         );
+                        transformInfo.hasLocalPosition = true;
+                    }
+
+                    // center (Collider.center)
+                    XmlNode centerNode = boneNode.SelectSingleNode("center");
+                    if (centerNode != null)
+                    {
+                        transformInfo.colliderCenter = new Vector3(
+                            ParseFloat(centerNode.Attributes["x"]?.Value),
+                            ParseFloat(centerNode.Attributes["y"]?.Value),
+                            ParseFloat(centerNode.Attributes["z"]?.Value)
+                        );
+                        transformInfo.hasColliderCenter = true;
                     }
 
                     // rotation
                     XmlNode rotNode = boneNode.SelectSingleNode("rotation");
                     if (rotNode != null)
                     {
-                        bone.localEulerAngles = new Vector3(
+                        transformInfo.localEulerAngles = new Vector3(
                             ParseFloat(rotNode.Attributes["x"]?.Value),
                             ParseFloat(rotNode.Attributes["y"]?.Value),
                             ParseFloat(rotNode.Attributes["z"]?.Value)
                         );
+                        transformInfo.hasLocalEulerAngles = true;
                     }
 
                     // scale
                     XmlNode scaleNode = boneNode.SelectSingleNode("scale");
                     if (scaleNode != null)
                     {
-                        bone.localScale = new Vector3(
+                        transformInfo.localScale = new Vector3(
                             ParseFloat(scaleNode.Attributes["x"]?.Value),
                             ParseFloat(scaleNode.Attributes["y"]?.Value),
                             ParseFloat(scaleNode.Attributes["z"]?.Value)
                         );
+                        transformInfo.hasLocalScale = true;
                     }
+
+                    // slot 우선, 없으면 legacy clothKey("top:...","bottom:...")를 보고 판단한다.
+                    if (!hasSlot && !string.IsNullOrEmpty(legacyClothKey))
+                    {
+                        if (legacyClothKey.StartsWith("bottom:", StringComparison.OrdinalIgnoreCase))
+                            slot = SlotBottom;
+                        else if (legacyClothKey.StartsWith("top:", StringComparison.OrdinalIgnoreCase))
+                            slot = SlotTop;
+                        else
+                            slot = SlotTop; // legacy global은 top에만 넣고, 아래에서 bottom에 복사한다.
+                        hasSlot = true;
+                    }
+
+                    if (!hasSlot && string.IsNullOrEmpty(legacyClothKey))
+                    {
+                        // 아주 오래된 데이터(구분자 없음)는 top/bottom 둘 다 적용한다.
+                        physicCollider.topColliderTransformInfos[colliderName] = transformInfo;
+                        physicCollider.bottomColliderTransformInfos[colliderName] = transformInfo;
+                    }
+                    else if (slot == SlotBottom)
+                    {
+                        physicCollider.bottomColliderTransformInfos[colliderName] = transformInfo;
+                    }
+                    else
+                    {
+                        physicCollider.topColliderTransformInfos[colliderName] = transformInfo;
+                        if (!string.IsNullOrEmpty(legacyClothKey) && legacyClothKey.Equals("global", StringComparison.OrdinalIgnoreCase))
+                            physicCollider.bottomColliderTransformInfos[colliderName] = transformInfo;
+                    }
+                }
+
+                ApplySavedTransformsForSlots(ociChar.GetChaControl(), physicCollider);
+
+                if (physicCollider.visualColliderAdded)
+                {
+                    ForceRefreshVisualColliders(ociChar);
                 }
             }
         }
 
-        private Transform FindColliderByName(OCIChar ociChar, string colliderName)
+        private static string GetColliderKey(Collider collider)
         {
-            var capColliders = ociChar.charInfo.objBodyBone
-                .transform
-                .GetComponentsInChildren<CapsuleCollider>();
+            if (collider == null)
+                return string.Empty;
 
-            foreach (CapsuleCollider capCollider in capColliders) {
-                if (capCollider != null) {
-                    string collider_name = "";
-                    int idx = capCollider.name.IndexOf('-');
-                    if (idx >= 0)
-                        collider_name = capCollider.name.Substring(0, idx);
-                    else
-                        collider_name = capCollider.name;
+            string sourceName = collider.name ?? string.Empty;
+            int idx = sourceName.IndexOf('-');
+            return idx >= 0 ? sourceName.Substring(0, idx) : sourceName;
+        }
 
-                    if (colliderName == collider_name)
-                        return capCollider.transform;
+        private static IEnumerable<Collider> GetCollidersUsedByCloth(GameObject clothObj)
+        {
+            if (clothObj == null)
+                return Enumerable.Empty<Collider>();
+
+            Cloth[] clothes = clothObj.GetComponentsInChildren<Cloth>(true);
+            if (clothes == null || clothes.Length == 0)
+                return Enumerable.Empty<Collider>();
+
+            HashSet<Collider> result = new HashSet<Collider>();
+            foreach (Cloth cloth in clothes)
+            {
+                if (cloth == null)
+                    continue;
+
+                CapsuleCollider[] capsules = cloth.capsuleColliders ?? Array.Empty<CapsuleCollider>();
+                foreach (CapsuleCollider c in capsules)
+                {
+                    if (c != null)
+                        result.Add(c);
+                }
+
+                ClothSphereColliderPair[] spherePairs = cloth.sphereColliders ?? Array.Empty<ClothSphereColliderPair>();
+                foreach (ClothSphereColliderPair pair in spherePairs)
+                {
+                    if (pair.first != null)
+                        result.Add(pair.first);
+                    if (pair.second != null)
+                        result.Add(pair.second);
                 }
             }
 
-            var sphereColliders = ociChar.charInfo.objBodyBone
-                .transform
-                .GetComponentsInChildren<SphereCollider>();            
+            return result;
+        }
 
-            foreach (SphereCollider sphereCollider in sphereColliders) {
-                if (sphereCollider != null) {
-                    string collider_name = "";
-                    int idx = sphereCollider.name.IndexOf('-');
-                    if (idx >= 0)
-                        collider_name = sphereCollider.name.Substring(0, idx);
-                    else
-                        collider_name = sphereCollider.name;
+        private static bool TryGetColliderCenter(Collider collider, out Vector3 center)
+        {
+            center = Vector3.zero;
+            if (collider == null)
+                return false;
 
-                    if (colliderName == collider_name)
-                        return sphereCollider.transform;
+            if (collider is SphereCollider sphere)
+            {
+                center = sphere.center;
+                return true;
+            }
+            if (collider is CapsuleCollider capsule)
+            {
+                center = capsule.center;
+                return true;
+            }
+            if (collider is BoxCollider box)
+            {
+                center = box.center;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static Vector3 GetColliderCenterOrDefault(Collider collider)
+        {
+            return TryGetColliderCenter(collider, out Vector3 center) ? center : Vector3.zero;
+        }
+
+        private static bool TrySetColliderCenter(Collider collider, Vector3 center)
+        {
+            if (collider == null)
+                return false;
+
+            if (collider is SphereCollider sphere)
+            {
+                sphere.center = center;
+                return true;
+            }
+            if (collider is CapsuleCollider capsule)
+            {
+                capsule.center = center;
+                return true;
+            }
+            if (collider is BoxCollider box)
+            {
+                box.center = center;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static void EnsureDefaultColliderBaseline(Collider collider, PhysicCollider physicCollider)
+        {
+            if (collider == null || physicCollider == null)
+                return;
+
+            if (physicCollider.colliderDefaultTransforms == null)
+                physicCollider.colliderDefaultTransforms = new Dictionary<int, ColliderTransformInfo>();
+
+            int id = collider.GetInstanceID();
+            if (physicCollider.colliderDefaultTransforms.ContainsKey(id))
+                return;
+
+            Transform tr = collider.transform;
+            physicCollider.colliderDefaultTransforms[id] = new ColliderTransformInfo
+            {
+                localPosition = tr.localPosition,
+                localEulerAngles = tr.localEulerAngles,
+                localScale = tr.localScale,
+                colliderCenter = GetColliderCenterOrDefault(collider),
+                hasLocalPosition = true,
+                hasLocalEulerAngles = true,
+                hasLocalScale = true,
+                hasColliderCenter = true
+            };
+        }
+
+        private static void ResetSlotCollidersToDefault(ChaControl chaCtrl, PhysicCollider physicCollider, int slot)
+        {
+            if (chaCtrl == null || physicCollider == null)
+                return;
+
+            GameObject clothObj = (chaCtrl.objClothes != null && slot >= 0 && slot < chaCtrl.objClothes.Length) ? chaCtrl.objClothes[slot] : null;
+            foreach (Collider collider in GetCollidersUsedByCloth(clothObj))
+            {
+                if (collider == null)
+                    continue;
+
+                EnsureDefaultColliderBaseline(collider, physicCollider);
+
+                int id = collider.GetInstanceID();
+                if (physicCollider.colliderDefaultTransforms != null
+                    && physicCollider.colliderDefaultTransforms.TryGetValue(id, out ColliderTransformInfo baseline)
+                    && baseline != null)
+                {
+                    Transform tr = collider.transform;
+                    if (baseline.hasLocalPosition) tr.localPosition = baseline.localPosition;
+                    if (baseline.hasLocalEulerAngles) tr.localEulerAngles = baseline.localEulerAngles;
+                    if (baseline.hasLocalScale) tr.localScale = baseline.localScale;
+                    if (baseline.hasColliderCenter) TrySetColliderCenter(collider, baseline.colliderCenter);
+                }
+            }
+        }
+
+        private static void RebuildColliderSlotCache(ChaControl chaCtrl, PhysicCollider physicCollider)
+        {
+            if (chaCtrl == null || physicCollider == null)
+                return;
+
+            if (physicCollider.colliderInstanceIdToSlot == null)
+                physicCollider.colliderInstanceIdToSlot = new Dictionary<int, int>();
+            physicCollider.colliderInstanceIdToSlot.Clear();
+
+            GameObject topObj = (chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 0) ? chaCtrl.objClothes[0] : null;
+            GameObject bottomObj = (chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 1) ? chaCtrl.objClothes[1] : null;
+
+            foreach (Collider collider in GetCollidersUsedByCloth(topObj))
+            {
+                if (collider == null)
+                    continue;
+                int id = collider.GetInstanceID();
+                if (!physicCollider.colliderInstanceIdToSlot.ContainsKey(id))
+                    physicCollider.colliderInstanceIdToSlot[id] = SlotTop;
+            }
+
+            foreach (Collider collider in GetCollidersUsedByCloth(bottomObj))
+            {
+                if (collider == null)
+                    continue;
+                int id = collider.GetInstanceID();
+                if (!physicCollider.colliderInstanceIdToSlot.ContainsKey(id))
+                    physicCollider.colliderInstanceIdToSlot[id] = SlotBottom;
+            }
+        }
+
+        private static void ApplySavedTransformsForSlots(ChaControl chaCtrl, PhysicCollider physicCollider)
+        {
+            if (chaCtrl == null || physicCollider == null)
+                return;
+
+            GameObject topObj = (chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 0) ? chaCtrl.objClothes[0] : null;
+            GameObject bottomObj = (chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 1) ? chaCtrl.objClothes[1] : null;
+
+            // 저장값이 있는 경우에만 적용한다. 없으면 생성 직후 기본값을 유지한다.
+            foreach (Collider collider in GetCollidersUsedByCloth(topObj))
+            {
+                if (collider == null)
+                    continue;
+
+                EnsureDefaultColliderBaseline(collider, physicCollider);
+
+                string colliderKey = GetColliderKey(collider);
+                if (string.IsNullOrEmpty(colliderKey))
+                    continue;
+
+                if (physicCollider.topColliderTransformInfos != null
+                    && physicCollider.topColliderTransformInfos.TryGetValue(colliderKey, out ColliderTransformInfo info)
+                    && info != null)
+                {
+                    Transform tr = collider.transform;
+                    if (info.hasLocalPosition) tr.localPosition = info.localPosition;
+                    if (info.hasLocalEulerAngles) tr.localEulerAngles = info.localEulerAngles;
+                    if (info.hasLocalScale) tr.localScale = info.localScale;
+                    if (info.hasColliderCenter) TrySetColliderCenter(collider, info.colliderCenter);
                 }
             }
 
-            return null;
+            foreach (Collider collider in GetCollidersUsedByCloth(bottomObj))
+            {
+                if (collider == null)
+                    continue;
+
+                EnsureDefaultColliderBaseline(collider, physicCollider);
+
+                string colliderKey = GetColliderKey(collider);
+                if (string.IsNullOrEmpty(colliderKey))
+                    continue;
+
+                if (physicCollider.bottomColliderTransformInfos != null
+                    && physicCollider.bottomColliderTransformInfos.TryGetValue(colliderKey, out ColliderTransformInfo info)
+                    && info != null)
+                {
+                    Transform tr = collider.transform;
+                    if (info.hasLocalPosition) tr.localPosition = info.localPosition;
+                    if (info.hasLocalEulerAngles) tr.localEulerAngles = info.localEulerAngles;
+                    if (info.hasLocalScale) tr.localScale = info.localScale;
+                    if (info.hasColliderCenter) TrySetColliderCenter(collider, info.colliderCenter);
+                }
+            }
+        }
+
+        private static void SaveCurrentTransformsForSlots(ChaControl chaCtrl, PhysicCollider physicCollider)
+        {
+            if (chaCtrl == null || physicCollider == null)
+                return;
+
+            GameObject topObj = (chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 0) ? chaCtrl.objClothes[0] : null;
+            GameObject bottomObj = (chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 1) ? chaCtrl.objClothes[1] : null;
+
+            foreach (Collider collider in GetCollidersUsedByCloth(topObj))
+            {
+                if (collider == null)
+                    continue;
+
+                EnsureDefaultColliderBaseline(collider, physicCollider);
+
+                string colliderKey = GetColliderKey(collider);
+                if (string.IsNullOrEmpty(colliderKey))
+                    continue;
+
+                Transform tr = collider.transform;
+                physicCollider.topColliderTransformInfos[colliderKey] = new ColliderTransformInfo
+                {
+                    localPosition = tr.localPosition,
+                    localEulerAngles = tr.localEulerAngles,
+                    localScale = tr.localScale,
+                    colliderCenter = GetColliderCenterOrDefault(collider),
+                    hasLocalPosition = true,
+                    hasLocalEulerAngles = true,
+                    hasLocalScale = true,
+                    hasColliderCenter = true
+                };
+            }
+
+            foreach (Collider collider in GetCollidersUsedByCloth(bottomObj))
+            {
+                if (collider == null)
+                    continue;
+
+                EnsureDefaultColliderBaseline(collider, physicCollider);
+
+                string colliderKey = GetColliderKey(collider);
+                if (string.IsNullOrEmpty(colliderKey))
+                    continue;
+
+                Transform tr = collider.transform;
+                physicCollider.bottomColliderTransformInfos[colliderKey] = new ColliderTransformInfo
+                {
+                    localPosition = tr.localPosition,
+                    localEulerAngles = tr.localEulerAngles,
+                    localScale = tr.localScale,
+                    colliderCenter = GetColliderCenterOrDefault(collider),
+                    hasLocalPosition = true,
+                    hasLocalEulerAngles = true,
+                    hasLocalScale = true,
+                    hasColliderCenter = true
+                };
+            }
+        }
+
+        private static bool TryGetSlotFromChangeClothesKind(int kind, out int slot)
+        {
+            // chaCtrl.objClothes 인덱스(0=top, 1=bottom) 기준으로만 처리한다.
+            // 다른 의상 종류(브라/팬티 등)는 이 플러그인(상의/하의) 범위를 벗어나므로 무시한다.
+            slot = SlotTop;
+            if (kind == SlotTop)
+            {
+                slot = SlotTop;
+                return true;
+            }
+            if (kind == SlotBottom)
+            {
+                slot = SlotBottom;
+                return true;
+            }
+            return false;
         }
 
         // 유틸: 문자열을 float 값으로 파싱한다.
@@ -461,6 +813,10 @@ namespace ClothCollideVisualizer
             {
                 int dicKey;
                 bool hasDicKey = TryGetDicKey(ociChar.GetChaControl(), out dicKey);
+                ClothCollideVisualizerController controller = GetControl(ociChar);
+                PhysicCollider physicCollider = controller != null ? (controller.GetData() ?? controller.CreateData(ociChar)) : null;
+                if (physicCollider != null)
+                    SaveCurrentTransformsForSlots(ociChar.GetChaControl(), physicCollider);
 
                 writer.WriteStartElement("character");
                 if (hasDicKey)
@@ -468,76 +824,102 @@ namespace ClothCollideVisualizer
                 writer.WriteAttributeString("hash", ociChar.GetChaControl().GetHashCode().ToString(CultureInfo.InvariantCulture));
                 writer.WriteAttributeString("name", ociChar.charInfo != null ? ociChar.charInfo.name : string.Empty);
 
-                List<SphereCollider> scolliders = ociChar.charInfo.objBodyBone
-                    .transform
-                    .GetComponentsInChildren<SphereCollider>()
-                    .OrderBy(col => col.gameObject.name) // 이름순 정렬
-                    .ToList();
-
-                List<Transform> targetCollider = new List<Transform>();
-
-                foreach (var col in scolliders)
+                foreach (var kv in (physicCollider != null ? physicCollider.topColliderTransformInfos : null)
+                             ?? new Dictionary<string, ColliderTransformInfo>())
                 {
-                    if (col == null) continue;
-
-                    if (col.gameObject.name.Contains("Cloth colliders"))
-                    {
-                        targetCollider.Add(col.gameObject.transform);
-                    }
-                }
-
-                // capsule collider
-                List<CapsuleCollider> ccolliders = ociChar.charInfo.objBodyBone
-                    .transform
-                    .GetComponentsInChildren<CapsuleCollider>(true)
-                    .OrderBy(col => col.gameObject.name)
-                    .ToList();
-
-                foreach (var col in ccolliders)
-                {
-
-                    if (col == null) continue;
-
-                    if (col.gameObject.name.Contains("Cloth colliders"))
-                    {
-                        targetCollider.Add(col.gameObject.transform);
-                    }
-                }
-
-                string collider_name = "";
-                foreach (Transform collider in targetCollider)
-                {
-                    int idx = collider.name.IndexOf('-');
-                    if (idx >= 0)
-                        collider_name = collider.name.Substring(0, idx);
-                    else
-                        collider_name = collider.name;
+                    if (string.IsNullOrEmpty(kv.Key) || kv.Value == null)
+                        continue;
 
                     writer.WriteStartElement("bone");
-                    writer.WriteAttributeString("name", collider_name);
+                    writer.WriteAttributeString("name", kv.Key);
+                    writer.WriteAttributeString("slot", SlotTop.ToString(CultureInfo.InvariantCulture));
 
-                    // position
-                    writer.WriteStartElement("position");
-                    writer.WriteAttributeString("x", collider.localPosition.x.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("y", collider.localPosition.y.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("z", collider.localPosition.z.ToString(CultureInfo.InvariantCulture));
+                    if (kv.Value.hasLocalPosition)
+                    {
+                        writer.WriteStartElement("position");
+                        writer.WriteAttributeString("x", kv.Value.localPosition.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("y", kv.Value.localPosition.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("z", kv.Value.localPosition.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteEndElement();
+                    }
+
+                    if (kv.Value.hasColliderCenter)
+                    {
+                        writer.WriteStartElement("center");
+                        writer.WriteAttributeString("x", kv.Value.colliderCenter.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("y", kv.Value.colliderCenter.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("z", kv.Value.colliderCenter.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteEndElement();
+                    }
+
+                    if (kv.Value.hasLocalEulerAngles)
+                    {
+                        writer.WriteStartElement("rotation");
+                        writer.WriteAttributeString("x", kv.Value.localEulerAngles.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("y", kv.Value.localEulerAngles.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("z", kv.Value.localEulerAngles.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteEndElement();
+                    }
+
+                    if (kv.Value.hasLocalScale)
+                    {
+                        writer.WriteStartElement("scale");
+                        writer.WriteAttributeString("x", kv.Value.localScale.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("y", kv.Value.localScale.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("z", kv.Value.localScale.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteEndElement();
+                    }
+
                     writer.WriteEndElement();
+                }
 
-                    // rotation
-                    writer.WriteStartElement("rotation");
-                    writer.WriteAttributeString("x", collider.localEulerAngles.x.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("y", collider.localEulerAngles.y.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("z", collider.localEulerAngles.z.ToString(CultureInfo.InvariantCulture));
+                foreach (var kv in (physicCollider != null ? physicCollider.bottomColliderTransformInfos : null)
+                             ?? new Dictionary<string, ColliderTransformInfo>())
+                {
+                    if (string.IsNullOrEmpty(kv.Key) || kv.Value == null)
+                        continue;
+
+                    writer.WriteStartElement("bone");
+                    writer.WriteAttributeString("name", kv.Key);
+                    writer.WriteAttributeString("slot", SlotBottom.ToString(CultureInfo.InvariantCulture));
+
+                    if (kv.Value.hasLocalPosition)
+                    {
+                        writer.WriteStartElement("position");
+                        writer.WriteAttributeString("x", kv.Value.localPosition.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("y", kv.Value.localPosition.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("z", kv.Value.localPosition.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteEndElement();
+                    }
+
+                    if (kv.Value.hasColliderCenter)
+                    {
+                        writer.WriteStartElement("center");
+                        writer.WriteAttributeString("x", kv.Value.colliderCenter.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("y", kv.Value.colliderCenter.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("z", kv.Value.colliderCenter.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteEndElement();
+                    }
+
+                    if (kv.Value.hasLocalEulerAngles)
+                    {
+                        writer.WriteStartElement("rotation");
+                        writer.WriteAttributeString("x", kv.Value.localEulerAngles.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("y", kv.Value.localEulerAngles.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("z", kv.Value.localEulerAngles.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteEndElement();
+                    }
+
+                    if (kv.Value.hasLocalScale)
+                    {
+                        writer.WriteStartElement("scale");
+                        writer.WriteAttributeString("x", kv.Value.localScale.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("y", kv.Value.localScale.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("z", kv.Value.localScale.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteEndElement();
+                    }
+
                     writer.WriteEndElement();
-
-                    // scale
-                    writer.WriteStartElement("scale");
-                    writer.WriteAttributeString("x", collider.localScale.x.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("y", collider.localScale.y.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteAttributeString("z", collider.localScale.z.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteEndElement();
-
-                    writer.WriteEndElement(); // collider
                 }
 
                 writer.WriteEndElement(); // character
@@ -657,7 +1039,7 @@ namespace ClothCollideVisualizer
 
             if (physicCollider != null)
             {
-                if (!physicCollider.visualColliderAdded)
+                if (!physicCollider.visualColliderAdded && !physicCollider.requireForceRefresh)
                     AddVisualColliders(ociChar);
 
                 GUILayout.BeginHorizontal();
@@ -673,23 +1055,49 @@ namespace ClothCollideVisualizer
                 }
                 GUILayout.EndHorizontal();
 
+                if (physicCollider != null && physicCollider.requireForceRefresh)
+                {
+                    GUILayout.Label("<color=red>click 'FORCE REFRESH'</color>", RichLabel);
+                }
+
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Filter", GUILayout.Width(42));
+                _colliderFilterText = GUILayout.TextField(_colliderFilterText ?? string.Empty, GUILayout.MinWidth(120));
+                if (GUILayout.Button("Clear", GUILayout.Width(52)))
+                    _colliderFilterText = string.Empty;
+                GUILayout.EndHorizontal();
+
+                string filter = (_colliderFilterText ?? string.Empty).Trim();
+                bool hasFilter = !string.IsNullOrEmpty(filter);
+
                 _debugScroll = GUILayout.BeginScrollView(_debugScroll, GUI.skin.box, GUILayout.Height(180));
+                int shownCount = 0;
                 for (int i = 0; i < physicCollider.debugEntries.Count; i++)
                 {
                     var entry = physicCollider.debugEntries[i];
-                    string label = entry != null ? entry.name : "(null)";
+                    string label = entry != null ? NormalizeColliderDisplayName(entry.name) : "(null)";
+                    if (hasFilter)
+                    {
+                        string haystack = label ?? string.Empty;
+                        if (haystack.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+                            continue;
+                    }
+
+                    shownCount++;
                     bool isModified = IsEntryModified(entry);
                     bool isAdjustableEntry = (entry != null && entry.source != null && IsAdjustableCollider(entry.source))
                         || (!string.IsNullOrEmpty(label) && label.IndexOf("Adjustable", StringComparison.OrdinalIgnoreCase) >= 0);
                     Color prevContentColor = GUI.contentColor;
-                    GUI.contentColor = isAdjustableEntry
-                        ? new Color(1f, 0.55f, 0f, 1f)
-                        : (isModified ? ModifiedEntryColor : UnmodifiedEntryColor);
-                    if (GUILayout.Toggle(_selectedDebugIndex == i, label, GUI.skin.button))
+                    // Modified는 예외 없이 항상 빨간색(Adjustable 포함)
+                    GUI.contentColor = isModified
+                        ? ModifiedEntryColor
+                        : (isAdjustableEntry ? new Color(1f, 0.55f, 0f, 1f) : UnmodifiedEntryColor);
+
+                    bool isSelected = ReferenceEquals(_selectedDebugEntry, entry);
+                    if (GUILayout.Toggle(isSelected, label, GUI.skin.button))
                     {
-                        if (_selectedDebugIndex != i)
+                        if (!isSelected)
                         {
-                            _selectedDebugIndex = i;
                             _selectedDebugEntry = entry;
                             SyncDebugFromSource(entry);
                             if (entry != null && entry.source != null)
@@ -699,28 +1107,45 @@ namespace ClothCollideVisualizer
                     GUI.contentColor = prevContentColor;
                 }
                 GUILayout.EndScrollView();
+                if (hasFilter)
+                    GUILayout.Label($"Shown: {shownCount}/{physicCollider.debugEntries.Count}", RichLabel);
 
                 if (_selectedDebugEntry != null && _selectedDebugEntry.debugTransform != null)
                 {
                     Collider collider = _selectedDebugEntry.source;
                     string colliderType = collider is CapsuleCollider ? "Capsule" : (collider is SphereCollider ? "Sphere" : "Collider");
-                    bool isSelectedModified = IsEntryModified(_selectedDebugEntry);
+                    bool isSelectedModified = GetEntryModifiedFlags(_selectedDebugEntry, out bool centerModified, out bool rotModified, out bool scaleModified);
                     string statusText = isSelectedModified ? "<color=red>Modified</color>" : "<color=#7CFC00>Unmodified</color>";
 
-                    GUILayout.Label($"<color=orange>{colliderType}</color>: {collider.name}", RichLabel);
+                    GUILayout.Label($"<color=orange>{colliderType}</color>: {NormalizeColliderDisplayName(collider.name)}", RichLabel);
                     GUILayout.Label($"Status: {statusText}", RichLabel);
+                    if (isSelectedModified)
+                    {
+                        string parts = string.Join(", ", new[]
+                        {
+                            centerModified ? "Center" : null,
+                            rotModified ? "Rotation" : null,
+                            scaleModified ? "Scale" : null
+                        }.Where(v => !string.IsNullOrEmpty(v)).ToArray());
+                        GUILayout.Label($"Modified: {parts}", RichLabel);
+                    }
+                    GUILayout.Label($"Baseline Center: {_selectedDebugEntry.baselineCenter.x:0.###}, {_selectedDebugEntry.baselineCenter.y:0.###}, {_selectedDebugEntry.baselineCenter.z:0.###}", RichLabel);
+                    GUILayout.Label($"Baseline Rot: {_selectedDebugEntry.baselineLocalEuler.x:0.###}, {_selectedDebugEntry.baselineLocalEuler.y:0.###}, {_selectedDebugEntry.baselineLocalEuler.z:0.###}", RichLabel);
+                    GUILayout.Label($"Baseline Scale: {_selectedDebugEntry.baselineLocalScale.x:0.###}, {_selectedDebugEntry.baselineLocalScale.y:0.###}, {_selectedDebugEntry.baselineLocalScale.z:0.###}", RichLabel);
                     draw_seperate();
 
                     Transform debugTr = _selectedDebugEntry.debugTransform;
+                    Transform debugCenterTr = _selectedDebugEntry.debugCenterTransform;
 
                     GUILayout.Label("<color=orange>Position</color>", RichLabel);
                     DrawStepSelector(ref _posStepIndex, "Step");
-                    Vector3 pos = debugTr.localPosition;
+                    Vector3 pos = debugCenterTr != null ? debugCenterTr.localPosition : Vector3.zero;
                     float posStep = SliderStepOptions[_posStepIndex];
-                    pos.x = SliderRow("Pos X", pos.x, -2.0f, 2.0f, 0.0f, posStep);
-                    pos.y = SliderRow("Pos Y", pos.y, -2.0f, 2.0f, 0.0f, posStep);
-                    pos.z = SliderRow("Pos Z", pos.z, -2.0f, 2.0f, 0.0f, posStep);
-                    debugTr.localPosition = pos;
+                    pos.x = SliderRow("Pos X", pos.x, -3.0f, 3.0f, _selectedDebugEntry.baselineCenter.x, posStep);
+                    pos.y = SliderRow("Pos Y", pos.y, -3.0f, 3.0f, _selectedDebugEntry.baselineCenter.y, posStep);
+                    pos.z = SliderRow("Pos Z", pos.z, -3.0f, 3.0f, _selectedDebugEntry.baselineCenter.z, posStep);
+                    if (debugCenterTr != null)
+                        debugCenterTr.localPosition = pos;
 
                     GUILayout.Label("<color=orange>Rotation</color>", RichLabel);
                     DrawStepSelector(ref _rotStepIndex, "Step");
@@ -729,18 +1154,18 @@ namespace ClothCollideVisualizer
                     rot.y = NormalizeAngle(rot.y);
                     rot.z = NormalizeAngle(rot.z);
                     float rotStep = SliderStepOptions[_rotStepIndex];
-                    rot.x = SliderRow("Rot X", rot.x, -180.0f, 180.0f, 0.0f, rotStep);
-                    rot.y = SliderRow("Rot Y", rot.y, -180.0f, 180.0f, 0.0f, rotStep);
-                    rot.z = SliderRow("Rot Z", rot.z, -180.0f, 180.0f, 0.0f, rotStep);
+                    rot.x = SliderRow("Rot X", rot.x, -180.0f, 180.0f, NormalizeAngle(_selectedDebugEntry.baselineLocalEuler.x), rotStep);
+                    rot.y = SliderRow("Rot Y", rot.y, -180.0f, 180.0f, NormalizeAngle(_selectedDebugEntry.baselineLocalEuler.y), rotStep);
+                    rot.z = SliderRow("Rot Z", rot.z, -180.0f, 180.0f, NormalizeAngle(_selectedDebugEntry.baselineLocalEuler.z), rotStep);
                     debugTr.localEulerAngles = rot;
 
                     GUILayout.Label("<color=orange>Scale</color>", RichLabel);
                     DrawStepSelector(ref _scaleStepIndex, "Step");
                     Vector3 scale = debugTr.localScale;
                     float scaleStep = SliderStepOptions[_scaleStepIndex];
-                    scale.x = SliderRow("Scale X", scale.x, 0.1f, 2.0f, 1.0f, scaleStep);
-                    scale.y = SliderRow("Scale Y", scale.y, 0.1f, 2.0f, 1.0f, scaleStep);
-                    scale.z = SliderRow("Scale Z", scale.z, 0.1f, 2.0f, 1.0f, scaleStep);
+                    scale.x = SliderRow("Scale X", scale.x, 0.1f, 2.0f, _selectedDebugEntry.baselineLocalScale.x, scaleStep);
+                    scale.y = SliderRow("Scale Y", scale.y, 0.1f, 2.0f, _selectedDebugEntry.baselineLocalScale.y, scaleStep);
+                    scale.z = SliderRow("Scale Z", scale.z, 0.1f, 2.0f, _selectedDebugEntry.baselineLocalScale.z, scaleStep);
                     debugTr.localScale = scale;
 
                     ApplyDebugToSource(_selectedDebugEntry);
@@ -748,9 +1173,7 @@ namespace ClothCollideVisualizer
                     GUILayout.BeginHorizontal();
                     if (GUILayout.Button("Reset All"))
                     {
-                        debugTr.localPosition = Vector3.zero;
-                        debugTr.localEulerAngles = Vector3.zero;
-                        debugTr.localScale = Vector3.one;
+                        ResetDebugToBaseline(_selectedDebugEntry);
                         ApplyDebugToSource(_selectedDebugEntry);
                     }
                     GUILayout.EndHorizontal();
@@ -796,12 +1219,40 @@ namespace ClothCollideVisualizer
             if (controller == null)
                 return;
 
+            PhysicCollider existData = controller.GetData();
+            if (existData != null)
+                SaveCurrentTransformsForSlots(ociChar.GetChaControl(), existData);
+
             controller.RemovePhysicCollier();
             CleanupVisualsByName(ociChar);
             _selectedDebugEntry = null;
             _selectedDebugIndex = -1;
 
+            // 핵심: 새로 갈아입은 의상의 Cloth 배열에 Adjustable collider를 다시 매핑한다.
+            PhysicCollider physicCollider = controller.GetData() ?? controller.CreateData(ociChar);
+            if (physicCollider != null)
+            {
+                if (physicCollider.pendingResetTop)
+                {
+                    ClothCollideVisualUtils.RemoveAllocatedClothColliders(physicCollider, true);
+                    ResetSlotCollidersToDefault(ociChar.GetChaControl(), physicCollider, SlotTop);
+                }
+                if (physicCollider.pendingResetBottom)
+                {
+                    ClothCollideVisualUtils.RemoveAllocatedClothColliders(physicCollider, false);
+                    ResetSlotCollidersToDefault(ociChar.GetChaControl(), physicCollider, SlotBottom);
+                }
+
+                controller.SupportExtraClothCollider(ociChar.GetChaControl(), physicCollider);
+                ApplySavedTransformsForSlots(ociChar.GetChaControl(), physicCollider);
+                physicCollider.pendingResetTop = false;
+                physicCollider.pendingResetBottom = false;
+            }
+
             AddVisualColliders(ociChar);
+            PhysicCollider refreshedData = controller.GetData();
+            if (refreshedData != null)
+                refreshedData.requireForceRefresh = false;
         }
 
         private void ForceRemoveVisualColliders(OCIChar ociChar)
@@ -813,18 +1264,23 @@ namespace ClothCollideVisualizer
             if (controller == null)
                 return;
 
+            PhysicCollider existData = controller.GetData();
+            if (existData != null)
+                SaveCurrentTransformsForSlots(ociChar.GetChaControl(), existData);
+
             controller.RemovePhysicCollier();
             CleanupVisualsByName(ociChar);
             _selectedDebugEntry = null;
             _selectedDebugIndex = -1;
+
             PhysicCollider physicCollider = controller.GetData();
             if (physicCollider != null)
-                physicCollider.visualColliderAdded = false;
-
+                physicCollider.requireForceRefresh = true;
         }
 
         private float SliderRow(string label, float value, float min, float max, float resetValue, float step)
         {
+            float originalValue = value;
             GUILayout.BeginHorizontal();
             GUILayout.Label(label, GUILayout.Width(60));
             if (GUILayout.Button("-", GUILayout.Width(22)))
@@ -832,7 +1288,10 @@ namespace ClothCollideVisualizer
             value = GUILayout.HorizontalSlider(value, min, max);
             if (GUILayout.Button("+", GUILayout.Width(22)))
                 value += step;
-            value = Quantize(value, step, min, max);
+
+            // Avoid snapping just by drawing the UI (important when baseline is not aligned to the current step).
+            if (Mathf.Abs(value - originalValue) > 1e-6f)
+                value = Quantize(value, step, min, max);
             GUILayout.Label(FormatByStep(value, step), GUILayout.Width(50));
             if (GUILayout.Button("Reset", GUILayout.Width(52)))
                 value = resetValue;
@@ -890,6 +1349,9 @@ namespace ClothCollideVisualizer
             entry.debugTransform.localPosition = src.localPosition;
             entry.debugTransform.localEulerAngles = src.localEulerAngles;
             entry.debugTransform.localScale = src.localScale;
+
+            if (entry.debugCenterTransform != null && TryGetColliderCenter(entry.source, out Vector3 center))
+                entry.debugCenterTransform.localPosition = center;
         }
 
         private void ApplyDebugToSource(DebugColliderEntry entry)
@@ -901,6 +1363,49 @@ namespace ClothCollideVisualizer
             src.localPosition = entry.debugTransform.localPosition;
             src.localEulerAngles = entry.debugTransform.localEulerAngles;
             src.localScale = entry.debugTransform.localScale;
+
+            if (entry.debugCenterTransform != null)
+                TrySetColliderCenter(entry.source, entry.debugCenterTransform.localPosition);
+
+            PhysicCollider physicCollider = GetCurrentData();
+            string colliderKey = GetColliderKey(entry.source);
+            if (physicCollider != null && !string.IsNullOrEmpty(colliderKey))
+            {
+                // 현재 collider가 top/bottom 중 어디에 속하는지(현재 옷 기준) 판단해서 해당 옷 키에 저장한다.
+                ChaControl chaCtrl = physicCollider.chaCtrl;
+                if (chaCtrl != null && (physicCollider.colliderInstanceIdToSlot == null || physicCollider.colliderInstanceIdToSlot.Count == 0))
+                    RebuildColliderSlotCache(chaCtrl, physicCollider);
+
+                int slot = SlotTop;
+                if (physicCollider.colliderInstanceIdToSlot != null
+                    && physicCollider.colliderInstanceIdToSlot.TryGetValue(entry.source.GetInstanceID(), out int mappedSlot))
+                    slot = mappedSlot;
+
+                if (slot == SlotBottom)
+                    physicCollider.bottomColliderTransformInfos[colliderKey] = new ColliderTransformInfo
+                    {
+                        localPosition = src.localPosition,
+                        localEulerAngles = src.localEulerAngles,
+                        localScale = src.localScale,
+                        colliderCenter = entry.debugCenterTransform != null ? entry.debugCenterTransform.localPosition : GetColliderCenterOrDefault(entry.source),
+                        hasLocalPosition = true,
+                        hasLocalEulerAngles = true,
+                        hasLocalScale = true,
+                        hasColliderCenter = true
+                    };
+                else
+                    physicCollider.topColliderTransformInfos[colliderKey] = new ColliderTransformInfo
+                {
+                    localPosition = src.localPosition,
+                    localEulerAngles = src.localEulerAngles,
+                    localScale = src.localScale,
+                    colliderCenter = entry.debugCenterTransform != null ? entry.debugCenterTransform.localPosition : GetColliderCenterOrDefault(entry.source),
+                    hasLocalPosition = true,
+                    hasLocalEulerAngles = true,
+                    hasLocalScale = true,
+                    hasColliderCenter = true
+                };
+            }
         }
 
         private void ResetDebugToBaseline(DebugColliderEntry entry)
@@ -911,16 +1416,45 @@ namespace ClothCollideVisualizer
             entry.debugTransform.localPosition = entry.baselineLocalPosition;
             entry.debugTransform.localEulerAngles = entry.baselineLocalEuler;
             entry.debugTransform.localScale = entry.baselineLocalScale;
+            if (entry.debugCenterTransform != null)
+                entry.debugCenterTransform.localPosition = entry.baselineCenter;
         }
 
         private bool IsEntryModified(DebugColliderEntry entry)
         {
-            if (entry == null || entry.debugTransform == null)
-                return false;
+            return GetEntryModifiedFlags(entry, out _, out _, out _);
+        }
 
-            return !ApproximatelyVector(entry.debugTransform.localPosition, Vector3.zero)
-                || !ApproximatelyEuler(entry.debugTransform.localEulerAngles, Vector3.zero)
-                || !ApproximatelyVector(entry.debugTransform.localScale, Vector3.one);
+        private bool GetEntryModifiedFlags(DebugColliderEntry entry, out bool centerModified, out bool rotModified, out bool scaleModified)
+        {
+            if (entry == null || entry.debugTransform == null)
+            {
+                centerModified = false;
+                rotModified = false;
+                scaleModified = false;
+                return false;
+            }
+
+            centerModified = entry.debugCenterTransform != null
+                && !ApproximatelyVector(entry.debugCenterTransform.localPosition, entry.baselineCenter);
+
+            // Position은 Collider.center(Offset) 기준으로만 판단한다.
+            rotModified = !ApproximatelyEuler(entry.debugTransform.localEulerAngles, entry.baselineLocalEuler);
+            scaleModified = !ApproximatelyVector(entry.debugTransform.localScale, entry.baselineLocalScale);
+
+            return centerModified || rotModified || scaleModified;
+        }
+
+        private static string NormalizeColliderDisplayName(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return name;
+
+            // onGUI 표시에서만 prefix를 제거한다(내부 키/매핑에는 영향 없음).
+            if (name.StartsWith(ColliderSupportPrefix, StringComparison.Ordinal))
+                return name.Substring(ColliderSupportPrefix.Length);
+
+            return name;
         }
 
         private bool ApproximatelyVector(Vector3 a, Vector3 b)
@@ -960,8 +1494,21 @@ namespace ClothCollideVisualizer
         {
             for (int i = 0; i < frameCount; i++)
                 yield return null;
-                
-            if (ociChar != null && _ShowUI)
+
+            if (ociChar == null)
+                yield break;
+
+            var controller = _self.GetControl(ociChar);
+            if (controller == null)
+                yield break;
+
+            PhysicCollider physicCollider = controller.GetData() ?? controller.CreateData(ociChar);
+            if (physicCollider == null)
+                yield break;
+
+            ApplySavedTransformsForSlots(ociChar.GetChaControl(), physicCollider);
+
+            if (_ShowUI)
                 _self.AddVisualColliders(ociChar);
         }
 
@@ -1010,7 +1557,7 @@ namespace ClothCollideVisualizer
             // Root
             GameObject root = new GameObject(capsule.name + "_CapsuleWire");
             root.transform.SetParent(parent, false);
-            root.transform.localPosition = capsule.center;
+            root.transform.localPosition = Vector3.zero;
             root.transform.localRotation = Quaternion.identity;
 
             List<Renderer> renderers = new List<Renderer>();
@@ -1094,7 +1641,7 @@ namespace ClothCollideVisualizer
 
             GameObject root = new GameObject(sphere.name + "_SphereWire");
             root.transform.SetParent(parent, false);
-            // root.transform.localPosition = sphere.center;
+            root.transform.localPosition = Vector3.zero;
             root.transform.localRotation = Quaternion.identity;
 
             List<Renderer> renderers = new List<Renderer>();
@@ -1141,7 +1688,7 @@ namespace ClothCollideVisualizer
             debugCollideRenderers[sphere] = renderers;
 
             // 콜라이더 이름 텍스트 생성
-            Vector3 textPos = sphere.center + Vector3.up * (radius + 0.05f);
+            Vector3 textPos = Vector3.up * (radius + 0.05f);
             CreateTextDebugLocal(root.transform, textPos, name, cam, debugObjects, debugCollideRenderers, isAdjustable);
 
             if (_showDebugVisuals == false)
@@ -1318,6 +1865,7 @@ namespace ClothCollideVisualizer
                         return;
 
                     physicCollider.ociChar = ociChar;
+                    ApplySavedTransformsForSlots(ociChar.GetChaControl(), physicCollider);
 
                     ChaControl baseCharControl = ociChar.charInfo;
 
@@ -1373,90 +1921,69 @@ namespace ClothCollideVisualizer
                     //    idx++;
                     //}
                     
-                    if (ociChar.charInfo.objBodyBone)
+                    // 현재 상/하의 Cloth가 실제로 참조하는 collider만 시각화 대상으로 한다.
+                    ChaControl chaCtrl = ociChar.GetChaControl();
+                    GameObject topObj = (chaCtrl != null && chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 0) ? chaCtrl.objClothes[0] : null;
+                    GameObject bottomObj = (chaCtrl != null && chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 1) ? chaCtrl.objClothes[1] : null;
+
+                    List<Collider> usedColliders = GetCollidersUsedByCloth(topObj)
+                        .Concat(GetCollidersUsedByCloth(bottomObj))
+                        .Where(v => v != null)
+                        .Distinct()
+                        .OrderBy(v => v.name, StringComparer.Ordinal)
+                        .ToList();
+
+                    foreach (Collider col in usedColliders)
                     {
-                        List<SphereCollider> spherecolliders = ociChar.charInfo.objBodyBone.transform.GetComponentsInChildren<SphereCollider>().OrderBy(col => col.gameObject.name).ToList();
-                        List<CapsuleCollider> capsulecolliders = ociChar.charInfo.objBodyBone.transform.GetComponentsInChildren<CapsuleCollider>().OrderBy(col => col.gameObject.name).ToList();
-        
-                        foreach (var col in spherecolliders.OrderBy(col => col.gameObject.name).ToList())
+                        if (col == null)
+                            continue;
+
+                        EnsureDefaultColliderBaseline(col, physicCollider);
+                        int colId = col.GetInstanceID();
+                        ColliderTransformInfo baselineInfo = null;
+                        if (physicCollider.colliderDefaultTransforms != null)
+                            physicCollider.colliderDefaultTransforms.TryGetValue(colId, out baselineInfo);
+
+                        string collider_name = GetColliderKey(col);
+                        if (string.IsNullOrEmpty(collider_name))
+                            collider_name = col.name ?? "(null)";
+
+                        GameObject debugRoot = new GameObject(collider_name + "_Debug");
+                        debugRoot.transform.SetParent(col.transform.parent, false);
+                        debugRoot.transform.localPosition = col.transform.localPosition;
+                        debugRoot.transform.localRotation = col.transform.localRotation;
+                        debugRoot.transform.localScale = col.transform.localScale;
+
+                        GameObject debugCenterRoot = new GameObject("Center");
+                        debugCenterRoot.transform.SetParent(debugRoot.transform, false);
+                        debugCenterRoot.transform.localPosition = GetColliderCenterOrDefault(col);
+                        debugCenterRoot.transform.localRotation = Quaternion.identity;
+                        debugCenterRoot.transform.localScale = Vector3.one;
+
+                        var entry = new DebugColliderEntry
                         {
-                            if (col == null) continue;
+                            name = collider_name,
+                            source = col,
+                            debugTransform = debugRoot.transform,
+                            debugCenterTransform = debugCenterRoot.transform,
+                            baselineLocalPosition = baselineInfo != null ? baselineInfo.localPosition : debugRoot.transform.localPosition,
+                            baselineLocalEuler = baselineInfo != null ? baselineInfo.localEulerAngles : debugRoot.transform.localEulerAngles,
+                            baselineLocalScale = baselineInfo != null ? baselineInfo.localScale : debugRoot.transform.localScale,
+                            baselineCenter = baselineInfo != null ? baselineInfo.colliderCenter : debugCenterRoot.transform.localPosition
+                        };
+                        physicCollider.debugEntries.Add(entry);
+                        physicCollider.debugEntryBySource[col] = entry;
 
-                            if (col.gameObject.name.Contains("Cloth colliders"))
-                            {
-                                string trim_name = col.gameObject.name.Replace("Cloth colliders support_", "").Trim();
-                                string collider_name;
-
-                                idx = trim_name.IndexOf('-');
-                                if (idx >= 0)
-                                    collider_name = trim_name.Substring(0, idx);
-                                else
-                                    collider_name = trim_name;
-
-                                GameObject debugRoot = new GameObject(collider_name + "_Debug");
-                                debugRoot.transform.SetParent(col.transform.parent, false);
-                                debugRoot.transform.localPosition = col.transform.localPosition;
-                                debugRoot.transform.localRotation = col.transform.localRotation;
-                                debugRoot.transform.localScale = col.transform.localScale;
-
-                                var entry = new DebugColliderEntry
-                                {
-                                    name = collider_name,
-                                    source = col,
-                                    debugTransform = debugRoot.transform,
-                                    baselineLocalPosition = debugRoot.transform.localPosition,
-                                    baselineLocalEuler = debugRoot.transform.localEulerAngles,
-                                    baselineLocalScale = debugRoot.transform.localScale
-                                };
-                                physicCollider.debugEntries.Add(entry);
-                                physicCollider.debugEntryBySource[col] = entry;
-
-                                // SphereCollider 시각화 생성
-                                CreateSphereWireframe(col, debugRoot.transform, collider_name, physicCollider.debugSphereCollideVisibleObjects, physicCollider.debugCollideRenderers);
-                            }
-                        }
-
-                        foreach (var col in capsulecolliders.OrderBy(col => col.gameObject.name).ToList())
-                        {
-                            if (col == null) continue; // Destroy된 콜라이더는 건너뛴다.
-
-                            if (col.gameObject.name.Contains("Cloth colliders"))
-                            {
-                                string trim_name = col.gameObject.name.Replace("Cloth colliders support_", "").Trim();
-                                string collider_name;
-                                idx = trim_name.IndexOf('-');
-                                if (idx >= 0)
-                                    collider_name = trim_name.Substring(0, idx);
-                                else
-                                    collider_name = trim_name;
-
-                                GameObject debugRoot = new GameObject(collider_name + "_Debug");
-                                debugRoot.transform.SetParent(col.transform.parent, false);
-                                debugRoot.transform.localPosition = col.transform.localPosition;
-                                debugRoot.transform.localRotation = col.transform.localRotation;
-                                debugRoot.transform.localScale = col.transform.localScale;
-
-                                var entry = new DebugColliderEntry
-                                {
-                                    name = collider_name,
-                                    source = col,
-                                    debugTransform = debugRoot.transform,
-                                    baselineLocalPosition = debugRoot.transform.localPosition,
-                                    baselineLocalEuler = debugRoot.transform.localEulerAngles,
-                                    baselineLocalScale = debugRoot.transform.localScale
-                                };
-                                physicCollider.debugEntries.Add(entry);
-                                physicCollider.debugEntryBySource[col] = entry;
-
-                                // CapsuleCollider 시각화 생성
-                                CreateCapsuleWireframe(col, debugRoot.transform, collider_name, physicCollider.debugCapsuleCollideVisibleObjects, physicCollider.debugCollideRenderers);
-                            }
-                        }
+                        if (col is SphereCollider sphere)
+                            CreateSphereWireframe(sphere, debugCenterRoot.transform, collider_name, physicCollider.debugSphereCollideVisibleObjects, physicCollider.debugCollideRenderers);
+                        else if (col is CapsuleCollider capsule)
+                            CreateCapsuleWireframe(capsule, debugCenterRoot.transform, collider_name, physicCollider.debugCapsuleCollideVisibleObjects, physicCollider.debugCollideRenderers);
                     }
 
                     SetDebugVisualsVisible(physicCollider, _showDebugVisuals);
 
                     physicCollider.visualColliderAdded = true;
+                    physicCollider.requireForceRefresh = false;
 
                     // UnityEngine.Debug.Log($">> AddVisualColliders");     
                 }        
@@ -1488,6 +2015,16 @@ namespace ClothCollideVisualizer
                     {
                         // 교체 전 데이터/디버그 오브젝트 정리
                         _self.ForceRemoveVisualColliders(ociChar);
+
+                        // 캐릭터가 바뀌면 상/하의 모두 "새로 로딩"된 것으로 보고 초기화한다.
+                        PhysicCollider data = controller.GetData();
+                        if (data != null)
+                        {
+                            data.topColliderTransformInfos.Clear();
+                            data.bottomColliderTransformInfos.Clear();
+                            data.pendingResetTop = true;
+                            data.pendingResetBottom = true;
+                        }
                     }
                 }
             }
@@ -1507,6 +2044,22 @@ namespace ClothCollideVisualizer
                     {
                         // 변경 전 데이터/디버그 오브젝트 정리
                         _self.ForceRemoveVisualColliders(ociChar);
+
+                        // 상의/하의가 새로 로딩되면 해당 슬롯은 무조건 초기화(이력 미보관)
+                        PhysicCollider data = controller.GetData();
+                        if (data != null && TryGetSlotFromChangeClothesKind(kind, out int slot))
+                        {
+                            if (slot == SlotBottom)
+                            {
+                                data.bottomColliderTransformInfos.Clear();
+                                data.pendingResetBottom = true;
+                            }
+                            else
+                            {
+                                data.topColliderTransformInfos.Clear();
+                                data.pendingResetTop = true;
+                            }
+                        }
                     }
                 }
             }

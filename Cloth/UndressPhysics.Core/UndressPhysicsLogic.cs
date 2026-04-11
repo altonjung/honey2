@@ -289,6 +289,11 @@ namespace UndressPhysics
                 colliderObject.transform.SetParent(bone.transform, false);
             }
 
+            // Ensure the collider transform stays neutral; offset is expressed via Collider.center.
+            colliderObject.localPosition = Vector3.zero;
+            colliderObject.localRotation = Quaternion.identity;
+            colliderObject.localScale = Vector3.one;
+
             var collider = colliderObject.GetComponent<SphereCollider>();
             if (collider == null)
                 collider = colliderObject.gameObject.AddComponent<SphereCollider>();
@@ -321,9 +326,12 @@ namespace UndressPhysics
             {
                 colliderObject = new GameObject(colliderName).transform;
                 colliderObject.transform.SetParent(bone.transform, false);
-                colliderObject.transform.localScale = Vector3.one;
-                colliderObject.transform.localPosition = Vector3.zero;
             }
+
+            // Ensure the collider transform stays neutral; offset is expressed via Collider.center.
+            colliderObject.localPosition = Vector3.zero;
+            colliderObject.localRotation = Quaternion.identity;
+            colliderObject.localScale = Vector3.one;
 
             var collider = colliderObject.GetComponent<CapsuleCollider>();
             if (collider == null)
