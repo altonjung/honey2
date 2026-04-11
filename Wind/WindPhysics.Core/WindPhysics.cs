@@ -138,7 +138,7 @@ namespace WindPhysics
         {
             base.Awake();
             // Environment 
-            Gravity = Config.Bind("All", "Gravity", -0.05f, new ConfigDescription("gravity", new AcceptableValueRange<float>(-0.1f, 0.1f)));
+            Gravity = Config.Bind("All", "Gravity", -0.01f, new ConfigDescription("gravity", new AcceptableValueRange<float>(-0.1f, 0.1f)));
 
             WindDirection = Config.Bind("All", "Direction", 0.0f, new ConfigDescription("wind direction from 0 to 360 degree", new AcceptableValueRange<float>(0.0f, 359.0f)));
 
