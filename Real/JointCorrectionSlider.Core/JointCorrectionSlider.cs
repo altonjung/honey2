@@ -734,16 +734,16 @@ namespace JointCorrectionSlider
 
 #if FEATURE_DAN_CORRECTION
                 if (data._dan_root != null)
-                    ApplyDanTransform(data._dan_root, data.DanRootLengthValue, data.DanRootScaleValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos);
+                    ApplyDanTransform(data._dan_root, data.DanRootLengthValue, data.DanRootScaleValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos, TargetDirection.Z_POS);
 
                 if (data._dan_tip1 != null)
-                    ApplyDanTransform(data._dan_tip1, data.DanTip1LengthValue, data.DanTip1ScaleValue, ref data._danTip1PosBaseSet, ref data._danTip1PosBasePos, ref data._danTip1ScaleBaseSet, ref data._danTip1ScaleBasePos);
+                    ApplyDanTransform(data._dan_tip1, data.DanTip1LengthValue, data.DanTip1ScaleValue, ref data._danTip1PosBaseSet, ref data._danTip1PosBasePos, ref data._danTip1ScaleBaseSet, ref data._danTip1ScaleBasePos, TargetDirection.Z_POS);
 
                 if (data._dan_tip2 != null)
-                    ApplyDanTransform(data._dan_tip2, data.DanTip2LengthValue, data.DanTip2ScaleValue, ref data._danTip2PosBaseSet, ref data._danTip2PosBasePos, ref data._danTip2ScaleBaseSet, ref data._danTip2ScaleBasePos);
+                    ApplyDanTransform(data._dan_tip2, data.DanTip2LengthValue, data.DanTip2ScaleValue, ref data._danTip2PosBaseSet, ref data._danTip2PosBasePos, ref data._danTip2ScaleBaseSet, ref data._danTip2ScaleBasePos, TargetDirection.Z_POS);
 
                 if (data._dan_tip3 != null)
-                    ApplyDanTransform(data._dan_tip3, data.DanTip3LengthValue, data.DanTip3ScaleValue, ref data._danTip3PosBaseSet, ref data._danTip3PosBasePos, ref data._danTip3ScaleBaseSet, ref data._danTip3ScaleBasePos);
+                    ApplyDanTransform(data._dan_tip3, data.DanTip3LengthValue, data.DanTip3ScaleValue, ref data._danTip3PosBaseSet, ref data._danTip3PosBasePos, ref data._danTip3ScaleBaseSet, ref data._danTip3ScaleBasePos, TargetDirection.Z_POS);
 #endif
             }
         }
@@ -880,13 +880,6 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
                 if (data.charControl != null && data.charControl.sex == 0)
                 {
-                    if (data._dan_root != null)
-                    {
-                        GUILayout.Label("<color=orange>Dan Root</color>", RichLabel);
-                        data.DanRootScaleValue = DrawCorrectionRow("Root(S)", "Scale", data.DanRootScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanRootScaleValue), correctionStep);
-                        data.DanRootLengthValue = DrawCorrectionRow("Root(L)", "Length", data.DanRootLengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanRootLengthValue), correctionStep);
-                    }
-
                     if (data._dan_tip1 != null)
                     {
                         GUILayout.Label("<color=orange>Dan Tip1</color>", RichLabel);
@@ -907,6 +900,13 @@ namespace JointCorrectionSlider
                         data.DanTip3ScaleValue = DrawCorrectionRow("Tip3(S)", "Scale", data.DanTip3ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTip3ScaleValue), correctionStep);
                         data.DanTip3LengthValue = DrawCorrectionRow("Tip3(L)", "Length", data.DanTip3LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTip3LengthValue), correctionStep);
                     }
+
+                    if (data._dan_root != null)
+                    {
+                        GUILayout.Label("<color=orange>Dan Root</color>", RichLabel);
+                        data.DanRootScaleValue = DrawCorrectionRow("Root(S)", "Scale", data.DanRootScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanRootScaleValue), correctionStep);
+                        data.DanRootLengthValue = DrawCorrectionRow("Root(L)", "Length", data.DanRootLengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanRootLengthValue), correctionStep);
+                    }                    
                 }
 #endif
                 if (GUILayout.Button("Default"))
