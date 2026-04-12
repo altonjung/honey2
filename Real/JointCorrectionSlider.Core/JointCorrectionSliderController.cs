@@ -80,18 +80,21 @@ namespace JointCorrectionSlider
 
 #if FEATURE_DAN_CORRECTION
             correctionData._dan_root = charControl.objAnim.transform.FindLoop("cm_J_dan_s");
-            correctionData._dan_tip1 = charControl.objAnim.transform.FindLoop("cm_J_dan119_00");
-            correctionData._dan_tip2 = charControl.objAnim.transform.FindLoop("cm_J_dan108_00");
-            correctionData._dan_tip3 = charControl.objAnim.transform.FindLoop("cm_J_dan107_00");
+            correctionData._dan_top1 = charControl.objAnim.transform.FindLoop("cm_J_dan119_00");
+            correctionData._dan_top2 = charControl.objAnim.transform.FindLoop("cm_J_dan108_00");
+            correctionData._dan_top3 = charControl.objAnim.transform.FindLoop("cm_J_dan105_00");
+            correctionData._dan_top4 = charControl.objAnim.transform.FindLoop("cm_J_dan103_00");
 
             correctionData._danRootPosBaseSet = false;
             correctionData._danRootScaleBaseSet = false;
-            correctionData._danTip1PosBaseSet = false;
-            correctionData._danTip1ScaleBaseSet = false;
-            correctionData._danTip2PosBaseSet = false;
-            correctionData._danTip2ScaleBaseSet = false;
-            correctionData._danTip3PosBaseSet = false;
-            correctionData._danTip3ScaleBaseSet = false;
+            correctionData._dantop1PosBaseSet = false;
+            correctionData._dantop1ScaleBaseSet = false;
+            correctionData._dantop2PosBaseSet = false;
+            correctionData._dantop2ScaleBaseSet = false;
+            correctionData._dantop3PosBaseSet = false;
+            correctionData._dantop3ScaleBaseSet = false;
+            correctionData._dantop4PosBaseSet = false;
+            correctionData._dantop4ScaleBaseSet = false;
 #endif
 
             // Initialize base ScriptInfo values once at data creation time.
@@ -178,12 +181,14 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
         public float DanRootScaleValue = 0.0f;
         public float DanRootLengthValue = 0.0f;
-        public float DanTip1ScaleValue = 0.0f;
-        public float DanTip1LengthValue = 0.0f;
-        public float DanTip2ScaleValue = 0.0f;
-        public float DanTip2LengthValue = 0.0f;
-        public float DanTip3ScaleValue = 0.0f;
-        public float DanTip3LengthValue = 0.0f;
+        public float Dantop1ScaleValue = 0.0f;
+        public float Dantop1LengthValue = 0.0f;
+        public float Dantop2ScaleValue = 0.0f;
+        public float Dantop2LengthValue = 0.0f;
+        public float Dantop3ScaleValue = 0.0f;
+        public float Dantop3LengthValue = 0.0f;
+        public float Dantop4ScaleValue = 0.0f;
+        public float Dantop4LengthValue = 0.0f;
 #endif
 
 #if FEATURE_DEBUG
@@ -206,9 +211,7 @@ namespace JointCorrectionSlider
         public float _prevRightArmDn = 0f;
         public float _prevLeftElbow = 0f;
         public float _prevRightElbow = 0f;
-#if FEATURE_DAN_CORRECTION        
-        public float _prevDan = 0f;
-#endif
+
         public Transform _shoulder02_s_L;
         public Transform _shoulder02_s_R;
 
@@ -221,33 +224,39 @@ namespace JointCorrectionSlider
 
 #if FEATURE_DAN_CORRECTION
         public Transform _dan_root;
-        public Transform _dan_tip1;
-        public Transform _dan_tip2;
-        public Transform _dan_tip3;
+        public Transform _dan_top1;
+        public Transform _dan_top2;
+        public Transform _dan_top3;
 
         public  UnityEngine.Vector3 _danRootPosBasePos;
         public  UnityEngine.Vector3 _danRootScaleBasePos;
 
-        public  UnityEngine.Vector3 _danTip1PosBasePos;
-        public  UnityEngine.Vector3 _danTip1ScaleBasePos;
+        public  UnityEngine.Vector3 _dantop1PosBasePos;
+        public  UnityEngine.Vector3 _dantop1ScaleBasePos;
 
-        public  UnityEngine.Vector3 _danTip2PosBasePos;
-        public  UnityEngine.Vector3 _danTip2ScaleBasePos;
+        public  UnityEngine.Vector3 _dantop2PosBasePos;
+        public  UnityEngine.Vector3 _dantop2ScaleBasePos;
 
-        public  UnityEngine.Vector3 _danTip3PosBasePos;
-        public  UnityEngine.Vector3 _danTip3ScaleBasePos;                        
+        public  UnityEngine.Vector3 _dantop3PosBasePos;
+        public  UnityEngine.Vector3 _dantop3ScaleBasePos;                        
+
+        public  UnityEngine.Vector3 _dantop4PosBasePos;
+        public  UnityEngine.Vector3 _dantop4ScaleBasePos;   
 
         public  bool _danRootPosBaseSet;
         public  bool _danRootScaleBaseSet;
 
-        public  bool _danTip1PosBaseSet;
-        public  bool _danTip1ScaleBaseSet;
+        public  bool _dantop1PosBaseSet;
+        public  bool _dantop1ScaleBaseSet;
 
-        public  bool _danTip2PosBaseSet;
-        public  bool _danTip2ScaleBaseSet;                
+        public  bool _dantop2PosBaseSet;
+        public  bool _dantop2ScaleBaseSet;                
 
-        public  bool _danTip3PosBaseSet;
-        public  bool _danTip3ScaleBaseSet;                        
+        public  bool _dantop3PosBaseSet;
+        public  bool _dantop3ScaleBaseSet;
+
+        public  bool _dantop4PosBaseSet;
+        public  bool _dantop4ScaleBaseSet;
 #endif
 
 
@@ -270,12 +279,14 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
             DanRootScaleValue = 0.0f;
             DanRootLengthValue = 0.0f;
-            DanTip1ScaleValue = 0.0f;
-            DanTip1LengthValue = 0.0f;
-            DanTip2ScaleValue = 0.0f;
-            DanTip2LengthValue = 0.0f;
-            DanTip3ScaleValue = 0.0f;
-            DanTip3LengthValue = 0.0f;
+            Dantop1ScaleValue = 0.0f;
+            Dantop1LengthValue = 0.0f;
+            Dantop2ScaleValue = 0.0f;
+            Dantop2LengthValue = 0.0f;
+            Dantop3ScaleValue = 0.0f;
+            Dantop3LengthValue = 0.0f;
+            Dantop4ScaleValue = 0.0f;
+            Dantop4LengthValue = 0.0f;
 #endif
         }
     }        

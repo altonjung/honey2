@@ -71,8 +71,7 @@ using static CharaUtils.Expression;
             2.2) sceneRead는 함수는 scenewrite 에서 저장한 xml 정보를 다시 JointCorrectionSliderData 로 업데이트 해야 한다.
 
     추가 요구 기능:
-        N/A
-
+        cm_J_Dan107_00, cm_J_Dan105_00, cm_J_Dan103_00        
 
     현 버전 문제점:
         N/A
@@ -360,12 +359,12 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
                     data.DanRootScaleValue = ReadFloat(boneNode, "danRootScale", data.DanRootScaleValue);
                     data.DanRootLengthValue = ReadFloat(boneNode, "danRootLength", data.DanRootLengthValue);
-                    data.DanTip1ScaleValue = ReadFloat(boneNode, "danTip1Scale", data.DanTip1ScaleValue);
-                    data.DanTip1LengthValue = ReadFloat(boneNode, "danTip1Length", data.DanTip1LengthValue);
-                    data.DanTip2ScaleValue = ReadFloat(boneNode, "danTip2Scale", data.DanTip2ScaleValue);
-                    data.DanTip2LengthValue = ReadFloat(boneNode, "danTip2Length", data.DanTip2LengthValue);
-                    data.DanTip3ScaleValue = ReadFloat(boneNode, "danTip3Scale", data.DanTip3ScaleValue);
-                    data.DanTip3LengthValue = ReadFloat(boneNode, "danTip3Length", data.DanTip3LengthValue);
+                    data.DanTop1ScaleValue = ReadFloat(boneNode, "danTop1Scale", data.DanTop1ScaleValue);
+                    data.DanTop1LengthValue = ReadFloat(boneNode, "danTop1Length", data.DanTop1LengthValue);
+                    data.DanTop2ScaleValue = ReadFloat(boneNode, "danTop2Scale", data.DanTop2ScaleValue);
+                    data.DanTop2LengthValue = ReadFloat(boneNode, "danTop2Length", data.DanTop2LengthValue);
+                    data.DanTop3ScaleValue = ReadFloat(boneNode, "danTop3Scale", data.DanTop3ScaleValue);
+                    data.DanTop3LengthValue = ReadFloat(boneNode, "danTop3Length", data.DanTop3LengthValue);
 #endif        
                     if (ReadScriptInfoBaseNode(boneNode, data))
                         data.ScriptInfoBaseInitialized = true;
@@ -417,12 +416,12 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
                     WriteValueNode(writer, "danRootScale", data.DanRootScaleValue);
                     WriteValueNode(writer, "danRootLength", data.DanRootLengthValue);
-                    WriteValueNode(writer, "danTip1Scale", data.DanTip1ScaleValue);
-                    WriteValueNode(writer, "danTip1Length", data.DanTip1LengthValue);
-                    WriteValueNode(writer, "danTip2Scale", data.DanTip2ScaleValue);
-                    WriteValueNode(writer, "danTip2Length", data.DanTip2LengthValue);
-                    WriteValueNode(writer, "danTip3Scale", data.DanTip3ScaleValue);
-                    WriteValueNode(writer, "danTip3Length", data.DanTip3LengthValue);
+                    WriteValueNode(writer, "danTip1Scale", data.DanTop1ScaleValue);
+                    WriteValueNode(writer, "danTip1Length", data.DanTop1LengthValue);
+                    WriteValueNode(writer, "danTip2Scale", data.DanTop2ScaleValue);
+                    WriteValueNode(writer, "danTip2Length", data.DanTop2LengthValue);
+                    WriteValueNode(writer, "danTip3Scale", data.DanTop3ScaleValue);
+                    WriteValueNode(writer, "danTip3Length", data.DanTop3LengthValue);
 #endif
                     writer.WriteEndElement(); // config
                 
@@ -736,14 +735,14 @@ namespace JointCorrectionSlider
                 if (data._dan_root != null)
                     ApplyDanTransform(data._dan_root, data.DanRootLengthValue, data.DanRootScaleValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos, TargetDirection.Z_POS);
 
-                if (data._dan_tip1 != null)
-                    ApplyDanTransform(data._dan_tip1, data.DanTip1LengthValue, data.DanTip1ScaleValue, ref data._danTip1PosBaseSet, ref data._danTip1PosBasePos, ref data._danTip1ScaleBaseSet, ref data._danTip1ScaleBasePos, TargetDirection.Z_POS);
+                if (data._dan_top1 != null)
+                    ApplyDanTransform(data._dan_top1, data.DanTop1LengthValue, data.DanTop1ScaleValue, ref data._danTip1PosBaseSet, ref data._danTip1PosBasePos, ref data._danTip1ScaleBaseSet, ref data._danTip1ScaleBasePos, TargetDirection.Z_POS);
 
-                if (data._dan_tip2 != null)
-                    ApplyDanTransform(data._dan_tip2, data.DanTip2LengthValue, data.DanTip2ScaleValue, ref data._danTip2PosBaseSet, ref data._danTip2PosBasePos, ref data._danTip2ScaleBaseSet, ref data._danTip2ScaleBasePos, TargetDirection.Z_POS);
+                if (data._dan_top2 != null)
+                    ApplyDanTransform(data._dan_top2, data.DanTop2LengthValue, data.DanTop2ScaleValue, ref data._danTip2PosBaseSet, ref data._danTip2PosBasePos, ref data._danTip2ScaleBaseSet, ref data._danTip2ScaleBasePos, TargetDirection.Z_POS);
 
-                if (data._dan_tip3 != null)
-                    ApplyDanTransform(data._dan_tip3, data.DanTip3LengthValue, data.DanTip3ScaleValue, ref data._danTip3PosBaseSet, ref data._danTip3PosBasePos, ref data._danTip3ScaleBaseSet, ref data._danTip3ScaleBasePos, TargetDirection.Z_POS);
+                if (data._dan_top3 != null)
+                    ApplyDanTransform(data._dan_top3, data.DanTop3LengthValue, data.DanTop3ScaleValue, ref data._danTip3PosBaseSet, ref data._danTip3PosBasePos, ref data._danTip3ScaleBaseSet, ref data._danTip3ScaleBasePos, TargetDirection.Z_POS);
 #endif
             }
         }
@@ -880,26 +879,20 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
                 if (data.charControl != null && data.charControl.sex == 0)
                 {
-                    if (data._dan_tip1 != null)
+                    if (data._dan_top1 != null && data._dan_top2 != null && data._dan_top3 != null)
                     {
-                        GUILayout.Label("<color=orange>Dan Tip1</color>", RichLabel);
-                        data.DanTip1ScaleValue = DrawCorrectionRow("Tip1(S)", "Scale", data.DanTip1ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTip1ScaleValue), correctionStep);
-                        data.DanTip1LengthValue = DrawCorrectionRow("Tip1(L)", "Length", data.DanTip1LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTip1LengthValue), correctionStep);
-                    }
+                        GUILayout.Label("<color=orange>Dan Top1</color>", RichLabel);
+                        data.DanTop1ScaleValue = DrawCorrectionRow("Top1(S)", "Scale", data.DanTop1ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1ScaleValue), correctionStep);
+                        data.DanTop1LengthValue = DrawCorrectionRow("Top1(L)", "Length", data.DanTop1LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1LengthValue), correctionStep);
 
-                    if (data._dan_tip2 != null)
-                    {
-                        GUILayout.Label("<color=orange>Dan Tip2</color>", RichLabel);
-                        data.DanTip2ScaleValue = DrawCorrectionRow("Tip2(S)", "Scale", data.DanTip2ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTip2ScaleValue), correctionStep);
-                        data.DanTip2LengthValue = DrawCorrectionRow("Tip2(L)", "Length", data.DanTip2LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTip2LengthValue), correctionStep);
-                    }
+                        GUILayout.Label("<color=orange>Dan Top2</color>", RichLabel);
+                        data.DanTop2ScaleValue = DrawCorrectionRow("Top2(S)", "Scale", data.DanTop2ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2ScaleValue), correctionStep);
+                        data.DanTop2LengthValue = DrawCorrectionRow("Top2(L)", "Length", data.DanTop2LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2LengthValue), correctionStep);
 
-                    if (data._dan_tip3 != null)
-                    {
-                        GUILayout.Label("<color=orange>Dan Tip3</color>", RichLabel);
-                        data.DanTip3ScaleValue = DrawCorrectionRow("Tip3(S)", "Scale", data.DanTip3ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTip3ScaleValue), correctionStep);
-                        data.DanTip3LengthValue = DrawCorrectionRow("Tip3(L)", "Length", data.DanTip3LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTip3LengthValue), correctionStep);
-                    }
+                        GUILayout.Label("<color=orange>Dan Top3</color>", RichLabel);
+                        data.DanTop3ScaleValue = DrawCorrectionRow("Top3(S)", "Scale", data.DanTop3ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3ScaleValue), correctionStep);
+                        data.DanTop3LengthValue = DrawCorrectionRow("Top3(L)", "Length", data.DanTop3LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3LengthValue), correctionStep);
+                     }
 
                     if (data._dan_root != null)
                     {
