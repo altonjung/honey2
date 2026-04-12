@@ -49,24 +49,35 @@ using KKAPI.Studio;
 using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 using KKAPI.Chara;
-using static CharaUtils.Expression;
 
 /*
     Agent 코드 수행
 
-    목적
+    목적:
     - 활성화된 캐릭터가 착용한 Cloth 컴포넌트의 각 bone 정보를 시각화하고 position, scale 처리를 제공
 
-    용어
+    용어:
     - OCIChar: 캐릭터 
         > GetCurrentOCI 함수를 통해 현재 씬내 활성화된 캐리터를 획득
 
-    요구 기능
+    최소 요구 기능:
         1) onGUI 내에 아래 UI를 구성해야 한다.
-       2) sceneWrite, sceneRead가 가능한데, 현재 씬을 저장 후 다시 복원하는 기능이다.
+            1.1) 각 옷 파트 정보 버튼으로 구성
+            1.2) 선택된 옷 파트에 대한 collider 리스트 조회 제공
+            1.3) collider 선택 시 시각적으로  collider 제공(녹색 실선)
+            1.4) collider 에 대한 postioon, scale editing UI 제공
+        2) sceneWrite, sceneRead가 가능한데, 현재 씬을 저장 후 다시 복원하는 기능이다.
             >  캐릭터 별 ClothQuickTransformMapData 는 GetCurrentData() 를 통해, 현재 활성화된 캐릭터 데이터를 획득할 수 있다.
-            2.1) sceneWrite 시 씬내 각 캐릭터의 각 ClothQuickTransformMapData 가 보유한 bone 이름과 bone 의 속성(position, scale) 정보를 xml에 저장한다.
-            2.2) sceneRead는 시 씬내 각 캐릭터의 각 ClothQuickTransformMapData 에 2.1 에서 저장한 xml 정보를 다시 ClothQuickTransformMapData 로 업데이트 해야 한다.
+            2.1) sceneWrite 함수는 씬내 각 캐릭터의 각 ClothQuickTransformMapData 가 보유한 bone 이름과 bone 의 속성(position, scale) 정보를 xml에 저장한다.
+            2.2) sceneRead는 함수는 sceneWrite 에서 저장한 xml 정보를 다시 ClothQuickTransformMapData 로 업데이트 해야 한다.
+
+    추가 요구 기능:
+        N/A
+
+
+    현 버전 문제점:
+        - 옷이 변경되면 OCIChar_ChangeChara_Patches,  ChaControl_SetAccessoryStateAll_Patches 호출되는데, 이때 ClothQuickTransformMapData 는 모두 신규 옷 기준으로 초기화 되어야 함..
+        즉 A 옷 기준으로 position, scale 변경된 값은 B 옷 기준으로 바뀌게 되면 다시 설정을 해야 하기에 초기화(변경 옷으로 collider 값 다시 읽어야 함) 되어야 함.
 */
 namespace ClothQuickTransform
 {

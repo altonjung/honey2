@@ -53,22 +53,39 @@ using static CharaUtils.Expression;
 
 /*
 
-    추가 개발   
-     - DAN bone 보정 확장
+/*
+    Agent 코드 수행
 
-    주의 사항
-     - character 매칭은 name 단독보다 dicKey 우선 전략이 안정적이다.
-     - scene 저장 시 dicKey/hash/name을 함께 기록하고, 로드 시 dicKey -> hash -> name 순으로 매칭한다.
+    목적:
+    - 활성화된 캐릭터의 bone 조정 UI 제공
+
+    용어:
+    - OCIChar: 캐릭터 
+        > GetCurrentOCI 함수를 통해 현재 씬내 활성화된 캐리터를 획득
+
+    최소 요구 기능:
+        1) onGUI 내에 아래 UI를 구성해야 한다.
+            1.1) n개의 미리 정의된 bone 정보를 slider 형태로 제공             
+        2) sceneWrite, sceneRead가 가능한데, 현재 씬을 저장 후 다시 복원하는 기능이다.            
+            2.1) sceneWrite 함수는 씬내 각 캐릭터의 각 JointCorrectionSliderData 가 보유한 bone 이름과 bone 의 속성(position, scale) 정보를 xml에 저장한다.
+            2.2) sceneRead는 함수는 scenewrite 에서 저장한 xml 정보를 다시 JointCorrectionSliderData 로 업데이트 해야 한다.
+
+    추가 요구 기능:
+        N/A
+
+
+    현 버전 문제점:
+        onGUI에 노출된 각 bone의 slider 값 활용을 어떻게 해야 할지 고민이 필요함..
 
     참고 사항
-        // category = 0  armup L
-        // category = 1  armup R
-        // category = 2  Knee L
-        // category = 3  Knee R
-        // category = 4  armLow L
-        // category = 5  armLow R
-        // category = 6  legup L, siri
-        // category = 7  legup R, siri
+        category = 0  armup L
+        category = 1  armup R
+        category = 2  Knee L
+        category = 3  Knee R
+        category = 4  armLow L
+        category = 5  armLow R
+        category = 6  legup L, siri
+        category = 7  legup R, siri
 */
 
 namespace JointCorrectionSlider

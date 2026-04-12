@@ -53,17 +53,17 @@ using KKAPI.Chara;
 /*
     Agent 코드 수행
 
-    목적
+    목적:
     - 활성화된 캐릭터가 착용한 Cloth 컴포넌트와 외부 Item에 임의로 부여한 Collider에 대해 상호작용 효과를 제공
 
-    용어
+    용어:
     - OCIChar: 캐릭터 
         > GetCurrentOCI 함수를 통해 현재 씬내 활성화된 캐리터를 획득
     - OCIItem: 아이템(공, 테이블, 의자 등)
         > GetAllOCIItemFromStudio 함수를 통해 현재 씬내 전체 아이템 목록 획득
 
-    요구 기능
-        1) onGUI 내에 아래 UI를 구성해야 한다.
+    최소 요구 기능:
+        1) onGUI 내에 아래 UI를 구성해야 한다.           
             1.1) 현재 캐릭터내 cloth 컴포넌트 기반 상의/하의 버튼 UI 제공
                 - 상의/하의 Cloth 선택 UI 가 필요하고 각 정보는 GetClothTop()/GetClothBottom() 통해서 획득
             1.2) 씬내 조회된 OCIItem 목록 선택 UI 제공
@@ -71,6 +71,16 @@ using KKAPI.Chara;
                 - capsule/sphere 중 선택한 대상에 대한 생성 버튼 제공
                 - Center(X, Y, Z), Radius, Height 조정 가능 UI 제공 필요((녹색 실선으로 collide 속성값 변경 부분 실시간 확인 제공)
             1.4) Binding 버튼 클릭 시, 선택한 Cloth의 충돌 매핑에 Item Collider를 추가 제공    
+            1.5) 위 기능을 정상 구현하기 위해 내부적으로 각 캐릭터(OCIChar)별 n개의 OCIItem with collider 관리 되어야 함
+        2) 씬내 아래 조건에 대하 sceneWrite, sceneRead 함수를 통해 xml 저장 복원 제공
+            2.1) sceneWrite 함수는 각 캐릭터별 binding 된 OCIItem 과 그 collider 정보를 xml 형태로 저장
+            2.2) sceneRead는 함수는 sceneWrite 에서 저장한 xml을 읽어와 현재 씬에 구성된 캐릭터와 OCIItem에 Collider를 생성
+
+    추가 요구 기능:
+        - N/A
+
+    현 버전 문제점:            
+        - N/A
 */
 namespace ClothCollideBinder
 {
