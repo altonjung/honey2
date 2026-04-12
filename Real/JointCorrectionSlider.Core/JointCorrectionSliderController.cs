@@ -59,8 +59,12 @@ namespace JointCorrectionSlider
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
 
-        internal JointCorrectionSliderData CreateData(ChaControl charControl)
+        internal JointCorrectionSliderData CreateData(OCIChar ociChar)
         {
+            if (ociChar == null || ociChar.GetChaControl() == null)
+                return null;
+
+            ChaControl charControl = ociChar.GetChaControl();
             correctionData = new JointCorrectionSliderData();
             correctionData.charControl = charControl;
 
@@ -75,13 +79,65 @@ namespace JointCorrectionSlider
             correctionData._shoulder02BaseSetR = false;
 
 #if FEATURE_DAN_CORRECTION
-            correctionData._dan_root = chaControl.objAnim.transform.FindLoop("cm_J_dan_s");
-            correctionData._dan_top = chaControl.objAnim.transform.FindLoop("cm_J_dan_f_top");
+            correctionData._dan_root = charControl.objAnim.transform.FindLoop("cm_J_dan_s");
+            correctionData._dan_tip1 = charControl.objAnim.transform.FindLoop("cm_J_dan119_00");
+            correctionData._dan_tip2 = charControl.objAnim.transform.FindLoop("cm_J_dan108_00");
+            correctionData._dan_tip3 = charControl.objAnim.transform.FindLoop("cm_J_dan107_00");
 
-            correctionData._shoulder02BaseSetL = false;
-            correctionData._shoulder02BaseSetR = false;
+            correctionData._danRootPosBaseSet = false;
+            correctionData._danRootScaleBaseSet = false;
+            correctionData._danTip1PosBaseSet = false;
+            correctionData._danTip1ScaleBaseSet = false;
+            correctionData._danTip2PosBaseSet = false;
+            correctionData._danTip2ScaleBaseSet = false;
+            correctionData._danTip3PosBaseSet = false;
+            correctionData._danTip3ScaleBaseSet = false;
 #endif
+
+            // Initialize base ScriptInfo values once at data creation time.
+            correctionData.ScriptInfoBaseByCategory.Clear();
+            if (ociChar.charInfo != null && ociChar.charInfo.expression != null && ociChar.charInfo.expression.info != null)
+            {
+                foreach (Expression.ScriptInfo scriptInfo in ociChar.charInfo.expression.info)
+                {
+                    if (!IsManagedCategory(scriptInfo.categoryNo))
+                        continue;
+
+                    correctionData.ScriptInfoBaseByCategory[scriptInfo.categoryNo] = new ScriptMinMax
+                    {
+                        RXMin = scriptInfo.correct.valRXMin,
+                        RXMax = scriptInfo.correct.valRXMax,
+                        RYMin = scriptInfo.correct.valRYMin,
+                        RYMax = scriptInfo.correct.valRYMax,
+                        RZMin = scriptInfo.correct.valRZMin,
+                        RZMax = scriptInfo.correct.valRZMax
+                    };
+                }
+            }
+            correctionData.ScriptInfoBaseInitialized = correctionData.ScriptInfoBaseByCategory.Count > 0;
             return correctionData;
+        }
+
+        private bool IsManagedCategory(int categoryId)
+        {
+            switch (categoryId)
+            {
+                case 0:
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         internal void ResetJointCorrectionSliderData()
@@ -102,9 +158,12 @@ namespace JointCorrectionSlider
 
         public ChaControl charControl;
 
+        // Expression.ScriptInfo.correct base values (per categoryId). Slider value is treated as delta from these bases.
+        public Dictionary<int, ScriptMinMax> ScriptInfoBaseByCategory = new Dictionary<int, ScriptMinMax>();
+        public bool ScriptInfoBaseInitialized = false;
+
         public float LeftShoulderValue = 0.0f;
         public float RightShoulderValue = 0.0f;
-
         public float LeftArmUpperValue = 0.0f;
         public float RightArmUpperValue = 0.0f;
         public float LeftArmLowerValue = 0.0f;
@@ -156,14 +215,33 @@ namespace JointCorrectionSlider
 
 #if FEATURE_DAN_CORRECTION
         public Transform _dan_root;
-        public Transform _dan_top;
+        public Transform _dan_tip1;
+        public Transform _dan_tip2;
+        public Transform _dan_tip3;
 
-        public  UnityEngine.Vector3 _danScaleBasePos;
-        public  UnityEngine.Vector3 _danLengthBasePos;
-        public  UnityEngine.Vector3 _danScaleBaseScale;
-        public  UnityEngine.Vector3 _danLengthBaseScale;
-        public  bool _danScaleBaseSet;
-        public  bool _danLengthBaseSet;
+        public  UnityEngine.Vector3 _danRootPosBasePos;
+        public  UnityEngine.Vector3 _danRootScaleBasePos;
+
+        public  UnityEngine.Vector3 _danTip1PosBasePos;
+        public  UnityEngine.Vector3 _danTip1ScaleBasePos;
+
+        public  UnityEngine.Vector3 _danTip2PosBasePos;
+        public  UnityEngine.Vector3 _danTip2ScaleBasePos;
+
+        public  UnityEngine.Vector3 _danTip3PosBasePos;
+        public  UnityEngine.Vector3 _danTip3ScaleBasePos;                        
+
+        public  bool _danRootPosBaseSet;
+        public  bool _danRootScaleBaseSet;
+
+        public  bool _danTip1PosBaseSet;
+        public  bool _danTip1ScaleBaseSet;
+
+        public  bool _danTip2PosBaseSet;
+        public  bool _danTip2ScaleBaseSet;                
+
+        public  bool _danTip3PosBaseSet;
+        public  bool _danTip3ScaleBaseSet;                        
 #endif
 
 

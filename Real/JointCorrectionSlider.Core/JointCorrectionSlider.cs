@@ -75,7 +75,7 @@ using static CharaUtils.Expression;
 
 
     현 버전 문제점:
-        onGUI에 노출된 각 bone의 slider 값 활용을 어떻게 해야 할지 고민이 필요함..
+        onGUI에 노출된 각 bone의 slider 값 활용 이슈 존재
 
     참고 사항
         category = 0  armup L
@@ -148,6 +148,8 @@ namespace JointCorrectionSlider
         private const float ValueCompareEpsilon = 0.001f;
         private static readonly float[] SliderStepOptions = new float[] { 1f, 0.1f, 0.01f, 0.001f };
         private int _correctionStepIndex = 2;
+
+        private static readonly int[] CorrectionCategoryIds = new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
     
         private int   _creating_char_sex = 0;
 
@@ -359,6 +361,8 @@ namespace JointCorrectionSlider
                     data.DanScaleValue = ReadFloat(boneNode, "danScale", data.DanScaleValue);
                     data.DanLengthValue = ReadFloat(boneNode, "danLength", data.DanLengthValue);
 #endif        
+                    if (ReadScriptInfoBaseNode(boneNode, data))
+                        data.ScriptInfoBaseInitialized = true;
                 }
             }
         }
@@ -385,6 +389,7 @@ namespace JointCorrectionSlider
 
                     writer.WriteStartElement("config");
                     writer.WriteAttributeString("name", "correction");
+                    EnsureScriptInfoBase(ociChar, data);
 
                     WriteValueNode(writer, "leftShoulder", data.LeftShoulderValue);
                     WriteValueNode(writer, "rightShoulder", data.RightShoulderValue);
@@ -402,6 +407,7 @@ namespace JointCorrectionSlider
                     WriteValueNode(writer, "rightLeg", data.RightLegValue);
                     WriteValueNode(writer, "leftKnee", data.LeftKneeValue);
                     WriteValueNode(writer, "rightKnee", data.RightKneeValue);
+                    WriteScriptInfoBaseNode(writer, data);
 #if FEATURE_DAN_CORRECTION
                     WriteValueNode(writer, "danScale", data.DanScaleValue);
                     WriteValueNode(writer, "danLength", data.DanLengthValue);
@@ -449,6 +455,13 @@ namespace JointCorrectionSlider
             return 0f;
         }        
 
+        private int ParseInt(string value, int fallback)
+        {
+            if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int result))
+                return result;
+            return fallback;
+        }
+
         private float ReadFloat(XmlNode parent, string nodeName, float fallback)
         {
             XmlNode valueNode = parent.SelectSingleNode(nodeName);
@@ -463,14 +476,88 @@ namespace JointCorrectionSlider
             writer.WriteAttributeString("value", value.ToString(CultureInfo.InvariantCulture));
             writer.WriteEndElement();
         }
+
+        private void WriteScriptInfoBaseNode(XmlTextWriter writer, JointCorrectionSliderData data)
+        {
+            writer.WriteStartElement("scriptInfoBase");
+            foreach (int categoryId in CorrectionCategoryIds)
+            {
+                if (!data.ScriptInfoBaseByCategory.TryGetValue(categoryId, out ScriptMinMax baseInfo))
+                    continue;
+
+                writer.WriteStartElement("category");
+                writer.WriteAttributeString("id", categoryId.ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("rxMin", baseInfo.RXMin.ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("rxMax", baseInfo.RXMax.ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("ryMin", baseInfo.RYMin.ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("ryMax", baseInfo.RYMax.ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("rzMin", baseInfo.RZMin.ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("rzMax", baseInfo.RZMax.ToString(CultureInfo.InvariantCulture));
+                writer.WriteEndElement();
+            }
+            writer.WriteEndElement();
+        }
+
+        private bool ReadScriptInfoBaseNode(XmlNode configNode, JointCorrectionSliderData data)
+        {
+            XmlNode scriptInfoBaseNode = configNode.SelectSingleNode("scriptInfoBase");
+            if (scriptInfoBaseNode == null)
+                return false;
+
+            data.ScriptInfoBaseByCategory.Clear();
+
+            foreach (XmlNode categoryNode in scriptInfoBaseNode.SelectNodes("category"))
+            {
+                int categoryId = ParseInt(categoryNode.Attributes["id"]?.Value, -1);
+                if (categoryId < 0)
+                    continue;
+
+                ScriptMinMax baseInfo = new ScriptMinMax
+                {
+                    RXMin = ParseFloat(categoryNode.Attributes["rxMin"]?.Value),
+                    RXMax = ParseFloat(categoryNode.Attributes["rxMax"]?.Value),
+                    RYMin = ParseFloat(categoryNode.Attributes["ryMin"]?.Value),
+                    RYMax = ParseFloat(categoryNode.Attributes["ryMax"]?.Value),
+                    RZMin = ParseFloat(categoryNode.Attributes["rzMin"]?.Value),
+                    RZMax = ParseFloat(categoryNode.Attributes["rzMax"]?.Value)
+                };
+
+                data.ScriptInfoBaseByCategory[categoryId] = baseInfo;
+            }
+
+            return data.ScriptInfoBaseByCategory.Count > 0;
+        }
 #endif
-        private void SetScriptInfo(OCIChar ociChar, int categoryId, float value)
+
+        private void EnsureScriptInfoBase(OCIChar ociChar, JointCorrectionSliderData data)
+        {
+            if (ociChar == null || data == null)
+                return;
+
+            if (data.ScriptInfoBaseInitialized)
+                return;
+
+            foreach (int categoryId in CorrectionCategoryIds)
+            {
+                ScriptMinMax? baseInfo = GetScriptInfo(ociChar, categoryId);
+                if (baseInfo.HasValue)
+                    data.ScriptInfoBaseByCategory[categoryId] = baseInfo.Value;
+            }
+
+            data.ScriptInfoBaseInitialized = true;
+        }
+
+        // base 정보 기준에서 correct 값 변경 (slider value is delta)
+        private void SetScriptInfo(OCIChar ociChar, JointCorrectionSliderData data, int categoryId, float value)
         {
             // UnityEngine.Debug.Log($">> SetScriptInfo {categoryId}, {value}");
 
             foreach (Expression.ScriptInfo scriptInfo in ociChar.charInfo.expression.info)
             {   
                 if (scriptInfo.categoryNo == categoryId) {
+                    if (!data.ScriptInfoBaseByCategory.TryGetValue(categoryId, out ScriptMinMax baseInfo))
+                        continue;
+
                     scriptInfo.enable = true;
 #if FEATURE_DEBUG
                     scriptInfo.correct.useRX = RXConfig.Value;
@@ -479,24 +566,67 @@ namespace JointCorrectionSlider
 #endif
                     if(scriptInfo.correct.useRX)
                     {
-                        scriptInfo.correct.valRXMin = value;
-                        scriptInfo.correct.valRXMax = value;        
+                        if (value == 0)
+                        {
+                            scriptInfo.correct.valRXMin = baseInfo.RXMin;
+                            scriptInfo.correct.valRXMax = baseInfo.RXMax;
+                        } else {
+                            scriptInfo.correct.valRXMin = value;
+                            scriptInfo.correct.valRXMax = value;                                                                
+                        }
                     }
 
                     if(scriptInfo.correct.useRY)
                     {
-                        scriptInfo.correct.valRYMin = value;
-                        scriptInfo.correct.valRYMax = value;        
+                        if (value == 0)
+                        {
+                            scriptInfo.correct.valRYMin = baseInfo.RYMin;
+                            scriptInfo.correct.valRYMax = baseInfo.RYMax;
+                        } else
+                        {
+                            scriptInfo.correct.valRYMin = value;
+                            scriptInfo.correct.valRYMax = value;                                  
+                        }  
                     }
 
-                    if (scriptInfo.correct.useRY)
+                    if (scriptInfo.correct.useRZ)
                     {
-                        scriptInfo.correct.valRZMin = value;
-                        scriptInfo.correct.valRZMax = value;    
+                        if (value == 0)
+                        {
+                            scriptInfo.correct.valRZMin = baseInfo.RZMin;
+                            scriptInfo.correct.valRZMax = baseInfo.RZMax;    
+                            
+                        } else
+                        {
+                            scriptInfo.correct.valRZMin = value;
+                            scriptInfo.correct.valRZMax = value;    
+                            
+                        }
                     }
                 }
             } 
         }
+
+        // category 별 base correct 정보 제공
+        private ScriptMinMax?  GetScriptInfo(OCIChar ociChar, int categoryId)
+        {
+            foreach (Expression.ScriptInfo scriptInfo in ociChar.charInfo.expression.info)
+            {   
+                if (scriptInfo.categoryNo == categoryId) {
+                    return new ScriptMinMax
+                    {
+                        RXMin = scriptInfo.correct.valRXMin,
+                        RXMax = scriptInfo.correct.valRXMax,
+                        RYMin = scriptInfo.correct.valRYMin,
+                        RYMax = scriptInfo.correct.valRYMax,
+                        RZMin = scriptInfo.correct.valRZMin,
+                        RZMax = scriptInfo.correct.valRZMax
+                    };
+                }
+            } 
+
+            return null;
+        }        
 
         protected override void Update()
         {
@@ -508,70 +638,72 @@ namespace JointCorrectionSlider
 
             if (data != null)
             {
+                EnsureScriptInfoBase(currentOCIChar, data);
+
                 if (data.LeftArmUpperValue != data._prevLeftArmUp)
                 {
                     data._prevLeftArmUp = data.LeftArmUpperValue;
-                    SetScriptInfo(currentOCIChar, 0, data.LeftArmUpperValue);
+                    SetScriptInfo(currentOCIChar, data, 0, data.LeftArmUpperValue);
                 }
                 if (data.RightArmUpperValue != data._prevRightArmUp)
                 {
                     data._prevRightArmUp = data.RightArmUpperValue;
-                    SetScriptInfo(currentOCIChar, 1, data.RightArmUpperValue);
+                    SetScriptInfo(currentOCIChar, data, 1, data.RightArmUpperValue);
                 }
                 if (data.LeftArmLowerValue != data._prevLeftArmDn)
                 {
                     data._prevLeftArmDn = data.LeftArmLowerValue;
-                    SetScriptInfo(currentOCIChar, 4, data.LeftArmLowerValue);
+                    SetScriptInfo(currentOCIChar, data, 4, data.LeftArmLowerValue);
                 }
                 if (data.RightArmLowerValue != data._prevRightArmDn)
                 {
                     data._prevRightArmDn = data.RightArmLowerValue;
-                    SetScriptInfo(currentOCIChar, 5, data.RightArmLowerValue);
+                    SetScriptInfo(currentOCIChar, data, 5, data.RightArmLowerValue);
                 }
                 // leg            
                 if (data.LeftLegValue != data._prevLeftLeg)
                 {
                     data._prevLeftLeg = data.LeftLegValue;
-                    SetScriptInfo(currentOCIChar, 6, data.LeftLegValue);
+                    SetScriptInfo(currentOCIChar, data, 6, data.LeftLegValue);
                 }
                 if (data.RightLegValue != data._prevRightLeg)
                 {
                     data._prevRightLeg = data.RightLegValue;
-                    SetScriptInfo(currentOCIChar, 7, data.RightLegValue);
+                    SetScriptInfo(currentOCIChar, data, 7, data.RightLegValue);
                 }
 
                 if (data.LeftKneeValue != data._prevLeftKnee)
                 {
                     data._prevLeftKnee = data.LeftKneeValue;
-                    SetScriptInfo(currentOCIChar, 2, data.LeftKneeValue);
+                    SetScriptInfo(currentOCIChar, data, 2, data.LeftKneeValue);
                 }
 
                 if (data.RightKneeValue != data._prevRightKnee)
                 {
                     data._prevRightKnee = data.RightKneeValue;
-                    SetScriptInfo(currentOCIChar, 3, data.RightKneeValue);
+                    SetScriptInfo(currentOCIChar, data, 3, data.RightKneeValue);
                 }
 
                 if (data.LeftShoulderValue != data._prevLeftShoulder)
                 {
                     data._prevLeftShoulder = data.LeftShoulderValue;
-                    SetScriptInfo(currentOCIChar, 8, data.LeftShoulderValue);
+                    SetScriptInfo(currentOCIChar, data, 8, data.LeftShoulderValue);
                 }
                 if (data.RightShoulderValue != data._prevRightShoulder)
                 {
                     data._prevRightShoulder = data.RightShoulderValue;
-                    SetScriptInfo(currentOCIChar, 9, data.RightShoulderValue);
+                    SetScriptInfo(currentOCIChar, data, 9, data.RightShoulderValue);
                 }
 
                 if (data.LeftElbowValue != data._prevLeftElbow)
                 {
                     data._prevLeftElbow = data.LeftElbowValue;
-                    SetScriptInfo(currentOCIChar, 10, data.LeftElbowValue);
+                    SetScriptInfo(currentOCIChar, data, 10, data.LeftElbowValue);
                 }
                 if (data.RightElbowValue != data._prevRightElbow)
                 {
                     data._prevRightElbow = data.RightElbowValue;
-                    SetScriptInfo(currentOCIChar, 11, data.RightElbowValue);
+                    SetScriptInfo(currentOCIChar, data, 11, data.RightElbowValue);
                 }
             }
         }
@@ -588,6 +720,19 @@ namespace JointCorrectionSlider
                 if (data._shoulder02_s_R != null)
                     ApplyBoneTransform(data._shoulder02_s_R, data.RightShoulderValue, ref data._shoulder02BaseSetR, ref data._shoulder02BasePosR, ref data._shoulder02BaseScaleR, TargetDirection.X_POS);
 
+#if FEATURE_DAN_CORRECTION
+                if (data._dan_root != null)
+                    ApplyDanTransform(data._dan_root, data.DanLengthValue, data.DanScaleValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos, TargetDirection.Z_POS);
+
+                if (data._dan_tip1 != null)
+                    ApplyDanTransform(data._dan_tip1, data.DanLengthValue, data.DanScaleValue, ref data._danTip1PosBaseSet, ref data._danTip1PosBasePos, ref data._danTip1ScaleBaseSet, ref data._danTip1ScaleBasePos, TargetDirection.Z_POS);
+
+                if (data._dan_tip2 != null)
+                    ApplyDanTransform(data._dan_tip2, data.DanLengthValue, data.DanScaleValue, ref data._danTip2PosBaseSet, ref data._danTip2PosBasePos, ref data._danTip2ScaleBaseSet, ref data._danTip2ScaleBasePos, TargetDirection.Z_POS);
+
+                if (data._dan_tip3 != null)
+                    ApplyDanTransform(data._dan_tip3, data.DanLengthValue, data.DanScaleValue, ref data._danTip3PosBaseSet, ref data._danTip3PosBasePos, ref data._danTip3ScaleBaseSet, ref data._danTip3ScaleBasePos, TargetDirection.Z_POS);
+#endif
             }
         }
 
@@ -636,7 +781,9 @@ namespace JointCorrectionSlider
             if (controller == null)
                 return null;
 
-            return controller.GetData() ?? controller.CreateData(ociChar.GetChaControl());            
+            JointCorrectionSliderData data = controller.GetData() ?? controller.CreateData(ociChar);
+            EnsureScriptInfoBase(ociChar, data);
+            return data;
         }
 
         private void InitConfig()
@@ -717,6 +864,7 @@ namespace JointCorrectionSlider
                 GUILayout.Label("<color=orange>Knee</color>", RichLabel);            
                 data.LeftKneeValue = DrawCorrectionRow("Knee(L)", "Back", data.LeftKneeValue, -1.0f, 1.0f, IsModifiedValue(data.LeftKneeValue), correctionStep);
                 data.RightKneeValue = DrawCorrectionRow("Knee(R)", "Back", data.RightKneeValue, -1.0f, 1.0f, IsModifiedValue(data.RightKneeValue), correctionStep);
+                
 #if FEATURE_DAN_CORRECTION
                 GUILayout.Label("<color=orange>Dan</color>", RichLabel);   
                 data.DanScaleValue = DrawCorrectionRow("Dan", "Scale", data.DanScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanScaleValue), correctionStep);
@@ -822,6 +970,11 @@ namespace JointCorrectionSlider
         private const float Shoulder02PosXRange = 0.8f;
         private const float Shoulder02ScaleMin = 0.5f;
         private const float Shoulder02ScaleMax = 1.5f;
+#if FEATURE_DAN_CORRECTION
+        private const float DanLengthPosRange = 0.5f;
+        private const float DanScaleMin = 0.5f;
+        private const float DanScaleMax = 1.5f;
+#endif
 
         private void ApplyBoneTransform(
             Transform tr,
@@ -878,6 +1031,63 @@ namespace JointCorrectionSlider
             tr.localPosition = newPos;
             tr.localScale = baseScale * scaleFactor;
         }
+
+#if FEATURE_DAN_CORRECTION
+        private void ApplyDanTransform(
+            Transform tr,
+            float lengthValue,
+            float scaleValue,
+            ref bool posBaseSet,
+            ref Vector3 posBase,
+            ref bool scaleBaseSet,
+            ref Vector3 scaleBase,
+            params TargetDirection[] directions)
+        {
+            if (!posBaseSet)
+            {
+                posBase = tr.localPosition;
+                posBaseSet = true;
+            }
+
+            if (!scaleBaseSet)
+            {
+                scaleBase = tr.localScale;
+                scaleBaseSet = true;
+            }
+
+            lengthValue = Mathf.Clamp(lengthValue, -1f, 1f);
+            scaleValue = Mathf.Clamp(scaleValue, -1f, 1f);
+
+            float posOffset = lengthValue * DanLengthPosRange;
+            Vector3 newPos = posBase;
+
+            if (directions != null)
+            {
+                for (int i = 0; i < directions.Length; i++)
+                {
+                    switch (directions[i])
+                    {
+                        case TargetDirection.X_POS:
+                            newPos.x += posOffset;
+                            break;
+                        case TargetDirection.Y_POS:
+                            newPos.y += posOffset;
+                            break;
+                        case TargetDirection.Z_POS:
+                            newPos.z += posOffset;
+                            break;
+                    }
+                }
+            }
+
+            float scaleFactor = (scaleValue >= 0f)
+                ? Mathf.Lerp(1f, DanScaleMax, scaleValue)
+                : Mathf.Lerp(1f, DanScaleMin, -scaleValue);
+
+            tr.localPosition = newPos;
+            tr.localScale = scaleBase * scaleFactor;
+        }
+#endif
         #endregion
         
         #region Patches
@@ -1108,5 +1318,15 @@ namespace JointCorrectionSlider
         Y_POS,
         Z_POS
     }
+
+    struct ScriptMinMax
+    {
+        public float RXMin;
+        public float RXMax;
+        public float RYMin;
+        public float RYMax;
+        public float RZMin;
+        public float RZMax;
+    }    
 #endregion
 }

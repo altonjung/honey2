@@ -1128,6 +1128,35 @@ namespace ClothQuickTransform
             }
         }
 
+        // Clothing/accessory state can invalidate all mapped collider refs.
+        // Reset entire map data so the next automap reads from current outfit state.
+        private void ResetAllMapDataForClothesChange(ChaControl chaCtrl)
+        {
+            if (chaCtrl == null)
+                return;
+            if (!TryGetMapData(chaCtrl, out var mapData, out _))
+                return;
+
+            if (mapData.transferEntriesBySlot != null)
+            {
+                var slots = mapData.transferEntriesBySlot.Keys.ToList();
+                foreach (int slotIndex in slots)
+                {
+                    if (!mapData.transferEntriesBySlot.TryGetValue(slotIndex, out var entries) || entries == null)
+                        continue;
+
+                    bool clearSelection = IsCurrentChar(chaCtrl) && _slotIndex == slotIndex;
+                    ClearMappings(entries, clearSelection, mapData, slotIndex);
+                }
+            }
+
+            mapData.transferEntriesBySlot = new Dictionary<int, List<TransferEntry>>();
+            mapData.selectedTransferIndexBySlot = new Dictionary<int, int>();
+            mapData.savedAdjustmentsBySlot = new Dictionary<int, Dictionary<string, SavedAdjustment>>();
+            mapData.pendingAutoRemapSlots = new HashSet<int>();
+            mapData.transferScrollBySlot = new Dictionary<int, Vector2>();
+        }
+
         private void AutoMapWithSaved(ChaControl chaCtrl, int slotIndex, Dictionary<string, SavedAdjustment> saved, List<TransferEntry> entries, bool updateSelection)
         {
             if (chaCtrl == null)
@@ -1742,8 +1771,8 @@ namespace ClothQuickTransform
                     if (!_self.TryResolveClothSlotIndex(kind, out int slotIndex))
                         return;
 
-                    // Clothing changed: reset the affected slot and schedule auto-remap (with saved adjustments if any).
-                    _self.ResetSlotForClothesChange(__instance, slotIndex);
+                    // Clothing changed: reset all map data and rebuild from new outfit.
+                    _self.ResetAllMapDataForClothesChange(__instance);
 
                     if (_self._ShowUI && _self.TryMarkPendingAutoRemap(__instance, slotIndex))
                         _self.StartCoroutine(_self.AutoMapDelayedForSlot(__instance, slotIndex, true));
@@ -1766,9 +1795,8 @@ namespace ClothQuickTransform
                     if (chaCtrl == null)
                         return;
 
-                    // Character swapped: clear mappings for all slots for this character.
-                    for (int slotIndex = 0; slotIndex < ClothSlotLabels.Length; slotIndex++)
-                        _self.ResetSlotForClothesChange(chaCtrl, slotIndex);
+                    // Character swapped: clear all map data for this character.
+                    _self.ResetAllMapDataForClothesChange(chaCtrl);
 
                     if (_self._ShowUI && _self._currentOCIChar == ociChar)
                         _self.RefreshMappingsForSelection(ociChar);
@@ -1787,11 +1815,15 @@ namespace ClothQuickTransform
                     if (_self == null || !_self._loaded)
                         return;
 
-                    // Accessory visibility can change active renderers/bones; remap current slot to keep refs correct.
+                    // Accessory visibility can change active renderers/bones; reset all cached map data.
+                    _self.ResetAllMapDataForClothesChange(__instance);
+
                     if (_self._ShowUI && _self.IsCurrentChar(__instance))
                     {
+                        _self.RefreshMappingsForSelection(ociChar);
                         int slotIndex = _self._slotIndex;
-                        if (_self.TryMarkPendingAutoRemap(__instance, slotIndex))
+                        var entries = _self.GetOrCreateTransferEntriesFor(__instance, slotIndex);
+                        if ((entries == null || entries.Count == 0) && _self.TryMarkPendingAutoRemap(__instance, slotIndex))
                             _self.StartCoroutine(_self.AutoMapDelayedForSlot(__instance, slotIndex, true));
                     }
                 }
