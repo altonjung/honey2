@@ -74,10 +74,8 @@ using KKAPI.Chara;
     추가 요구 기능:
         N/A
 
-
     현 버전 문제점:
-        - 옷이 변경되면 OCIChar_ChangeChara_Patches,  ChaControl_SetAccessoryStateAll_Patches 호출되는데, 이때 ClothQuickTransformMapData 는 모두 신규 옷 기준으로 초기화 되어야 함..
-        즉 A 옷 기준으로 position, scale 변경된 값은 B 옷 기준으로 바뀌게 되면 다시 설정을 해야 하기에 초기화(변경 옷으로 collider 값 다시 읽어야 함) 되어야 함.
+        N/A
 */
 namespace ClothQuickTransform
 {

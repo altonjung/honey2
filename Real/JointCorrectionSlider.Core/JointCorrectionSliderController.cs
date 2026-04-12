@@ -176,8 +176,14 @@ namespace JointCorrectionSlider
         public float RightLegValue = 0.0f;
 
 #if FEATURE_DAN_CORRECTION
-        public float DanScaleValue = 0.0f;
-        public float DanLengthValue = 0.0f;
+        public float DanRootScaleValue = 0.0f;
+        public float DanRootLengthValue = 0.0f;
+        public float DanTip1ScaleValue = 0.0f;
+        public float DanTip1LengthValue = 0.0f;
+        public float DanTip2ScaleValue = 0.0f;
+        public float DanTip2LengthValue = 0.0f;
+        public float DanTip3ScaleValue = 0.0f;
+        public float DanTip3LengthValue = 0.0f;
 #endif
 
 #if FEATURE_DEBUG
@@ -262,8 +268,14 @@ namespace JointCorrectionSlider
             RightLegValue = 0.0f;
 
 #if FEATURE_DAN_CORRECTION
-            DanScaleValue = 0.0f;
-            DanLengthValue = 0.0f;
+            DanRootScaleValue = 0.0f;
+            DanRootLengthValue = 0.0f;
+            DanTip1ScaleValue = 0.0f;
+            DanTip1LengthValue = 0.0f;
+            DanTip2ScaleValue = 0.0f;
+            DanTip2LengthValue = 0.0f;
+            DanTip3ScaleValue = 0.0f;
+            DanTip3LengthValue = 0.0f;
 #endif
         }
     }        
