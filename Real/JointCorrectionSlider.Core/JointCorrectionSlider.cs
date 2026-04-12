@@ -71,7 +71,13 @@ using static CharaUtils.Expression;
             2.2) sceneRead는 함수는 scenewrite 에서 저장한 xml 정보를 다시 JointCorrectionSliderData 로 업데이트 해야 한다.
 
     추가 요구 기능:
-        cm_J_Dan107_00, cm_J_Dan105_00, cm_J_Dan103_00        
+            아래 5개 에 대해, 추가적으로 rotation속성이 필요해(기존에는 position, scale 속성만 존재함)
+            correctionData._dan_root
+            correctionData._dan_top1
+            correctionData._dan_top2
+            correctionData._dan_top3
+            correctionData._dan_top4
+
 
     현 버전 문제점:
         N/A
@@ -892,7 +898,7 @@ namespace JointCorrectionSlider
                         GUILayout.Label("<color=orange>Dan Top3</color>", RichLabel);
                         data.DanTop3ScaleValue = DrawCorrectionRow("Top3(S)", "Scale", data.DanTop3ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3ScaleValue), correctionStep);
                         data.DanTop3LengthValue = DrawCorrectionRow("Top3(L)", "Length", data.DanTop3LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3LengthValue), correctionStep);
-                     }
+                    }
 
                     if (data._dan_root != null)
                     {
