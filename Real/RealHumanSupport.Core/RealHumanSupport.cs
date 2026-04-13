@@ -68,10 +68,8 @@ using KKAPI.Chara;
 
     남은작업
 
-    1) DAN bone 활용 지원
-    2) FK 모드 및 animation 모드 지원
-    3) FEATURE_BODY_BLENDSHAPE_SUPPORT 기능 활용
-    4) 팔 영역 dynamic-bumpmap 지원
+    1) belly active UI 제공
+    2) DAN bone 활용 + FEATURE_BODY_BLENDSHAPE_SUPPORT 연동
 */
 
 namespace RealHumanSupport
@@ -94,7 +92,7 @@ namespace RealHumanSupport
     {
         #region Constants
         public const string Name = "RealGirlSupport";
-        public const string Version = "0.9.2.0";
+        public const string Version = "0.9.2.1";
         public const string GUID = "com.alton.illusionplugins.RealGirl";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -110,8 +108,9 @@ namespace RealHumanSupport
 #endif
 
         #region Private Types
-
+#if FEATURE_WINK_SUPPORT  
         enum WinkState { Idle, Playing }
+#endif        
         #endregion
 
         #region Private Variables
@@ -121,8 +120,6 @@ namespace RealHumanSupport
 
         private static string _assemblyLocation;
         internal bool _loaded = false;
-
-        // internal ObjectCtrlInfo _selectedOCI;
 
         private AssetBundle _bundle;
 
@@ -295,64 +292,6 @@ namespace RealHumanSupport
 #endif            
         }
 
-        // protected override void LateUpdate()
-        // {
-        //     if (_loaded == false)
-        //         return;
-
-        //     if (AnimActive.Value == false)
-        //         return;
-
-        //     if (Time.unscaledTime < _nextLateSampleTime)
-        //         return;
-
-        //     _nextLateSampleTime = Time.unscaledTime + 0.1f; // 0.1 mean 10fps
-
-        //     if (Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes == null ||
-        //         Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() == 0)
-        //         return;
-
-        //     TreeNodeObject _node = Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Last();
-        //     if (_node == null)
-        //         return;
-
-        //     ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
-        //     OCIChar ociChar = objectCtrlInfo as OCIChar;
-        //     if (ociChar == null)
-        //         return;
-
-        //     ChaControl chaControl = ociChar.GetChaControl();
-        //     var controller = chaControl.GetComponent<RealHumanSupportController>();
-        //     if (controller == null)
-        //         return;
-
-        //     RealHumanData realHumanData = controller.GetRealData();
-        //     if (realHumanData == null || realHumanData.fk_head_bone == null)
-        //         return;
-
-        //     if (realHumanData.m_skin_body == null || realHumanData.m_skin_head == null)
-        //         realHumanData = RealHumanSupportController.GetMaterials(ociChar.GetChaControl(), realHumanData);
-
-        //     const float ROT_EPS_ANIM = 0.2f;
-
-        //     if (
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_head_bone)._q, realHumanData.prev_fk_head_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_foot_bone)._q, realHumanData.prev_fk_left_foot_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_foot_bone)._q, realHumanData.prev_fk_right_foot_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_knee_bone)._q, realHumanData.prev_fk_left_knee_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_knee_bone)._q, realHumanData.prev_fk_right_knee_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_thigh_bone)._q, realHumanData.prev_fk_left_thigh_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_thigh_bone)._q, realHumanData.prev_fk_right_thigh_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine01_bone)._q, realHumanData.prev_fk_spine01_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_spine02_bone)._q, realHumanData.prev_fk_spine02_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_left_shoulder_bone)._q, realHumanData.prev_fk_left_shoulder_rot, ROT_EPS_ANIM) ||
-        //         RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q, realHumanData.prev_fk_right_shoulder_rot, ROT_EPS_ANIM)
-        //     )
-        //     {
-        //         RealHumanSupportController.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
-        //     }
-        // }
-
        protected override void OnGUI()
         {
             if (_ShowUI == false)
@@ -466,9 +405,9 @@ namespace RealHumanSupport
             if (data == null || data.chaCtrl == null || data.chaCtrl.objBodyBone == null)
                 return;
 
-            List<DynamicBoneCollider> colliders = GetExtraHairColliders(data);
+            List<DynamicBoneCollider> colliders = GetExtraBodyColliders(data);
             GUILayout.Space(6f);
-            GUILayout.Label("<color=orange>Extra Hair Collider</color>", RichLabel);
+            GUILayout.Label("<color=orange>Extra Body Collider</color>", RichLabel);
 
             if (colliders.Count == 0)
             {
@@ -538,23 +477,21 @@ namespace RealHumanSupport
             GUILayout.EndHorizontal();
         }
 
-        private static List<DynamicBoneCollider> GetExtraHairColliders(RealHumanData data)
+        private static List<DynamicBoneCollider> GetExtraBodyColliders(RealHumanData data)
         {
             if (data == null || data.chaCtrl == null || data.chaCtrl.objBodyBone == null)
                 return new List<DynamicBoneCollider>();
 
-            if (data.extraHairColliders != null && data.extraHairColliders.Count > 0)
-            {
-                return data.extraHairColliders
-                    .Where(v => v != null)
-                    .Distinct()
-                    .OrderBy(v => v.name)
+            var colliders = (data.extraBodyColliders != null && data.extraBodyColliders.Count > 0)
+                ? data.extraBodyColliders
+                : data.chaCtrl.objBodyBone
+                    .GetComponentsInChildren<DynamicBoneCollider>(true)
                     .ToList();
-            }
 
-            return data.chaCtrl.objBodyBone
-                .GetComponentsInChildren<DynamicBoneCollider>(true)
-                .Where(v => v != null && v.name.EndsWith("_ExtDBoneCollider", StringComparison.Ordinal))
+            return colliders
+                .Where(v => v != null && !string.IsNullOrEmpty(v.name) &&
+                            v.name.IndexOf("_ExtDBoneCollider") >= 0)
+                .Distinct()
                 .OrderBy(v => v.name)
                 .ToList();
         }

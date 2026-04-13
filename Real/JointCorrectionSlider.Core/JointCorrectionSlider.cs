@@ -50,9 +50,6 @@ using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 using KKAPI.Chara;
 using static CharaUtils.Expression;
-
-/*
-
 /*
     Agent 코드 수행
 
@@ -112,7 +109,7 @@ namespace JointCorrectionSlider
     {
         #region Constants
         public const string Name = "JointCorrectionSlider";
-        public const string Version = "0.9.1.0";
+        public const string Version = "0.9.2.0";
         public const string GUID = "com.alton.illusionplugins.JointCorrectionSlider";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -312,7 +309,6 @@ namespace JointCorrectionSlider
                     ociCharByName.Add(name, oci);
             }
 
-            // xml에서 character/config 노드를 읽어 캐릭터별 보정값을 복원한다.
             foreach (XmlNode charNode in node.SelectNodes("character"))
             {
                 OCIChar ociChar = null;
@@ -342,7 +338,6 @@ namespace JointCorrectionSlider
 
                 JointCorrectionSliderData data = GetDataAndCreate(ociChar);
 
-                // config 노드를 순회해 보정값을 읽는다.
                 foreach (XmlNode boneNode in charNode.SelectNodes("config"))
                 {
                     string configName = boneNode.Attributes["name"]?.Value;
@@ -364,14 +359,21 @@ namespace JointCorrectionSlider
                     data.RightKneeValue = ReadFloat(boneNode, "rightKnee", data.RightKneeValue);
 #if FEATURE_DAN_CORRECTION
                     data.DanRootScaleValue = ReadFloat(boneNode, "danRootScale", data.DanRootScaleValue);
-                    data.DanRootLengthValue = ReadFloat(boneNode, "danRootLength", data.DanRootLengthValue);
+                    data.DanRootPosValue = ReadFloat(boneNode, "danRootLength", data.DanRootPosValue);
+                    data.DanRootRotateValue = ReadFloat(boneNode, "danRootRotate", data.DanRootRotateValue);
                     data.DanTop1ScaleValue = ReadFloat(boneNode, "danTop1Scale", data.DanTop1ScaleValue);
-                    data.DanTop1LengthValue = ReadFloat(boneNode, "danTop1Length", data.DanTop1LengthValue);
+                    data.DanTop1PosValue = ReadFloat(boneNode, "danTop1Length", data.DanTop1PosValue);
+                    data.DanTop1RotateValue = ReadFloat(boneNode, "danTop1Rotate", data.DanTop1RotateValue);
                     data.DanTop2ScaleValue = ReadFloat(boneNode, "danTop2Scale", data.DanTop2ScaleValue);
-                    data.DanTop2LengthValue = ReadFloat(boneNode, "danTop2Length", data.DanTop2LengthValue);
+                    data.DanTop2PosValue = ReadFloat(boneNode, "danTop2Length", data.DanTop2PosValue);
+                    data.DanTop2RotateValue = ReadFloat(boneNode, "danTop2Rotate", data.DanTop2RotateValue);
                     data.DanTop3ScaleValue = ReadFloat(boneNode, "danTop3Scale", data.DanTop3ScaleValue);
-                    data.DanTop3LengthValue = ReadFloat(boneNode, "danTop3Length", data.DanTop3LengthValue);
-#endif        
+                    data.DanTop3PosValue = ReadFloat(boneNode, "danTop3Length", data.DanTop3PosValue);
+                    data.DanTop3RotateValue = ReadFloat(boneNode, "danTop3Rotate", data.DanTop3RotateValue);
+                    data.DanTop4ScaleValue = ReadFloat(boneNode, "danTop4Scale", data.DanTop4ScaleValue);
+                    data.DanTop4PosValue = ReadFloat(boneNode, "danTop4Length", data.DanTop4PosValue);
+                    data.DanTop4RotateValue = ReadFloat(boneNode, "danTop4Rotate", data.DanTop4RotateValue);
+#endif
                     if (ReadScriptInfoBaseNode(boneNode, data))
                         data.ScriptInfoBaseInitialized = true;
                 }
@@ -387,7 +389,6 @@ namespace JointCorrectionSlider
 
                 JointCorrectionSliderData data = GetDataAndCreate(ociChar);
 
-                // 각 character 노드 아래 config 노드로 JointCorrectionSliderData 값을 저장한다.
                 if (ociChar != null && data != null) {
                     int dicKey;
                     bool hasDicKey = TryGetDicKey(ociChar.GetChaControl(), out dicKey);
@@ -421,13 +422,20 @@ namespace JointCorrectionSlider
                     WriteScriptInfoBaseNode(writer, data);
 #if FEATURE_DAN_CORRECTION
                     WriteValueNode(writer, "danRootScale", data.DanRootScaleValue);
-                    WriteValueNode(writer, "danRootLength", data.DanRootLengthValue);
-                    WriteValueNode(writer, "danTip1Scale", data.DanTop1ScaleValue);
-                    WriteValueNode(writer, "danTip1Length", data.DanTop1LengthValue);
-                    WriteValueNode(writer, "danTip2Scale", data.DanTop2ScaleValue);
-                    WriteValueNode(writer, "danTip2Length", data.DanTop2LengthValue);
-                    WriteValueNode(writer, "danTip3Scale", data.DanTop3ScaleValue);
-                    WriteValueNode(writer, "danTip3Length", data.DanTop3LengthValue);
+                    WriteValueNode(writer, "danRootLength", data.DanRootPosValue);
+                    WriteValueNode(writer, "danRootRotate", data.DanRootRotateValue);
+                    WriteValueNode(writer, "danTop1Scale", data.DanTop1ScaleValue);
+                    WriteValueNode(writer, "danTop1Length", data.DanTop1PosValue);
+                    WriteValueNode(writer, "danTop1Rotate", data.DanTop1RotateValue);
+                    WriteValueNode(writer, "danTop2Scale", data.DanTop2ScaleValue);
+                    WriteValueNode(writer, "danTop2Length", data.DanTop2PosValue);
+                    WriteValueNode(writer, "danTop2Rotate", data.DanTop2RotateValue);
+                    WriteValueNode(writer, "danTop3Scale", data.DanTop3ScaleValue);
+                    WriteValueNode(writer, "danTop3Length", data.DanTop3PosValue);
+                    WriteValueNode(writer, "danTop3Rotate", data.DanTop3RotateValue);
+                    WriteValueNode(writer, "danTop4Scale", data.DanTop4ScaleValue);
+                    WriteValueNode(writer, "danTop4Length", data.DanTop4PosValue);
+                    WriteValueNode(writer, "danTop4Rotate", data.DanTop4RotateValue);
 #endif
                     writer.WriteEndElement(); // config
                 
@@ -464,7 +472,6 @@ namespace JointCorrectionSlider
             return null;
         }
 
-        // 유틸: 문자열을 float 값으로 파싱한다.
         private float ParseFloat(string value)
         {
             if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float result))
@@ -564,7 +571,6 @@ namespace JointCorrectionSlider
             data.ScriptInfoBaseInitialized = true;
         }
 
-        // base 정보 기준에서 correct 값 변경 (slider value is delta)
         private void SetScriptInfo(OCIChar ociChar, JointCorrectionSliderData data, int categoryId, float value)
         {
             // UnityEngine.Debug.Log($">> SetScriptInfo {categoryId}, {value}");
@@ -624,7 +630,6 @@ namespace JointCorrectionSlider
             } 
         }
 
-        // category 별 base correct 정보 제공
         private ScriptMinMax?  GetScriptInfo(OCIChar ociChar, int categoryId)
         {
             foreach (Expression.ScriptInfo scriptInfo in ociChar.charInfo.expression.info)
@@ -730,25 +735,15 @@ namespace JointCorrectionSlider
             JointCorrectionSliderData data = GetCurrentData();
 
             if (data != null)
-            {
-                if (data._shoulder02_s_L != null)
-                    ApplyBoneTransform(data._shoulder02_s_L, data.LeftShoulderValue, ref data._shoulder02BaseSetL, ref data._shoulder02BasePosL, ref data._shoulder02BaseScaleL, TargetDirection.X_POS);
-
-                if (data._shoulder02_s_R != null)
-                    ApplyBoneTransform(data._shoulder02_s_R, data.RightShoulderValue, ref data._shoulder02BaseSetR, ref data._shoulder02BasePosR, ref data._shoulder02BaseScaleR, TargetDirection.X_POS);
-
+            {                
+                ApplyBoneTransform(data._shoulder02_s_L, data.LeftShoulderValue, ref data._shoulder02BaseSetL, ref data._shoulder02BasePosL, ref data._shoulder02BaseScaleL, TargetDirection.X_POS);
+                ApplyBoneTransform(data._shoulder02_s_R, data.RightShoulderValue, ref data._shoulder02BaseSetR, ref data._shoulder02BasePosR, ref data._shoulder02BaseScaleR, TargetDirection.X_POS);
 #if FEATURE_DAN_CORRECTION
-                if (data._dan_root != null)
-                    ApplyDanTransform(data._dan_root, data.DanRootLengthValue, data.DanRootScaleValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos, TargetDirection.Z_POS);
-
-                if (data._dan_top1 != null)
-                    ApplyDanTransform(data._dan_top1, data.DanTop1LengthValue, data.DanTop1ScaleValue, ref data._danTip1PosBaseSet, ref data._danTip1PosBasePos, ref data._danTip1ScaleBaseSet, ref data._danTip1ScaleBasePos, TargetDirection.Z_POS);
-
-                if (data._dan_top2 != null)
-                    ApplyDanTransform(data._dan_top2, data.DanTop2LengthValue, data.DanTop2ScaleValue, ref data._danTip2PosBaseSet, ref data._danTip2PosBasePos, ref data._danTip2ScaleBaseSet, ref data._danTip2ScaleBasePos, TargetDirection.Z_POS);
-
-                if (data._dan_top3 != null)
-                    ApplyDanTransform(data._dan_top3, data.DanTop3LengthValue, data.DanTop3ScaleValue, ref data._danTip3PosBaseSet, ref data._danTip3PosBasePos, ref data._danTip3ScaleBaseSet, ref data._danTip3ScaleBasePos, TargetDirection.Z_POS);
+                ApplyDanTransform(data._dan_top1, data.DanTop1PosValue, data.DanTop1ScaleValue, data.DanTop1RotateValue, ref data._danTop1PosBaseSet, ref data._danTop1PosBasePos, ref data._danTop1ScaleBaseSet, ref data._danTop1ScaleBasePos, ref data._danTop1RotBaseSet, ref data._danTop1RotBaseEuler, TargetDirection.Z_POS);
+                ApplyDanTransform(data._dan_top2, data.DanTop2PosValue, data.DanTop2ScaleValue, data.DanTop2RotateValue, ref data._danTop2PosBaseSet, ref data._danTop2PosBasePos, ref data._danTop2ScaleBaseSet, ref data._danTop2ScaleBasePos, ref data._danTop2RotBaseSet, ref data._danTop2RotBaseEuler, TargetDirection.Z_POS);
+                ApplyDanTransform(data._dan_top3, data.DanTop3PosValue, data.DanTop3ScaleValue, data.DanTop3RotateValue, ref data._danTop3PosBaseSet, ref data._danTop3PosBasePos, ref data._danTop3ScaleBaseSet, ref data._danTop3ScaleBasePos, ref data._danTop3RotBaseSet, ref data._danTop3RotBaseEuler, TargetDirection.Z_POS);
+                ApplyDanTransform(data._dan_top4, data.DanTop4PosValue, data.DanTop4ScaleValue, data.DanTop4RotateValue, ref data._danTop4PosBaseSet, ref data._danTop4PosBasePos, ref data._danTop4ScaleBaseSet, ref data._danTop4ScaleBasePos, ref data._danTop4RotBaseSet, ref data._danTop4RotBaseEuler, TargetDirection.Z_POS);                
+                ApplyDanTransform(data._dan_root, data.DanRootPosValue, data.DanRootScaleValue, data.DanRootRotateValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos, ref data._danRootRotBaseSet, ref data._danRootRotBaseEuler, TargetDirection.Z_POS);                
 #endif
             }
         }
@@ -855,10 +850,9 @@ namespace JointCorrectionSlider
                 DrawStepSelector(ref _correctionStepIndex, "Step");
                 float correctionStep = SliderStepOptions[_correctionStepIndex];
 
-                // UnityEngine.Debug.Log($">> data.LeftShoulderValue  {data.LeftShoulderValue}");
                 GUILayout.Label("<color=orange>Shoulder</color>", RichLabel);
-                data.LeftShoulderValue = DrawCorrectionRow("Shdr(L)", "Left", data.LeftShoulderValue, -1.0f, 1.0f, IsModifiedValue(data.LeftShoulderValue), correctionStep);
-                data.RightShoulderValue = DrawCorrectionRow("Shdr(R)", "Right", data.RightShoulderValue, -1.0f, 1.0f, IsModifiedValue(data.RightShoulderValue), correctionStep);
+                data.LeftShoulderValue = DrawCorrectionRow("Sholdr(L)", "Left", data.LeftShoulderValue, -1.0f, 1.0f, IsModifiedValue(data.LeftShoulderValue), correctionStep);
+                data.RightShoulderValue = DrawCorrectionRow("Sholdr(R)", "Right", data.RightShoulderValue, -1.0f, 1.0f, IsModifiedValue(data.RightShoulderValue), correctionStep);
 
                 // Top
                 GUILayout.Label("<color=orange>Arm_Up</color>", RichLabel);
@@ -885,27 +879,35 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
                 if (data.charControl != null && data.charControl.sex == 0)
                 {
+                    draw_seperate();
+                    
                     if (data._dan_top1 != null && data._dan_top2 != null && data._dan_top3 != null)
                     {
                         GUILayout.Label("<color=orange>Dan Top1</color>", RichLabel);
-                        data.DanTop1ScaleValue = DrawCorrectionRow("Top1(S)", "Scale", data.DanTop1ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1ScaleValue), correctionStep);
-                        data.DanTop1LengthValue = DrawCorrectionRow("Top1(L)", "Length", data.DanTop1LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1LengthValue), correctionStep);
+                        data.DanTop1ScaleValue = DrawCorrectionRow("Glans1(S)", "Glans1 Scale", data.DanTop1ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1ScaleValue), correctionStep);
+                        // data.DanTop1PosValue = DrawCorrectionRow("Top1(P)", "Pos", data.DanTop1PosValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1PosValue), correctionStep);
+                        // data.DanTop1RotateValue = DrawCorrectionRow("Top1(R)", "Rotate", data.DanTop1RotateValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1RotateValue), correctionStep);
 
                         GUILayout.Label("<color=orange>Dan Top2</color>", RichLabel);
-                        data.DanTop2ScaleValue = DrawCorrectionRow("Top2(S)", "Scale", data.DanTop2ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2ScaleValue), correctionStep);
-                        data.DanTop2LengthValue = DrawCorrectionRow("Top2(L)", "Length", data.DanTop2LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2LengthValue), correctionStep);
+                        data.DanTop2ScaleValue = DrawCorrectionRow("Glans2(S)", "Glans2 Scale", data.DanTop2ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2ScaleValue), correctionStep);
+                        // data.DanTop2PosValue = DrawCorrectionRow("Top2(P)", "Pos", data.DanTop2PosValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2PosValue), correctionStep);
+                        // data.DanTop2RotateValue = DrawCorrectionRow("Top2(R)", "Rotate", data.DanTop2RotateValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2RotateValue), correctionStep);
 
                         GUILayout.Label("<color=orange>Dan Top3</color>", RichLabel);
-                        data.DanTop3ScaleValue = DrawCorrectionRow("Top3(S)", "Scale", data.DanTop3ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3ScaleValue), correctionStep);
-                        data.DanTop3LengthValue = DrawCorrectionRow("Top3(L)", "Length", data.DanTop3LengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3LengthValue), correctionStep);
-                    }
+                        data.DanTop3ScaleValue = DrawCorrectionRow("Glans3(S)", "Glans3 Scale", data.DanTop3ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3ScaleValue), correctionStep);
+                        // data.DanTop3PosValue = DrawCorrectionRow("Top3(P)", "Pos", data.DanTop3PosValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3PosValue), correctionStep);
+                        // data.DanTop3RotateValue = DrawCorrectionRow("Top3(R)", "Rotate", data.DanTop3RotateValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3RotateValue), correctionStep);
+
+                        GUILayout.Label("<color=orange>Dan Length</color>", RichLabel);
+                        data.DanTop4PosValue = DrawCorrectionRow("Dan(L)", "Penis Length", data.DanTop4PosValue, -1.0f, 0.0f, IsModifiedValue(data.DanTop4PosValue), correctionStep);
+                        // data.DanBentValue = DrawCorrectionRow("Top3(B)", "Bend", data.DanBentValue, -1.0f, 1.0f, IsModifiedValue(data.DanBentValue), correctionStep);
+                    }        
 
                     if (data._dan_root != null)
                     {
-                        GUILayout.Label("<color=orange>Dan Root</color>", RichLabel);
-                        data.DanRootScaleValue = DrawCorrectionRow("Root(S)", "Scale", data.DanRootScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanRootScaleValue), correctionStep);
-                        data.DanRootLengthValue = DrawCorrectionRow("Root(L)", "Length", data.DanRootLengthValue, -1.0f, 1.0f, IsModifiedValue(data.DanRootLengthValue), correctionStep);
-                    }                    
+                        GUILayout.Label("<color=orange>Dan Scale</color>", RichLabel);
+                        data.DanRootScaleValue = DrawCorrectionRow("Dan(S)", "Penis Scale", data.DanRootScaleValue, -0.5f, 1.0f, IsModifiedValue(data.DanRootScaleValue), correctionStep);
+                    }
                 }
 #endif
                 if (GUILayout.Button("Default"))
@@ -922,7 +924,6 @@ namespace JointCorrectionSlider
                 _ShowUI = false;
             }
 
-            // 툴팁 표시
             if (!string.IsNullOrEmpty(GUI.tooltip))
             {
                 Vector2 mousePos = Event.current.mousePosition;
@@ -930,6 +931,14 @@ namespace JointCorrectionSlider
             }
 
             GUI.DragWindow();
+        }
+
+        private void draw_seperate()
+        {
+            GUILayout.Space(5);
+            Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.3f));
+            GUI.Box(rect, GUIContent.none);
+            GUILayout.Space(10);
         }
 
         private bool IsModifiedValue(float value)
@@ -1011,6 +1020,7 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
         private const float DanScaleMin = 0.5f;
         private const float DanScaleMax = 1.5f;
+        private const float DanRotateMaxDegrees = 45f;
 #endif
 
         private void ApplyBoneTransform(
@@ -1021,23 +1031,23 @@ namespace JointCorrectionSlider
             ref Vector3 baseScale,
             params TargetDirection[] directions)
         {
-            // 1) 최초 1회 기준값을 캐싱한다.
-            if (!baseSet)
+
+            if (tr == null)
+                return;
+
+             if (!baseSet)
             {
                 basePos = tr.localPosition;
                 baseScale = tr.localScale;
                 baseSet = true;
             }
 
-            // 2) 입력값을 -1~1 범위로 제한한다.
             value = Mathf.Clamp(value, -1f, 1f);
 
-            // 3) 위치 오프셋을 계산한다.
             float posOffset = value * Shoulder02PosXRange;
 
             Vector3 newPos = basePos;
 
-            // directions가 비어 있지 않을 때만 축별 위치를 적용한다.
             if (directions != null)
             {
                 for (int i = 0; i < directions.Length; i++)
@@ -1059,12 +1069,10 @@ namespace JointCorrectionSlider
                 }
             }
 
-            // 4) 스케일 보정 계수를 계산한다.
             float scaleFactor = (value >= 0f)
                 ? Mathf.Lerp(1f, Shoulder02ScaleMax, value)
                 : Mathf.Lerp(1f, Shoulder02ScaleMin, -value);
 
-            // 5) 계산된 위치/스케일을 적용한다.
             tr.localPosition = newPos;
             tr.localScale = baseScale * scaleFactor;
         }
@@ -1072,14 +1080,20 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
         private void ApplyDanTransform(
             Transform tr,
-            float lengthValue,
+            float posValue,
             float scaleValue,
+            float rotateValue,
             ref bool posBaseSet,
             ref Vector3 posBase,
             ref bool scaleBaseSet,
             ref Vector3 scaleBase,
+            ref bool rotBaseSet,
+            ref Vector3 rotBaseEuler,
             params TargetDirection[] directions)
         {
+            if (tr == null)
+                return;
+
             if (!posBaseSet)
             {
                 posBase = tr.localPosition;
@@ -1092,10 +1106,17 @@ namespace JointCorrectionSlider
                 scaleBaseSet = true;
             }
 
-            lengthValue = Mathf.Clamp(lengthValue, -1f, 1f);
-            scaleValue = Mathf.Clamp(scaleValue, -1f, 1f);
+            if (!rotBaseSet)
+            {
+                rotBaseEuler = tr.localEulerAngles;
+                rotBaseSet = true;
+            }
 
-            float posOffset = lengthValue;
+            posValue = Mathf.Clamp(posValue, -1f, 1f);
+            scaleValue = Mathf.Clamp(scaleValue, -1f, 1f);
+            rotateValue = Mathf.Clamp(rotateValue, -1f, 1f);
+
+            float posOffset = posValue;
             Vector3 newPos = posBase;
 
             bool usedManualDirection = false;
@@ -1137,8 +1158,36 @@ namespace JointCorrectionSlider
                 ? Mathf.Lerp(1f, DanScaleMax, scaleValue)
                 : Mathf.Lerp(1f, DanScaleMin, -scaleValue);
 
+            float rotOffset = rotateValue * DanRotateMaxDegrees;
+            Vector3 newEuler = rotBaseEuler;
+            if (directions != null && directions.Length > 0)
+            {
+                for (int i = 0; i < directions.Length; i++)
+                {
+                    switch (directions[i])
+                    {
+                        case TargetDirection.X_POS:
+                            newEuler.x += rotOffset;
+                            break;
+                        case TargetDirection.Y_POS:
+                            newEuler.y += rotOffset;
+                            break;
+                        case TargetDirection.Z_POS:
+                            newEuler.z += rotOffset;
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                newEuler.z += rotOffset;
+            }
+
             tr.localPosition = newPos;
             tr.localScale = scaleBase * scaleFactor;
+            tr.localRotation = Quaternion.Euler(newEuler);
+
+            UnityEngine.Debug.Log($">> ApplyDanTransform posValue: {posValue}, pos: {tr.localPosition}, rotate: {tr.localRotation} scale: {tr.localScale}");
         }
 #endif
         #endregion
@@ -1154,7 +1203,7 @@ namespace JointCorrectionSlider
             }
         }
         
-       [HarmonyPatch(typeof(ChaControl), "InitializeExpression", typeof(int), typeof(bool))]
+        [HarmonyPatch(typeof(ChaControl), "InitializeExpression", typeof(int), typeof(bool))]
         private static class ChaControl_InitializeExpression_Patches
         {
             private static bool Prefix(ChaControl __instance, int sex, bool _enable, ref bool __result)
@@ -1383,3 +1432,4 @@ namespace JointCorrectionSlider
     }    
 #endregion
 }
+

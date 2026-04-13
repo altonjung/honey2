@@ -38,60 +38,29 @@ namespace HoneySelect2Maker
 {
     public class HS2ActionController
     {
-        internal static void LoadHeroin(string pngPath)
+        internal void DoAction(HS2ChatUIController controller, string action)
         {
-            Manager.Game instance = Singleton<Manager.Game>.Instance;
-            ChaFileControl chaFileControl = new ChaFileControl();
-            chaFileControl.LoadCharaFile(pngPath, 1, false, true);
-            ChaControl chaControl = Singleton<Manager.Character>.Instance.CreateChara(1, Manager.Scene.commonSpace, 0, chaFileControl);
-            chaControl.ChangeNowCoordinate(false, true);
-            chaControl.releaseCustomInputTexture = false;
-            chaControl.Load(false);
-        }
+            if (action == "leave")
+            {
+                if (controller == null)
+                    return;
 
-        internal static void LoadAction(string action)
-        {
-            if (action == "facial")
-            {
-                // 표정 변화
-                
-            } else if (action == "greet")
-            {
-                
-            } else if (action == "like")
-            {
-                
-            } else if (action == "hate")
-            {
-                
-            } else if (action == "refuse")
-            {
-                
-            } else if (action == "quit")
-            {
-                
-            } else if (action == "dance")
-            {
-                
+                if (HoneySelect2Maker._self != null)
+                {
+                    HoneySelect2Maker._self.StartCoroutine(EndDialogue(controller, 3.0f));
+                }                
             }
         }
 
-        internal static void LoadDialogue(string dialogue) {
+        private IEnumerator EndDialogue(HS2ChatUIController controller, float delaySeconds)
+        {
+            yield return new WaitForSeconds(delaySeconds);
 
-            // headers = {
-            //         "Authorization": "test",
-            //         "Content-Type": "application/json"
-            // }
+            if (controller != null)
+                controller.DestroyChatUI();
+        }        
 
-            // GET
-            // string json = await SendRequestAsync("http://localhost:5000/api/test");
-            
-            // POST
-            // string body = "{\"name\":\"test\"}";
-            // string result = await SendRequestAsync("http://localhost:5000/api/test", "POST", body);   
-        }
-
-        internal static void GetArchivement(string archivement)
+        internal void GetArchivement(string archivement)
         {
             
         }   

@@ -11,7 +11,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />    
     <Compile Include="$(MSBuildThisFileDirectory)UndressPhysics.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)UndressPhysicsLogic.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)UndressPhysicsUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />

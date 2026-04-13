@@ -47,10 +47,9 @@ using KKAPI.Utilities;
 /*
     남은작업
 
-    1) collider adjust 지원
-        - overral, breast, hip
-    2) hands collider 지원
-    3) ingame 지원
+    1) UI 작업
+        - force slider 가 너무 작음
+        - preset 관련 force 와 연관되어 작업 필요
 */
 namespace UndressPhysics
 {
@@ -68,7 +67,7 @@ namespace UndressPhysics
     {
         #region Constants
         public const string Name = "UndressPhysics";
-        public const string Version = "0.9.1.1";
+        public const string Version = "0.9.1.2";
         public const string GUID = "com.alton.illusionplugins.UndressPhysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -97,10 +96,9 @@ namespace UndressPhysics
 		
         private const int _uniqueId = ('U' << 24) | ('D' << 16) | ('S' << 8) | 'S';
 
-        private Rect _windowRect = new Rect(140, 10, 400, 10);
+        private Rect _windowRect = new Rect(140, 10, 340, 10);
 
         internal const string UNDRESS_COLLIDER_PREFIX = "UndressPhyics_Collider";
-        internal const string CLOTH_COLLIDER_PREFIX = "Cloth colliders support";
         
         internal static List<SphereColliderPair> _sphereColliders = new List < SphereColliderPair >();
         internal static List<CapsuleColliderData> _capsuleColliders = new List<CapsuleColliderData>();
@@ -133,10 +131,11 @@ namespace UndressPhysics
             }
         }
 
-        internal static ConfigEntry<KeyboardShortcut> ConfigKeyDoUndressAllShortcut { get; private set; }
         internal static ConfigEntry<float> ClothUndressForce { get; private set; }
         internal static ConfigEntry<float> ClothUndressDuration { get; private set; }
         internal static ConfigEntry<float> ClothStiffness { get; private set; }   
+        internal static ConfigEntry<float> ClothDamping { get; private set; }   
+        internal static ConfigEntry<float> ClothElastic { get; private set; }   
 
         internal enum Status
         {
@@ -156,13 +155,13 @@ namespace UndressPhysics
         {
             base.Awake();
 
-            ClothStiffness = Config.Bind("Cloth", "Stiffness", 5.0f, new ConfigDescription("", new AcceptableValueRange<float>(3.0f, 8.0f)));
+            ClothStiffness = Config.Bind("Cloth", "Stiffness", 0.3f, new ConfigDescription("", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            ClothUndressForce = Config.Bind("Option", "Force", 5.0f, new ConfigDescription("multiple", new AcceptableValueRange<float>(1f, 20f)));
+            ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("", new AcceptableValueRange<float>(0.1f, 1.0f)));
+
+            ClothUndressForce = Config.Bind("Option", "Force", 10.0f, new ConfigDescription("multiple", new AcceptableValueRange<float>(1f, 20f)));
 
             ClothUndressDuration = Config.Bind("Option", "Duration", 15.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 60.0f)));
-
-            ConfigKeyDoUndressAllShortcut = Config.Bind("ShortKey", "Undress key", new KeyboardShortcut(KeyCode.LeftControl, KeyCode.U));
 
             UndressCurve = new AnimationCurve(
                 new Keyframe(0f, 0f, 0f, 2.5f),
@@ -208,11 +207,6 @@ namespace UndressPhysics
         {
             if (_loaded == false)
                 return;
-
-            if (ConfigKeyDoUndressAllShortcut.Value.IsDown())
-            {   
-                DoUndressAll();
-            }
         }
 
         private void SceneInit()
@@ -224,10 +218,14 @@ namespace UndressPhysics
         protected override void OnGUI()
         {
             if (_ShowUI == false)
-                return;
-            
-            if (StudioAPI.InsideStudio) 
+                return;            
+#if FEATURE_PUBLIC 
+            if (StudioAPI.InsideStudio)
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Undress Physics(P) " + Version);
+#else
+            if (StudioAPI.InsideStudio)
                 this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "Undress Physics " + Version);
+#endif                
         }
 
         private void WindowFunc(int id)
@@ -253,30 +251,53 @@ namespace UndressPhysics
 // Global
             GUILayout.Label("<color=orange>Option</color>", RichLabel);
             GUILayout.BeginHorizontal();
-            // PullDown
-            GUILayout.Label(new GUIContent("Pull", "PullDown Force"), GUILayout.Width(80));
-            ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 1f, 20f);
-            GUILayout.Label(ClothUndressForce.Value.ToString("0.00"), GUILayout.Width(40));
+            if (GUILayout.Button("silk"))
+                ApplyClothPreset("silk");
+            if (GUILayout.Button("wool"))
+                ApplyClothPreset("wool");
+            if (GUILayout.Button("denim"))
+                ApplyClothPreset("denim");
+            if (GUILayout.Button("span"))
+                ApplyClothPreset("span");                
             GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
+            
             // Duration
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Dudration", "Undress Duration"), GUILayout.Width(80));
+            GUILayout.Label(new GUIContent("Duration", "Undress Duration"), GUILayout.Width(80));
             ClothUndressDuration.Value = GUILayout.HorizontalSlider(ClothUndressDuration.Value, 0.0f, 60.0f);
             GUILayout.Label(ClothUndressDuration.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.EndHorizontal();
 
+#if !FEATURE_PUBLIC
+            GUILayout.Label(new GUIContent("Force", "PullDown Force"), GUILayout.Width(80));
+            ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 1f, 20f);
+            GUILayout.Label(ClothUndressForce.Value.ToString("0.00"), GUILayout.Width(40));
+            GUILayout.EndHorizontal();
+#endif
+
 // Cloth
+#if !FEATURE_PUBLIC
             GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
             GUILayout.BeginHorizontal();
    
             GUILayout.Label(new GUIContent("Stiffness", "Stiffness"), GUILayout.Width(80));
-            ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 3.0f, 8.0f);
+            ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 0.1f, 1.0f);
             GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(40));
 
             GUILayout.EndHorizontal();
 
+            GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
+            GUILayout.BeginHorizontal();
+   
+            GUILayout.Label(new GUIContent("Damping", "Damping"), GUILayout.Width(80));
+            ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.1f, 1.0f);
+            GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(40));
+
+            GUILayout.EndHorizontal();            
+#endif
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Do Undress"))
                 DoUndressAll();
@@ -323,8 +344,38 @@ namespace UndressPhysics
         private void InitConfig()
         {
             ClothStiffness.Value = (float)ClothStiffness.DefaultValue;
+            ClothDamping.Value = (float)ClothDamping.DefaultValue;            
             ClothUndressForce.Value = (float)ClothUndressForce.DefaultValue;
             ClothUndressDuration.Value = (float)ClothUndressDuration.DefaultValue;
+        }
+
+        private void ApplyClothPreset(string preset)
+        {
+            switch (preset)
+            {
+                case "silk": // 실크 - 부드럽고 흐름
+                    ClothStiffness.Value = 0.10f;
+                    ClothDamping.Value   = 0.10f;
+                    break;
+
+                case "wool": // 울 - 무겁고 둔함
+                    ClothStiffness.Value = 0.50f;
+                    ClothDamping.Value   = 0.50f;
+                    break;
+
+                case "denim": // 데님 - 단단하지만 완전 고정은 아님
+                    ClothStiffness.Value = 0.75f;
+                    ClothDamping.Value   = 0.80f;
+                    break;
+
+                case "span": // 스판(Spandex) - 쫀쫀 + 복원력
+                    ClothStiffness.Value = 0.55f;
+                    ClothDamping.Value   = 1.00f;
+                    break;
+            }
+
+            ClothStiffness.Value = Mathf.Clamp(ClothStiffness.Value, 0.1f, 1.0f);
+            ClothDamping.Value = Mathf.Clamp(ClothDamping.Value, 0.1f, 1.0f);
         }
 
          private IEnumerator UndressPartCoroutine(
@@ -335,7 +386,7 @@ namespace UndressPhysics
                 yield break;
 
             cloth.useGravity = true;
-            cloth.damping = 0.5f;//ClothDamping.Value;
+            cloth.damping = ClothDamping.Value;
             cloth.stiffnessFrequency = ClothStiffness.Value;
             cloth.worldAccelerationScale = 1.0f;
             cloth.worldVelocityScale = 0.0f;
@@ -466,7 +517,6 @@ namespace UndressPhysics
 
         private IEnumerator DoUnressCoroutine(UndressData undressData, Cloth cloth)
         {
-            // UnityEngine.Debug.Log($">> DoUnressCoroutine {cloth}");
             if (cloth != null)
             {
                 while (!_loaded)
@@ -502,7 +552,7 @@ namespace UndressPhysics
             }
 
             undressData.coroutine = null;
-            Logic.RestoreMaxDistances(undressData);
+            UndressPhysicsUtils.RestoreMaxDistances(undressData);
 
             int endCoroutineCnt = 0;
             // 전체 coroutine 종료 개수 확인
@@ -535,7 +585,7 @@ namespace UndressPhysics
 
             if (endCoroutineCnt != _undressDataList.Count)
             {
-                Logger.LogMessage("Wait until undress ends");
+                Logger.LogMessage("wait until undress done");
                 return;
             }
 
@@ -559,8 +609,8 @@ namespace UndressPhysics
                     if (clothTop != null) {
                         Cloth[] clothes = clothTop.GetComponentsInChildren<Cloth>(true);
                         if (clothes.Length > 0) {
-                            Logic.AllocateClothColliders(chaCtrl, Logic.topManifestXml, "top", "999999990", clothes, true);
-                            Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "8888888880", clothes, false);
+                            UndressPhysicsUtils.AllocateClothColliders(chaCtrl, UndressPhysicsUtils.topManifestXml, "top", "999999990", clothes, true);
+                            UndressPhysicsUtils.AllocateClothColliders(chaCtrl, UndressPhysicsUtils.bottomManifestXml, "bottom", "8888888880", clothes, false);
                             AllocateUndressData(chaCtrl, clothes, true);
                         }
                     }
@@ -569,7 +619,7 @@ namespace UndressPhysics
                         Cloth[] clothes = clothBottom.GetComponentsInChildren<Cloth>(true);
 
                         if (clothes.Length > 0) {
-                            Logic.AllocateClothColliders(chaCtrl, Logic.bottomManifestXml, "bottom", "8888888880", clothes, false);
+                            UndressPhysicsUtils.AllocateClothColliders(chaCtrl, UndressPhysicsUtils.bottomManifestXml, "bottom", "8888888880", clothes, false);
                             AllocateUndressData(chaCtrl, clothes, false);
                         }
                     }
@@ -603,7 +653,7 @@ namespace UndressPhysics
                     StopCoroutine(undressData.coroutine);
                 }
 
-                Logic.RestoreClothColliders(undressData.cloth);
+                UndressPhysicsUtils.RestoreClothColliders(undressData.cloth);
             }
 
             _undressDataList.Clear();
@@ -627,7 +677,7 @@ namespace UndressPhysics
             {
                 foreach(Cloth cloth in clothes)
                 {
-                    UndressData undressData = Logic.CreateUndressData(cloth, chaCtrl, isTop);
+                    UndressData undressData = UndressPhysicsUtils.CreateUndressData(cloth, chaCtrl, isTop);
                     _undressDataList.Add(undressData);
                 }
             }
@@ -643,7 +693,7 @@ namespace UndressPhysics
             private static bool Prefix(object __instance, bool _close)
             {
                 _self.SceneInit();
-                Logic.ClearBackup();
+                UndressPhysicsUtils.ClearBackup();
                 return true;
             }
         }

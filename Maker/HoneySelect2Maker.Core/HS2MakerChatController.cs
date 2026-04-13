@@ -94,7 +94,7 @@ namespace HoneySelect2Maker
             return newList;
         }
 
-        internal string ExtractAnswer(string json)
+        internal AnswerWrapper ExtractAnswerWrapper(string json)
         {
             AnswerWrapper fallback = CreateFallbackAnswerWrapper();
 
@@ -105,14 +105,14 @@ namespace HoneySelect2Maker
                 if (outer == null || outer.choices == null || outer.choices.Length == 0 || outer.choices[0]?.message == null)
                 {
                     UnityEngine.Debug.LogWarning(">> ExtractAnswer outer parse failed: invalid response shape.");
-                    return fallback.answer;
+                    return fallback;
                 }
 
                 string content = outer.choices[0].message.content;
                 if (string.IsNullOrWhiteSpace(content))
                 {
                     UnityEngine.Debug.LogWarning(">> ExtractAnswer outer parse failed: empty message content.");
-                    return fallback.answer;
+                    return fallback;
                 }
 
                 // ```json 제거
@@ -131,27 +131,33 @@ namespace HoneySelect2Maker
                     if (inner == null || string.IsNullOrWhiteSpace(inner.answer))
                     {
                         UnityEngine.Debug.LogWarning(">> ExtractAnswer inner parse failed: invalid AnswerWrapper payload.");
-                        return fallback.answer;
+                        return fallback;
                     }
 
                     if (inner.emotion == EmotionType.Angry)
                     {
                         UnityEngine.Debug.LogWarning(">> ExtractAnswer emotion is angry. Using refusal fallback message.");
-                        return GetRandomFallbackRefusalMessage();
+                        return new AnswerWrapper
+                        {
+                            answer = GetRandomFallbackRefusalMessage(),
+                            emotion = EmotionType.Angry,
+                            tone = ToneType.Neutral,
+                            next_action = NextAction.Leave
+                        };
                     }
 
-                    return inner.answer;
+                    return inner;
                 }
                 catch (Exception ex)
                 {
                     UnityEngine.Debug.LogWarning($">> ExtractAnswer inner parse failed: {ex.Message}");
-                    return fallback.answer;
+                    return fallback;
                 }
             }
             catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e);
-                return fallback.answer;
+                return fallback;
             }
         }
 
@@ -341,11 +347,12 @@ namespace HoneySelect2Maker
                 # Chat Rules
                 - reply only in {user.nationality}
                 - use natural and short conversation
-                - sometimes hesitate (...)
-                - ask questions occasionally
-                - if you don't want chatting -> next_action: leave
-                - if you want to keep chatting -> next_action: stay
-                - if you feel rude in chatting -> next_action: leave, emotion: angry         
+                - sometimes answer with '...'
+                - if don't want chatting -> next_action: leave
+                - if feel rude in chatting -> next_action: leave                
+                - if want to keep chatting -> next_action: stay
+                - if want to refuse to my request -> next_action: refuse
+                - if want to permit to my request -> next_action: permit
 
                 # Output
                 ```json
@@ -353,7 +360,7 @@ namespace HoneySelect2Maker
                 ""answer"": """",
                 ""emotion"": ""angry|sad|calm|joy|shy|excited"",
                 ""tone"": ""neutral|flirty|shy|playful|teasing"",
-                ""next_action"": ""stay|leave""
+                ""next_action"": ""stay|leave|permit|refuse""
                 }}
                 ```";
         }
@@ -371,7 +378,7 @@ namespace HoneySelect2Maker
             " + stagePrompt;
         }
 
-        internal async Task<string> SendChatAsync(
+        internal async Task<ChatReply> SendChatAsync(
             int maxToken,
             float temperature,
             CHAT_EVENT chatEvent,
@@ -405,7 +412,7 @@ namespace HoneySelect2Maker
                 message);
         }
 
-        internal async Task<string> SendChatAsync(
+        internal async Task<ChatReply> SendChatAsync(
             string provider,
             string host,
             string model,
@@ -466,13 +473,13 @@ namespace HoneySelect2Maker
                 if (string.IsNullOrWhiteSpace(openrouterApiKey))
                 {
                     UnityEngine.Debug.LogError("OpenRouter API key is missing. Set OPENROUTER_API_KEY or provider.json openrouterApiKey.");
-                    return "";
+                    return new ChatReply { answer = "", next_action = NextAction.Stay };
                 }
 
                 if (string.IsNullOrWhiteSpace(model))
                 {
                     UnityEngine.Debug.LogError("OpenRouter model is missing. Set OpenRouter Model config or OPENROUTER_MODEL env var.");
-                    return "";
+                    return new ChatReply { answer = "", next_action = NextAction.Stay };
                 }
 
                 var baseUrl = string.IsNullOrWhiteSpace(openrouterBaseUrl) ? "https://openrouter.ai/api/v1" : openrouterBaseUrl.TrimEnd('/');
@@ -518,8 +525,10 @@ namespace HoneySelect2Maker
 
             string responseText = request.downloadHandler.text;
 
-            // JSON 파싱 (간단 방식)
-            string assistantContent = ExtractAnswer(responseText);
+            // JSON 파싱 (answer + next_action)
+            AnswerWrapper parsed = ExtractAnswerWrapper(responseText);
+            string assistantContent = parsed != null ? parsed.answer : "";
+            NextAction nextAction = parsed != null ? parsed.next_action : NextAction.Stay;
 
             UnityEngine.Debug.Log($"> assistantContent: {assistantContent}");
 
@@ -536,7 +545,11 @@ namespace HoneySelect2Maker
 
             UnityEngine.Debug.Log($"> chatHistory: {string.Join(", ", chatHistory.Select(m => $"{m.role}:{m.content}"))}");
 
-            return assistantContent;
+            return new ChatReply
+            {
+                answer = assistantContent,
+                next_action = nextAction
+            };
         }
         
         internal string MakeHumanMsg(string instruction)
@@ -742,6 +755,13 @@ namespace HoneySelect2Maker
         public string answer;
         public EmotionType emotion;
         public ToneType tone;
+        public NextAction next_action;
+    }
+
+    [Serializable]
+    class ChatReply
+    {
+        public string answer;
         public NextAction next_action;
     }
 

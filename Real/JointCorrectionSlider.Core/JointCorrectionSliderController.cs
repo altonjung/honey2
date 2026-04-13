@@ -58,7 +58,6 @@ namespace JointCorrectionSlider
         internal JointCorrectionSliderData correctionData;
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
-
         internal JointCorrectionSliderData CreateData(OCIChar ociChar)
         {
             if (ociChar == null || ociChar.GetChaControl() == null)
@@ -82,22 +81,26 @@ namespace JointCorrectionSlider
             correctionData._dan_root = charControl.objAnim.transform.FindLoop("cm_J_dan_s");
             correctionData._dan_top1 = charControl.objAnim.transform.FindLoop("cm_J_dan119_00");
             correctionData._dan_top2 = charControl.objAnim.transform.FindLoop("cm_J_dan108_00");
-            correctionData._dan_top3 = charControl.objAnim.transform.FindLoop("cm_J_dan105_00");
-            correctionData._dan_top4 = charControl.objAnim.transform.FindLoop("cm_J_dan103_00");
+            correctionData._dan_top3 = charControl.objAnim.transform.FindLoop("cm_J_dan107_00");
+            correctionData._dan_top4 = charControl.objAnim.transform.FindLoop("cm_J_dan100_00");
 
             correctionData._danRootPosBaseSet = false;
             correctionData._danRootScaleBaseSet = false;
-            correctionData._dantop1PosBaseSet = false;
-            correctionData._dantop1ScaleBaseSet = false;
-            correctionData._dantop2PosBaseSet = false;
-            correctionData._dantop2ScaleBaseSet = false;
-            correctionData._dantop3PosBaseSet = false;
-            correctionData._dantop3ScaleBaseSet = false;
-            correctionData._dantop4PosBaseSet = false;
-            correctionData._dantop4ScaleBaseSet = false;
+            correctionData._danRootRotBaseSet = false;
+
+            correctionData._danTop1PosBaseSet = false;
+            correctionData._danTop1ScaleBaseSet = false;
+            correctionData._danTop1RotBaseSet = false;
+
+            correctionData._danTop2PosBaseSet = false;
+            correctionData._danTop2ScaleBaseSet = false;
+            correctionData._danTop2RotBaseSet = false;
+
+            correctionData._danTop3PosBaseSet = false;
+            correctionData._danTop3ScaleBaseSet = false;
+            correctionData._danTop3RotBaseSet = false;
 #endif
 
-            // Initialize base ScriptInfo values once at data creation time.
             correctionData.ScriptInfoBaseByCategory.Clear();
             if (ociChar.charInfo != null && ociChar.charInfo.expression != null && ociChar.charInfo.expression.info != null)
             {
@@ -117,6 +120,7 @@ namespace JointCorrectionSlider
                     };
                 }
             }
+
             correctionData.ScriptInfoBaseInitialized = correctionData.ScriptInfoBaseByCategory.Count > 0;
             return correctionData;
         }
@@ -147,7 +151,7 @@ namespace JointCorrectionSlider
         {
             if (correctionData != null)
             {
-                correctionData.Reset();                
+                correctionData.Reset();
             }
         }
 
@@ -157,11 +161,10 @@ namespace JointCorrectionSlider
         }
     }
 
-    class JointCorrectionSliderData {
-
+    class JointCorrectionSliderData
+    {
         public ChaControl charControl;
 
-        // Expression.ScriptInfo.correct base values (per categoryId). Slider value is treated as delta from these bases.
         public Dictionary<int, ScriptMinMax> ScriptInfoBaseByCategory = new Dictionary<int, ScriptMinMax>();
         public bool ScriptInfoBaseInitialized = false;
 
@@ -172,7 +175,7 @@ namespace JointCorrectionSlider
         public float LeftArmLowerValue = 0.0f;
         public float RightArmLowerValue = 0.0f;
         public float LeftElbowValue = 0.0f;
-        public float RightElbowValue = 0.0f;        
+        public float RightElbowValue = 0.0f;
         public float LeftKneeValue = 0.0f;
         public float RightKneeValue = 0.0f;
         public float LeftLegValue = 0.0f;
@@ -180,21 +183,30 @@ namespace JointCorrectionSlider
 
 #if FEATURE_DAN_CORRECTION
         public float DanRootScaleValue = 0.0f;
-        public float DanRootLengthValue = 0.0f;
-        public float Dantop1ScaleValue = 0.0f;
-        public float Dantop1LengthValue = 0.0f;
-        public float Dantop2ScaleValue = 0.0f;
-        public float Dantop2LengthValue = 0.0f;
-        public float Dantop3ScaleValue = 0.0f;
-        public float Dantop3LengthValue = 0.0f;
-        public float Dantop4ScaleValue = 0.0f;
-        public float Dantop4LengthValue = 0.0f;
+        public float DanRootPosValue = 0.0f;
+        public float DanRootRotateValue = 0.0f;
+
+        public float DanTop1ScaleValue = 0.0f;
+        public float DanTop1PosValue = 0.0f;
+        public float DanTop1RotateValue = 0.0f;
+
+        public float DanTop2ScaleValue = 0.0f;
+        public float DanTop2PosValue = 0.0f;
+        public float DanTop2RotateValue = 0.0f;
+
+        public float DanTop3ScaleValue = 0.0f;
+        public float DanTop3PosValue = 0.0f;
+        public float DanTop3RotateValue = 0.0f;
+
+        public float DanTop4ScaleValue = 0.0f;
+        public float DanTop4PosValue = 0.0f;
+        public float DanTop4RotateValue = 0.0f;
 #endif
 
 #if FEATURE_DEBUG
         public bool RXConfig  { get; private set; }
         public bool RYConfig  { get; private set; }
-        public ool RZConfig  { get; private set; }
+        public bool RZConfig  { get; private set; }
 #endif
 
         public float _prevLeftShoulder = 0f;
@@ -227,38 +239,49 @@ namespace JointCorrectionSlider
         public Transform _dan_top1;
         public Transform _dan_top2;
         public Transform _dan_top3;
+        public Transform _dan_top4;
 
-        public  UnityEngine.Vector3 _danRootPosBasePos;
-        public  UnityEngine.Vector3 _danRootScaleBasePos;
+        public UnityEngine.Vector3 _danRootPosBasePos;
+        public UnityEngine.Vector3 _danRootScaleBasePos;
+        public UnityEngine.Vector3 _danRootRotBaseEuler;
 
-        public  UnityEngine.Vector3 _dantop1PosBasePos;
-        public  UnityEngine.Vector3 _dantop1ScaleBasePos;
+        public UnityEngine.Vector3 _danTop1PosBasePos;
+        public UnityEngine.Vector3 _danTop1ScaleBasePos;
+        public UnityEngine.Vector3 _danTop1RotBaseEuler;
 
-        public  UnityEngine.Vector3 _dantop2PosBasePos;
-        public  UnityEngine.Vector3 _dantop2ScaleBasePos;
+        public UnityEngine.Vector3 _danTop2PosBasePos;
+        public UnityEngine.Vector3 _danTop2ScaleBasePos;
+        public UnityEngine.Vector3 _danTop2RotBaseEuler;
 
-        public  UnityEngine.Vector3 _dantop3PosBasePos;
-        public  UnityEngine.Vector3 _dantop3ScaleBasePos;                        
+        public UnityEngine.Vector3 _danTop3PosBasePos;
+        public UnityEngine.Vector3 _danTop3ScaleBasePos;
+        public UnityEngine.Vector3 _danTop3RotBaseEuler;
 
-        public  UnityEngine.Vector3 _dantop4PosBasePos;
-        public  UnityEngine.Vector3 _dantop4ScaleBasePos;   
+        public UnityEngine.Vector3 _danTop4PosBasePos;
+        public UnityEngine.Vector3 _danTop4ScaleBasePos;
+        public UnityEngine.Vector3 _danTop4RotBaseEuler;
 
-        public  bool _danRootPosBaseSet;
-        public  bool _danRootScaleBaseSet;
 
-        public  bool _dantop1PosBaseSet;
-        public  bool _dantop1ScaleBaseSet;
+        public bool _danRootPosBaseSet;
+        public bool _danRootScaleBaseSet;
+        public bool _danRootRotBaseSet;
 
-        public  bool _dantop2PosBaseSet;
-        public  bool _dantop2ScaleBaseSet;                
+        public bool _danTop1PosBaseSet;
+        public bool _danTop1ScaleBaseSet;
+        public bool _danTop1RotBaseSet;
 
-        public  bool _dantop3PosBaseSet;
-        public  bool _dantop3ScaleBaseSet;
+        public bool _danTop2PosBaseSet;
+        public bool _danTop2ScaleBaseSet;
+        public bool _danTop2RotBaseSet;
 
-        public  bool _dantop4PosBaseSet;
-        public  bool _dantop4ScaleBaseSet;
+        public bool _danTop3PosBaseSet;
+        public bool _danTop3ScaleBaseSet;
+        public bool _danTop3RotBaseSet;
+
+        public bool _danTop4PosBaseSet;
+        public bool _danTop4ScaleBaseSet;
+        public bool _danTop4RotBaseSet;
 #endif
-
 
         internal void Reset()
         {
@@ -278,16 +301,26 @@ namespace JointCorrectionSlider
 
 #if FEATURE_DAN_CORRECTION
             DanRootScaleValue = 0.0f;
-            DanRootLengthValue = 0.0f;
-            Dantop1ScaleValue = 0.0f;
-            Dantop1LengthValue = 0.0f;
-            Dantop2ScaleValue = 0.0f;
-            Dantop2LengthValue = 0.0f;
-            Dantop3ScaleValue = 0.0f;
-            Dantop3LengthValue = 0.0f;
-            Dantop4ScaleValue = 0.0f;
-            Dantop4LengthValue = 0.0f;
+            DanRootPosValue = 0.0f;
+            DanRootRotateValue = 0.0f;
+
+            DanTop1ScaleValue = 0.0f;
+            DanTop1PosValue = 0.0f;
+            DanTop1RotateValue = 0.0f;
+
+            DanTop2ScaleValue = 0.0f;
+            DanTop2PosValue = 0.0f;
+            DanTop2RotateValue = 0.0f;
+
+            DanTop3ScaleValue = 0.0f;
+            DanTop3PosValue = 0.0f;
+            DanTop3RotateValue = 0.0f;
+
+            DanTop4ScaleValue = 0.0f;
+            DanTop4PosValue = 0.0f;
+            DanTop4RotateValue = 0.0f;
 #endif
         }
-    }        
+    }
 }
+

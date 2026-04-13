@@ -71,6 +71,11 @@ using KKAPI.Chara;
             2.1) sceneWrite 시 씬내 각 캐릭터의 각 PhysicCollider 가 보유한 collide 이름과 collide 의 속성(position, scale) 정보를 xml에 저장한다.
             2.2) sceneRead는 시 씬내 각 캐릭터의 각 PhysicCollider 에 1.5.1에서 저장한 xml 정보를 다시 PhysicCollider 로 업데이트 해야 한다.
 
+    추가 요구 기능:
+        N/A
+
+    현 버전 문제점:
+        N/A
 */
 namespace ClothCollideVisualizer
 {

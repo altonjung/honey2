@@ -310,9 +310,7 @@ namespace WindPhysics
                 // ---- GRAVITY (world -> local)
                 Vector3 worldGravity = new Vector3(
                     0,
-                    gravityUp
-                        ? UnityEngine.Random.Range(gravity, gravity + 0.02f)
-                        : UnityEngine.Random.Range(gravity, gravity - 0.01f),
+                    gravity,
                     0f
                 );
 
@@ -345,9 +343,7 @@ namespace WindPhysics
                 // GRAVITY
                 Vector3 worldGravity = new Vector3(
                     0f,
-                    gravityUp
-                        ? UnityEngine.Random.Range(gravity, gravity + 0.03f)
-                        : UnityEngine.Random.Range(gravity, gravity - 0.02f),
+                    gravity,
                     0f
                 );
 
@@ -463,7 +459,7 @@ namespace WindPhysics
             {
                 if (!WindPhysics._self._loaded)
                 {
-                    yield return new WaitForSeconds(0.5f); // 0.5초 대기
+                    yield return new WaitForSeconds(0.2f); // 0.2초 대기
                 }
 
                 if (windData.wind_status == Status.RUN)

@@ -35,6 +35,35 @@ using KKAPI.Utilities;
 using KKAPI.Chara;
 using System.Linq;
 
+/*
+    Agent 코드 수행
+
+    목적:
+    - 활성화된 캐릭터가 착용한 상의/하의 Cloth 컴포넌트 혹은 hair 와 같은 dynamic bone 대상 바람 효과 제공
+
+    용어:
+    - OCIChar: 캐릭터 
+        > GetCurrentOCI 함수를 통해 현재 씬내 활성화된 캐리터를 획득
+
+    최소 요구 기능:
+        1) onGUI 내에 아래 UI를 구성해야 한다.
+            1.1) 바람 효과에 영향을 주는 속성 editing 제공 (gravity, direciton, force 등등)
+            1.2) cloth 속성에 영향을 주는 속성 editing 제공
+            1.3) hair(dynamic bone) 속성에 영향을 주는 속성 editing 제공
+            1.4) accessories (dynamic bone) 속성에 영향을 주는 속성 editing 제공
+        2) 캐릭터별 속성 정보는 WindData in WindPhysicsController.cs 에 저장하여 관리되어야 함
+
+    바람 속성:
+        - gravity: -0.1 ~ 0.0 까지 가능
+        - direction: 0~360도 방향별 제공
+        - force 및 force up: z축 강도 증가, up의 경우 y축 강도 증가
+
+    추가 요구 기능:
+        N/A
+
+    현 버전 문제점:
+        N/A
+*/
 namespace WindPhysics
 {
 #if BEPINEX
@@ -51,7 +80,7 @@ namespace WindPhysics
     {
         #region Constants
         public const string Name = "WindPhysics";
-        public const string Version = "0.9.8.0";
+        public const string Version = "0.9.8.1";
         public const string GUID = "com.alton.illusionplugins.windphysics";
         internal const string _ownerId = "alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -77,21 +106,6 @@ namespace WindPhysics
         private static string _assemblyLocation;
         internal bool _loaded = false;
 
-        private static bool _ShowUI = false;
-
-        private static SimpleToolbarToggle _toolbarButton;
-
-        private const int _uniqueId = ('W' << 24) | ('P' << 16) | ('P' << 8) | 'X';
-
-        private Rect _windowRect = new Rect(70, 10, 400, 10);
-
-        // 위치에 따른 바람 강도
-        private AnimationCurve _heightToForceCurve = AnimationCurve.Linear(0f, 1f, 1f, 0.1f); // 위로 갈수록 약함
-
-        // internal Dictionary<int, ChaControl> _selectChaMgmt = new Dictionary<int, ChaControl>();
-
-        // private Coroutine _CheckWindMgmtCoroutine;
-
 #if FEATURE_VISUAL_WINDDIRECTION
         // LineRenderer 객체
         private GameObject _windDirObj;
@@ -105,6 +119,14 @@ namespace WindPhysics
         // 표시 위치/길이        
         private const float _windDirLength = 5f;        
 #endif
+
+        private static bool _ShowUI = false;
+        private static SimpleToolbarToggle _toolbarButton;
+
+        private const int _uniqueId = ('W' << 24) | ('P' << 16) | ('P' << 8) | 'X';
+
+        private Rect _windowRect = new Rect(70, 10, 400, 10);
+
         private GUIStyle _richLabel;
         
         private GUIStyle RichLabel
@@ -137,8 +159,8 @@ namespace WindPhysics
         protected override void Awake()
         {
             base.Awake();
-            // Environment 
-            Gravity = Config.Bind("All", "Gravity", -0.01f, new ConfigDescription("gravity", new AcceptableValueRange<float>(-0.1f, 0.1f)));
+
+            Gravity = Config.Bind("All", "Gravity", -0.01f, new ConfigDescription("gravity", new AcceptableValueRange<float>(-0.1f, 0.05f)));
 
             WindDirection = Config.Bind("All", "Direction", 0.0f, new ConfigDescription("wind direction from 0 to 360 degree", new AcceptableValueRange<float>(0.0f, 359.0f)));
 
@@ -294,10 +316,10 @@ namespace WindPhysics
                     ApplyScenePreset("park");
                 if (GUILayout.Button("hill"))
                     ApplyScenePreset("hill");
-                if (GUILayout.Button("water"))
-                    ApplyScenePreset("water");                    
-                if (GUILayout.Button("space"))
-                    ApplyScenePreset("space");
+                if (GUILayout.Button("inWater"))
+                    ApplyScenePreset("inWater");                    
+                if (GUILayout.Button("inSpace"))
+                    ApplyScenePreset("inSpace");
                 // if (GUILayout.Button("rain"))
                 //     ApplyScenePreset("rain");
                 GUILayout.EndHorizontal();
@@ -360,7 +382,7 @@ namespace WindPhysics
                 // Gravity
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(new GUIContent("Gravity", "Gravity"), GUILayout.Width(80));
-                Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.1f);
+                Gravity.Value = GUILayout.HorizontalSlider(Gravity.Value, -0.1f, 0.05f);
                 GUILayout.Label(Gravity.Value.ToString("0.00"), GUILayout.Width(40));
                 GUILayout.EndHorizontal();
 
@@ -437,7 +459,6 @@ namespace WindPhysics
                 _ShowUI = false;
             }
 
-            // ⭐ 툴팁 직접 그리기
             if (!string.IsNullOrEmpty(GUI.tooltip))
             {
                 Vector2 mousePos = Event.current.mousePosition;
@@ -552,30 +573,33 @@ namespace WindPhysics
             if (preset == "park")
             {
                 WindForce.Value = 0.3f;
-                Gravity.Value = -0.05f;
+                WindUpForce.Value = 0.0f;
+                WindAmplitude.Value = 1.0f;
+                Gravity.Value = -0.01f;
             }
             else if (preset == "hill")
             {
                 WindForce.Value = 0.8f;
-                Gravity.Value = -0.05f;
+                WindUpForce.Value = 0.01f;
+                WindAmplitude.Value = 3.0f;
+                Gravity.Value = -0.01f;
             }
-            else if (preset == "space")
+            else if (preset == "inWater")
             {
-                WindForce.Value = 0.01f;
-                Gravity.Value = 0.0f;
+                WindForce.Value = 0.3f;
+                WindUpForce.Value = 0.02f;
+                WindAmplitude.Value = 2.0f;
+                Gravity.Value = 0.01f;
             }
-            else if (preset == "water")
+            else if (preset == "inSpace")
             {
-                WindForce.Value = 0.03f;
-                Gravity.Value = 0.02f;
-            }
-            else if (preset == "rain")
-            {
-                WindForce.Value = 0.5f;
-                Gravity.Value = -0.08f;
+                WindForce.Value = 0.3f;
+                WindUpForce.Value = 0.02f;
+                WindAmplitude.Value = 0.0f;
+                Gravity.Value = 0.025f;
             }
 
-            Gravity.Value = Mathf.Clamp(Gravity.Value, -0.1f, 0.1f);
+            Gravity.Value = Mathf.Clamp(Gravity.Value, -0.1f, 0.05f);
             ClampWindKeepTimeToInterval();
         }
 
