@@ -320,21 +320,28 @@ namespace RealHumanSupport
 
             List<DynamicBoneCollider> extraBodyColliders = new List<DynamicBoneCollider>();       
 
-            extraBodyColliders.AddRange(extraHandsColliders); // 손(손가락), 다리 collider 모두 bodyCollider 에 주입
-            extraBodyColliders.AddRange(extraBoobColliders);
+            extraBodyColliders.AddRange(extraHandsColliders); // 손(손가락), 다리 collider 모두 bodyCollider 에 주입            
 
             Transform faceObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_FaceLow_s");
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(faceObject, DynamicBoneColliderBase.Direction.Y, 0.65f, 2.5f, new Vector3(0.0f, 0.0f, 0.3f)));
+
+            // chest collider 생성
+            Transform leftBoobObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune01_L");
+            Transform rightBoobObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune01_R");
+            
+            float boob_radius = 0.4f;
+
+            extraBodyColliders.Add(AddExtraDynamicBoneCollider(leftBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 2.0f , new Vector3(0.0f, 0.0f, 0.0f)));
+            extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 2.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
             // shoulder collider 생성
             Transform leftShoulderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
             Transform rightShoulderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
 
-            float leftShoulder_radius = 0.4f;
-            float rightShoulder_radius = 0.4f;
+            float shoulder_radius = 0.4f;
 
-            extraBodyColliders.Add(AddExtraDynamicBoneCollider(leftShoulderObject, DynamicBoneColliderBase.Direction.Y, leftShoulder_radius, leftShoulder_radius * 3.0f , new Vector3(0.0f, 0.0f, 0.0f)));
-            extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightShoulderObject, DynamicBoneColliderBase.Direction.Y, rightShoulder_radius, rightShoulder_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
+            extraBodyColliders.Add(AddExtraDynamicBoneCollider(leftShoulderObject, DynamicBoneColliderBase.Direction.Y, shoulder_radius, shoulder_radius * 3.0f , new Vector3(0.0f, 0.0f, 0.0f)));
+            extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightShoulderObject, DynamicBoneColliderBase.Direction.Y, shoulder_radius, shoulder_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
             // spine collider 생성
             Transform spine1Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine01");
@@ -2371,7 +2378,7 @@ public class CapsuleTrigger : MonoBehaviour
     private float currentValue = 0f;
     private float targetValue = 0f;
 
-    private float speed = 50f; // 값 변화 속도 (조절 포인트)
+    private float speed = 25f; // 값 변화 속도 (조절 포인트)
 
     public void Bind(RealHumanSupportController controller)
     {
