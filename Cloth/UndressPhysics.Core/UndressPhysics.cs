@@ -43,13 +43,11 @@ using KKAPI.Utilities;
     4) undress effect를 극대화하기 위해 pivot collider 를 아래와 같이 운영
         - Top cloth 경우 neck 에 별도 collider 를 두고 undress 시 radius 크기 동적 적용
         - Botton cloth 경우 spine 에 별도 collider 를 두고 undress 시 raidus 크기 동적 용
-*/
-/*
+
     남은작업
 
     1) UI 작업
-        - force slider 가 너무 작음
-        - preset 관련 force 와 연관되어 작업 필요
+        - 초기 1회 undress 버튼 클릭 시 undress 처리가 잘 되지 않고, 두번째 부터 undress 효과가 동작됨..원인 파악 필요
 */
 namespace UndressPhysics
 {
@@ -135,7 +133,6 @@ namespace UndressPhysics
         internal static ConfigEntry<float> ClothUndressDuration { get; private set; }
         internal static ConfigEntry<float> ClothStiffness { get; private set; }   
         internal static ConfigEntry<float> ClothDamping { get; private set; }   
-        internal static ConfigEntry<float> ClothElastic { get; private set; }   
 
         internal enum Status
         {
@@ -159,7 +156,7 @@ namespace UndressPhysics
 
             ClothDamping = Config.Bind("Cloth", "Damping", 0.5f, new ConfigDescription("", new AcceptableValueRange<float>(0.1f, 1.0f)));
 
-            ClothUndressForce = Config.Bind("Option", "Force", 10.0f, new ConfigDescription("multiple", new AcceptableValueRange<float>(1f, 20f)));
+            ClothUndressForce = Config.Bind("Option", "Force", 10.0f, new ConfigDescription("multiple", new AcceptableValueRange<float>(5f, 20f)));
 
             ClothUndressDuration = Config.Bind("Option", "Duration", 15.0f, new ConfigDescription("undress duration", new AcceptableValueRange<float>(0.0f, 60.0f)));
 
@@ -261,19 +258,18 @@ namespace UndressPhysics
                 ApplyClothPreset("span");                
             GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
-            
+            GUILayout.Label("<color=orange>Global</color>", RichLabel);            
             // Duration
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Duration", "Undress Duration"), GUILayout.Width(80));
             ClothUndressDuration.Value = GUILayout.HorizontalSlider(ClothUndressDuration.Value, 0.0f, 60.0f);
             GUILayout.Label(ClothUndressDuration.Value.ToString("0.00"), GUILayout.Width(40));
-
             GUILayout.EndHorizontal();
 
 #if !FEATURE_PUBLIC
+            GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Force", "PullDown Force"), GUILayout.Width(80));
-            ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 1f, 20f);
+            ClothUndressForce.Value = GUILayout.HorizontalSlider(ClothUndressForce.Value, 5f, 20f);
             GUILayout.Label(ClothUndressForce.Value.ToString("0.00"), GUILayout.Width(40));
             GUILayout.EndHorizontal();
 #endif
@@ -282,24 +278,19 @@ namespace UndressPhysics
 #if !FEATURE_PUBLIC
             GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
             GUILayout.BeginHorizontal();
-   
             GUILayout.Label(new GUIContent("Stiffness", "Stiffness"), GUILayout.Width(80));
             ClothStiffness.Value = GUILayout.HorizontalSlider(ClothStiffness.Value, 0.1f, 1.0f);
             GUILayout.Label(ClothStiffness.Value.ToString("0.00"), GUILayout.Width(40));
-
             GUILayout.EndHorizontal();
 
-            GUILayout.Label("<color=orange>Cloth</color>", RichLabel);
             GUILayout.BeginHorizontal();
-   
             GUILayout.Label(new GUIContent("Damping", "Damping"), GUILayout.Width(80));
             ClothDamping.Value = GUILayout.HorizontalSlider(ClothDamping.Value, 0.1f, 1.0f);
             GUILayout.Label(ClothDamping.Value.ToString("0.00"), GUILayout.Width(40));
-
             GUILayout.EndHorizontal();            
 #endif
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Do Undress"))
+            if (GUILayout.Button("Undress"))
                 DoUndressAll();
            
             if(GUILayout.Button("Stop Undress"))
@@ -317,8 +308,7 @@ namespace UndressPhysics
 				_ShowUI = false;
 			}
             GUILayout.EndHorizontal();
-            
-            // ⭐ 툴팁 직접 그리기
+
             if (!string.IsNullOrEmpty(GUI.tooltip))
             {
                 Vector2 mousePos = Event.current.mousePosition;

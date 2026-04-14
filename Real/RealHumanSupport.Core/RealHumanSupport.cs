@@ -68,8 +68,7 @@ using KKAPI.Chara;
 
     남은작업
 
-    1) belly active UI 제공
-    2) DAN bone 활용 + FEATURE_BODY_BLENDSHAPE_SUPPORT 연동
+    1) DAN bone 활용 + FEATURE_BODY_BLENDSHAPE_SUPPORT 연동
 */
 
 namespace RealHumanSupport
@@ -153,16 +152,17 @@ namespace RealHumanSupport
         private Coroutine _CheckMgmtCoroutine;    
 
         private float _prevTFScale = 1.0f;
-        private Vector2 _extraHairColliderScroll;
-        private int _selectedExtraHairColliderIndex = -1;
-        private DynamicBoneCollider _selectedExtraHairCollider;
+        private Vector2 _extraBodyColliderScroll;
+        private int _selectedExtraBodyColliderIndex = -1;
+        private DynamicBoneCollider _selectedExtraBodyCollider;
         private static readonly float[] _extraColliderStepOptions = new float[] { 1f, 0.1f, 0.01f, 0.001f };
         private int _extraColliderStepIndex = 2;
-        private DynamicBoneCollider _visualizedExtraHairCollider;
-        private GameObject _extraHairColliderVisualRoot;
-        private readonly List<LineRenderer> _extraHairColliderVisualLines = new List<LineRenderer>();
+        private DynamicBoneCollider _visualizedExtraBodyCollider;
+        private GameObject _extraBodyColliderVisualRoot;
+        private readonly List<LineRenderer> _extraBodyColliderVisualLines = new List<LineRenderer>();
 
         private GUIStyle _richLabel;
+        private GUIStyle _richButton;
 
         private GUIStyle RichLabel
         {
@@ -177,6 +177,20 @@ namespace RealHumanSupport
             }
         }
 
+        private GUIStyle RichButton
+        {
+            get
+            {
+                if (_richButton == null)
+                {
+                    _richButton = new GUIStyle(GUI.skin.button);
+                    _richButton.richText = true;
+                    _richButton.alignment = TextAnchor.MiddleLeft;
+                }
+                return _richButton;
+            }
+        }
+
         private OCIChar _currentOCIChar = null;
         // Config
         #region Accessors
@@ -185,9 +199,9 @@ namespace RealHumanSupport
 #endif
         internal static ConfigEntry<bool> TearDropActive { get; private set; }
 
-        internal static ConfigEntry<bool> EyeShakeActive { get; private set; }
+        internal static ConfigEntry<bool> BreathActive { get; private set; }        
 
-        internal static ConfigEntry<bool> BreathActive { get; private set; }
+        internal static ConfigEntry<bool> EyeShakeActive { get; private set; }
 
         internal static ConfigEntry<bool> BodyBlendingActive { get; private set; }
 
@@ -296,7 +310,7 @@ namespace RealHumanSupport
         {
             if (_ShowUI == false)
             {
-                ClearSelectedExtraHairColliderVisual();
+                ClearSelectedExtraBodyColliderVisual();
                 return;
             }
 
@@ -349,7 +363,7 @@ namespace RealHumanSupport
                 GUILayout.Label(data.TearDropLevel.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal(); 
 
-                DrawExtraHairColliderEditor(data);
+                DrawExtraBodyColliderEditor(data);
 
                 if (GUILayout.Button("Force Refresh"))
                 {
@@ -372,19 +386,45 @@ namespace RealHumanSupport
                     }
                 }
 
+                if (BreathActive.Value) {
+                    if (GUILayout.Button("Belly(D)"))
+                    {
+                        BreathActive.Value = false;
+                    }
+                }
+                else {
+                    if (GUILayout.Button("Belly(A)"))
+                    {
+                        BreathActive.Value = true;
+                    }
+                }
+
+                if (EyeShakeActive.Value) {
+                    if (GUILayout.Button("Eye(D)"))
+                    {
+                        EyeShakeActive.Value = false;
+                    }
+                }
+                else {
+                    if (GUILayout.Button("Eye(A)"))
+                    {
+                        EyeShakeActive.Value = true;
+                    }
+                }
+
                 if (GUILayout.Button("Default")) {
                     InitConfig();
                 }
             }
             else
             {
-                ClearSelectedExtraHairColliderVisual();
+                ClearSelectedExtraBodyColliderVisual();
                 GUILayout.Label("<color=white>Nothing to select</color>", RichLabel);                
             }
 //
             if (GUILayout.Button("Close")) {
                 Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
-                ClearSelectedExtraHairColliderVisual();
+                ClearSelectedExtraBodyColliderVisual();
 				_ShowUI = false;
 			}
             // ⭐ 툴팁 직접 그리기
@@ -400,11 +440,12 @@ namespace RealHumanSupport
 
         #region Private Methods
 
-        private void DrawExtraHairColliderEditor(RealHumanData data)
+        private void DrawExtraBodyColliderEditor(RealHumanData data)
         {
             if (data == null || data.chaCtrl == null || data.chaCtrl.objBodyBone == null)
                 return;
 
+            RealHumanSupportController controller = data.chaCtrl.GetComponent<RealHumanSupportController>();
             List<DynamicBoneCollider> colliders = GetExtraBodyColliders(data);
             GUILayout.Space(6f);
             GUILayout.Label("<color=orange>Extra Body Collider</color>", RichLabel);
@@ -412,68 +453,81 @@ namespace RealHumanSupport
             if (colliders.Count == 0)
             {
                 GUILayout.Label("<color=white>No dynamic bone collider</color>", RichLabel);
-                _selectedExtraHairCollider = null;
-                _selectedExtraHairColliderIndex = -1;
-                ClearSelectedExtraHairColliderVisual();
+                _selectedExtraBodyCollider = null;
+                _selectedExtraBodyColliderIndex = -1;
+                ClearSelectedExtraBodyColliderVisual();
                 return;
             }
 
-            if (_selectedExtraHairCollider != null)
+            if (_selectedExtraBodyCollider != null)
             {
-                int idx = colliders.IndexOf(_selectedExtraHairCollider);
-                _selectedExtraHairColliderIndex = idx >= 0 ? idx : _selectedExtraHairColliderIndex;
+                int idx = colliders.IndexOf(_selectedExtraBodyCollider);
+                _selectedExtraBodyColliderIndex = idx >= 0 ? idx : _selectedExtraBodyColliderIndex;
             }
 
-            if (_selectedExtraHairColliderIndex < 0 || _selectedExtraHairColliderIndex >= colliders.Count)
-                _selectedExtraHairColliderIndex = 0;
+            if (_selectedExtraBodyColliderIndex < 0 || _selectedExtraBodyColliderIndex >= colliders.Count)
+                _selectedExtraBodyColliderIndex = 0;
 
-            _extraHairColliderScroll = GUILayout.BeginScrollView(_extraHairColliderScroll, GUI.skin.box, GUILayout.Height(90));
+            _extraBodyColliderScroll = GUILayout.BeginScrollView(_extraBodyColliderScroll, GUI.skin.box, GUILayout.Height(90));
             for (int i = 0; i < colliders.Count; i++)
             {
                 DynamicBoneCollider collider = colliders[i];
                 if (collider == null)
                     continue;
 
-                string label = $"{collider.name} ({collider.m_Direction})";
-                if (GUILayout.Toggle(_selectedExtraHairColliderIndex == i, label, GUI.skin.button))
+                bool isModified = controller != null && controller.IsExtraColliderModified(collider);
+                string color = isModified ? "red" : "white";
+                string label = $"<color={color}>{collider.name} ({collider.m_Direction})</color>";
+                if (GUILayout.Toggle(_selectedExtraBodyColliderIndex == i, label, RichButton))
                 {
-                    _selectedExtraHairColliderIndex = i;
-                    _selectedExtraHairCollider = collider;
+                    _selectedExtraBodyColliderIndex = i;
+                    _selectedExtraBodyCollider = collider;
                 }
             }
             GUILayout.EndScrollView();
 
-            if (_selectedExtraHairCollider == null || !_selectedExtraHairCollider)
-                _selectedExtraHairCollider = colliders[_selectedExtraHairColliderIndex];
+            if (_selectedExtraBodyCollider == null || !_selectedExtraBodyCollider)
+                _selectedExtraBodyCollider = colliders[_selectedExtraBodyColliderIndex];
 
-            Transform tr = _selectedExtraHairCollider != null ? _selectedExtraHairCollider.transform : null;
+            Transform tr = _selectedExtraBodyCollider != null ? _selectedExtraBodyCollider.transform : null;
             if (tr == null)
             {
-                ClearSelectedExtraHairColliderVisual();
+                ClearSelectedExtraBodyColliderVisual();
                 return;
             }
 
-            EnsureSelectedExtraHairColliderVisual(_selectedExtraHairCollider);
+            EnsureSelectedExtraBodyColliderVisual(_selectedExtraBodyCollider);
 
             GUILayout.Label($"Target: {tr.name}");
             _extraColliderStepIndex = DrawStepRow("Step", _extraColliderStepIndex);
             float step = _extraColliderStepOptions[_extraColliderStepIndex];
 
-            Vector3 pos = tr.localPosition;
+            Vector3 posBefore = tr.localPosition;
+            Vector3 scaleBefore = tr.localScale;
+
+            Vector3 pos = posBefore;
             pos.x = SliderRow("Pos X", pos.x, -2.0f, 2.0f, step);
             pos.y = SliderRow("Pos Y", pos.y, -2.0f, 2.0f, step);
             pos.z = SliderRow("Pos Z", pos.z, -2.0f, 2.0f, step);
             tr.localPosition = pos;
 
-            Vector3 scale = tr.localScale;
+            Vector3 scale = scaleBefore;
             scale.x = SliderRow("Scl X", scale.x, 0.05f, 3.0f, step);
             scale.y = SliderRow("Scl Y", scale.y, 0.05f, 3.0f, step);
             scale.z = SliderRow("Scl Z", scale.z, 0.05f, 3.0f, step);
             tr.localScale = scale;
 
+            if (controller != null && (!NearlyEqual(posBefore, pos) || !NearlyEqual(scaleBefore, scale)))
+                controller.TrackExtraColliderCurrentSnapshot(_selectedExtraBodyCollider);
+
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Collide Reset All"))
-                ResetAllExtraHairColliderTransforms(colliders);
+            {
+                if (controller != null)
+                    controller.ResetAllExtraColliderTransformsToOriginal(colliders);
+                else
+                    ResetAllExtraBodyColliderTransforms(colliders);
+            }
             GUILayout.EndHorizontal();
         }
 
@@ -526,7 +580,12 @@ namespace RealHumanSupport
             return value;
         }
 
-        private static void ResetExtraHairColliderTransform(Transform tr)
+        private static bool NearlyEqual(Vector3 a, Vector3 b, float epsilon = 0.0001f)
+        {
+            return (a - b).sqrMagnitude <= epsilon * epsilon;
+        }
+
+        private static void ResetExtraBodyColliderTransform(Transform tr)
         {
             if (tr == null)
                 return;
@@ -535,7 +594,7 @@ namespace RealHumanSupport
             tr.localScale = Vector3.one;
         }
 
-        private static void ResetAllExtraHairColliderTransforms(List<DynamicBoneCollider> colliders)
+        private static void ResetAllExtraBodyColliderTransforms(List<DynamicBoneCollider> colliders)
         {
             if (colliders == null || colliders.Count == 0)
                 return;
@@ -546,36 +605,38 @@ namespace RealHumanSupport
                 if (collider == null)
                     continue;
 
-                ResetExtraHairColliderTransform(collider.transform);
+                ResetExtraBodyColliderTransform(collider.transform);
             }
         }
 
-        private void EnsureSelectedExtraHairColliderVisual(DynamicBoneCollider collider)
+        private void EnsureSelectedExtraBodyColliderVisual(DynamicBoneCollider collider)
         {
             if (collider == null)
             {
-                ClearSelectedExtraHairColliderVisual();
+                ClearSelectedExtraBodyColliderVisual();
                 return;
             }
 
-            if (_visualizedExtraHairCollider == collider && _extraHairColliderVisualRoot != null)
+            if (_visualizedExtraBodyCollider == collider && _extraBodyColliderVisualRoot != null)
                 return;
 
-            ClearSelectedExtraHairColliderVisual();
+            ClearSelectedExtraBodyColliderVisual();
 
-            _visualizedExtraHairCollider = collider;
-            _extraHairColliderVisualRoot = new GameObject("RealHumanSupport_SelectedExtraHairColliderVisual");
-            _extraHairColliderVisualRoot.transform.SetParent(collider.transform, false);
-            _extraHairColliderVisualRoot.transform.localPosition = Vector3.zero;
-            _extraHairColliderVisualRoot.transform.localRotation = Quaternion.identity;
-            _extraHairColliderVisualRoot.transform.localScale = Vector3.one;
+            _visualizedExtraBodyCollider = collider;
+            _extraBodyColliderVisualRoot = new GameObject("RealHumanSupport_selectedExtraBodyColliderVisual");
+            _extraBodyColliderVisualRoot.transform.SetParent(collider.transform, false);
+            _extraBodyColliderVisualRoot.transform.localPosition = Vector3.zero;
+            _extraBodyColliderVisualRoot.transform.localRotation = Quaternion.identity;
+            _extraBodyColliderVisualRoot.transform.localScale = Vector3.one;
 
             const int segmentCount = 40;
             float radius = Mathf.Max(0.001f, collider.m_Radius);
             float height = Mathf.Max(0f, collider.m_Height);
             Vector3 center = collider.m_Center;
+            float halfLine = Mathf.Max(0f, (height * 0.5f) - radius);
+            bool isSphereLike = height <= 0.0001f || halfLine <= 0.0001f;
 
-            if (height <= 0.0001f)
+            if (isSphereLike)
             {
                 CreateCircleWire(center, Vector3.right, Vector3.up, radius, segmentCount, "Sphere_XY");
                 CreateCircleWire(center, Vector3.right, Vector3.forward, radius, segmentCount, "Sphere_XZ");
@@ -605,7 +666,6 @@ namespace RealHumanSupport
                         break;
                 }
 
-                float halfLine = Mathf.Max(0f, (height * 0.5f) - radius);
                 Vector3 top = center + axis * halfLine;
                 Vector3 bottom = center - axis * halfLine;
 
@@ -646,11 +706,11 @@ namespace RealHumanSupport
 
         private LineRenderer CreateWireLineRenderer(string name)
         {
-            if (_extraHairColliderVisualRoot == null)
+            if (_extraBodyColliderVisualRoot == null)
                 return null;
 
             GameObject go = new GameObject(name);
-            go.transform.SetParent(_extraHairColliderVisualRoot.transform, false);
+            go.transform.SetParent(_extraBodyColliderVisualRoot.transform, false);
 
             LineRenderer lr = go.AddComponent<LineRenderer>();
             lr.useWorldSpace = false;
@@ -664,17 +724,17 @@ namespace RealHumanSupport
             lr.startColor = wireColor;
             lr.endColor = wireColor;
 
-            _extraHairColliderVisualLines.Add(lr);
+            _extraBodyColliderVisualLines.Add(lr);
             return lr;
         }
 
-        private void ClearSelectedExtraHairColliderVisual()
+        private void ClearSelectedExtraBodyColliderVisual()
         {
-            _visualizedExtraHairCollider = null;
+            _visualizedExtraBodyCollider = null;
 
-            for (int i = 0; i < _extraHairColliderVisualLines.Count; i++)
+            for (int i = 0; i < _extraBodyColliderVisualLines.Count; i++)
             {
-                LineRenderer lr = _extraHairColliderVisualLines[i];
+                LineRenderer lr = _extraBodyColliderVisualLines[i];
                 if (lr != null)
                 {
                     if (lr.material != null)
@@ -683,12 +743,12 @@ namespace RealHumanSupport
                 }
             }
 
-            _extraHairColliderVisualLines.Clear();
+            _extraBodyColliderVisualLines.Clear();
 
-            if (_extraHairColliderVisualRoot != null)
+            if (_extraBodyColliderVisualRoot != null)
             {
-                UnityEngine.Object.Destroy(_extraHairColliderVisualRoot);
-                _extraHairColliderVisualRoot = null;
+                UnityEngine.Object.Destroy(_extraBodyColliderVisualRoot);
+                _extraBodyColliderVisualRoot = null;
             }
         }
 
@@ -718,7 +778,7 @@ namespace RealHumanSupport
         private void SceneInit()
         {
             Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
-            ClearSelectedExtraHairColliderVisual();
+            ClearSelectedExtraBodyColliderVisual();
 			_ShowUI = false;     
         }
 
