@@ -1,4 +1,4 @@
-using Studio;
+﻿using Studio;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -196,7 +196,7 @@ namespace UndressPhysics
                 var sphereResults = new List<ClothSphereColliderPair>();
                 var capsuleResults = new List<CapsuleCollider>();
 
-                // isTop이면 origin collider 먼저 추가
+                // For top cloth, append original colliders first.
                 if (isTop && UndressPhysics._clothColliderBackup.TryGetValue(target, out var backup))
                 {
                     if (backup.Sphere != null)
@@ -206,7 +206,7 @@ namespace UndressPhysics
                         capsuleResults.AddRange(backup.Capsule);
                 }
 
-                // Sphere 추가
+                // Append sphere colliders.
                 foreach (var pair in UndressPhysics._sphereColliders)
                 {
                     var c1 = AddSphereCollider(chaCtrl, pair.first);
@@ -215,7 +215,7 @@ namespace UndressPhysics
                     sphereResults.Add(new ClothSphereColliderPair(c1, c2));
                 }
 
-                // Capsule 추가
+                // Append capsule colliders.
                 foreach (var capsule in UndressPhysics._capsuleColliders)
                 {
                     var collider = AddCapsuleCollider(chaCtrl, capsule);
@@ -403,7 +403,7 @@ namespace UndressPhysics
                     cloth.coefficients = coeffs;
                 }
 
-                cloth.ClearTransformMotion();   // ⭐ 중요 (velocity reset)
+                cloth.ClearTransformMotion();   // Important: reset simulation velocity.
             }
         }
     }

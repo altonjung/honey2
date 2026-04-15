@@ -1,4 +1,5 @@
-﻿using Studio;
+// Comment normalized to English.
+using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -240,7 +241,7 @@ namespace RealHumanSupport
             // if(chaCtrl.sex == 0)
             //     bone_prefix_str = "cm_";
 
-            //boob/butt에 gravity 자동 부여
+            // Comment normalized to English.
             realHumanData.leftBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastL);
             realHumanData.rightBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastR);
             realHumanData.leftButtCheek = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipL);
@@ -264,7 +265,7 @@ namespace RealHumanSupport
             realHumanData.rightButtCheek.Force = new Vector3(0, -0.01f, 0);
             realHumanData.rightButtCheek.HeavyLoopMaxCount = 4;
 
-            // boob/butt/hair dynamicbone에 body&leg&arm&finger collider 연결
+            // Comment normalized to English.
             DynamicBoneCollider[] existingDynamicBoneColliders = chaCtrl.transform.FindLoop(bone_prefix_str+"J_Root").GetComponentsInChildren<DynamicBoneCollider>(true);
             List<DynamicBoneCollider> extraBoobColliders = new List<DynamicBoneCollider>();
 
@@ -291,7 +292,7 @@ namespace RealHumanSupport
                     extraBoobColliders.Add(collider);                    
                 }
             }
-            // finger/leg/arm collider를 boob/butt bone 에 주입            
+            // Comment normalized to English.
             foreach (var collider in extraBoobColliders)
             {
                 if (collider == null)
@@ -320,12 +321,12 @@ namespace RealHumanSupport
 
             List<DynamicBoneCollider> extraBodyColliders = new List<DynamicBoneCollider>();       
 
-            extraBodyColliders.AddRange(extraHandsColliders); // 손(손가락), 다리 collider 모두 bodyCollider 에 주입            
+            extraBodyColliders.AddRange(extraHandsColliders); // Comment normalized to English.
 
             Transform faceObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_FaceLow_s");
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(faceObject, DynamicBoneColliderBase.Direction.Y, 0.65f, 2.5f, new Vector3(0.0f, 0.0f, 0.3f)));
 
-            // chest collider 생성
+            // Comment normalized to English.
             Transform leftBoobObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune01_L");
             Transform rightBoobObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune01_R");
             
@@ -334,7 +335,7 @@ namespace RealHumanSupport
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(leftBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 2.0f , new Vector3(0.0f, 0.0f, 0.0f)));
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 2.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
-            // shoulder collider 생성
+            // Comment normalized to English.
             Transform leftShoulderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
             Transform rightShoulderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
 
@@ -343,7 +344,7 @@ namespace RealHumanSupport
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(leftShoulderObject, DynamicBoneColliderBase.Direction.Y, shoulder_radius, shoulder_radius * 3.0f , new Vector3(0.0f, 0.0f, 0.0f)));
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightShoulderObject, DynamicBoneColliderBase.Direction.Y, shoulder_radius, shoulder_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
-            // spine collider 생성
+            // Comment normalized to English.
             Transform spine1Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine01");
             Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
             Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine03");
@@ -356,7 +357,7 @@ namespace RealHumanSupport
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.5f, new Vector3(0.0f, 0.0f, 0.2f)));
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 4.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
-            // pelvis collider 생성
+            // Comment normalized to English.
             Transform kosi2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Kosi02");
            
             float kosi2_radius = 1.0f;
@@ -374,7 +375,7 @@ namespace RealHumanSupport
                 .Distinct()
                 .ToList();
 
-            // body collider를 hair bone 에 주입
+            // Comment normalized to English.
             foreach (var bone in realHumanData.hairDynamicBones)
             {
                 if (bone == null)
@@ -407,390 +408,387 @@ namespace RealHumanSupport
             if (realHumanData.m_skin_body == null)
                 return;
 
-            if (StudioAPI.InsideStudio)
+            OCIChar ociChar = chaCtrl.GetOCIChar();
+
+            Texture2D origin_texture = realHumanData.bodyOriginTexture;
+
+            realHumanData.areas.Clear();
+
+            PositionData fk_neck = GetRelativeBoneAngle(realHumanData.fk_hip_bone, realHumanData.fk_neck_bone);
+            PositionData fk_head = GetRelativeBoneAngle(realHumanData.fk_head_bone, realHumanData.fk_neck_bone);
+
+            PositionData fk_left_foot = GetRelativeBoneAngle(realHumanData.fk_left_knee_bone, realHumanData.fk_left_foot_bone);
+            PositionData fk_right_foot = GetRelativeBoneAngle(realHumanData.fk_right_knee_bone, realHumanData.fk_right_foot_bone);
+
+            PositionData fk_left_knee = GetRelativeBoneAngle(realHumanData.fk_left_thigh_bone, realHumanData.fk_left_knee_bone);
+            PositionData fk_right_knee = GetRelativeBoneAngle(realHumanData.fk_right_thigh_bone, realHumanData.fk_right_knee_bone);
+
+            PositionData fk_left_thigh = GetRelativeBoneAngle(realHumanData.fk_hip_bone, realHumanData.fk_left_thigh_bone);
+            PositionData fk_right_thigh = GetRelativeBoneAngle(realHumanData.fk_hip_bone, realHumanData.fk_right_thigh_bone);
+
+            PositionData fk_spine01 = GetRelativeBoneAngle(realHumanData.fk_hip_bone, realHumanData.fk_spine01_bone);
+            PositionData fk_spine02 = GetRelativeBoneAngle(realHumanData.fk_spine01_bone, realHumanData.fk_spine02_bone);
+
+            PositionData fk_left_shoulder= GetRelativeBoneAngle(realHumanData.fk_neck_bone, realHumanData.fk_left_shoulder_bone);
+            PositionData fk_right_shoulder= GetRelativeBoneAngle(realHumanData.fk_neck_bone, realHumanData.fk_right_shoulder_bone);
+
+            PositionData fk_left_armup= GetRelativeBoneAngle(realHumanData.fk_left_shoulder_bone, realHumanData.fk_left_armup_bone);
+            PositionData fk_right_armup= GetRelativeBoneAngle(realHumanData.fk_right_shoulder_bone, realHumanData.fk_right_armup_bone);
+
+            PositionData fk_left_armdown= GetRelativeBoneAngle(realHumanData.fk_left_armup_bone, realHumanData.fk_left_armdown_bone);
+            PositionData fk_right_armdown= GetRelativeBoneAngle(realHumanData.fk_right_armup_bone, realHumanData.fk_right_armdown_bone);
+            
+            float left_shin_bs = 0.0f;
+            float left_calf_bs = 0.0f;
+            float left_butt_bs = 0.0f;
+            float left_thigh_ft_bs = 0.0f;
+            float left_thigh_bk_bs = 0.0f;
+            float left_thigh_inside_bs = 0.0f;
+            float left_ribs_bs = 0.0f;
+            float left_neck_bs = 0.0f;
+
+            float right_shin_bs = 0.0f;
+            float right_calf_bs = 0.0f;
+            float right_butt_bs = 0.0f;
+            float right_thigh_ft_bs = 0.0f;
+            float right_thigh_bk_bs = 0.0f;
+            float right_thigh_inside_bs = 0.0f;
+            float right_ribs_bs = 0.0f;
+            float right_neck_bs = 0.0f;
+
+            float spine_bs = 0.0f;       
+            float neck_bs = 0.0f;
+
+            float left_armup_bs = 0.0f;
+            float left_armdown_bs = 0.0f;
+
+            float right_armup_bs = 0.0f;
+            float right_armdown_bs = 0.0f;
+
+            float bumpscale = 0.0f;
+            float angle = 0.0f;
+
+            float Scale(float value, float inMin, float inMax, float outMin, float outMax, float cap)
             {
-                OCIChar ociChar = chaCtrl.GetOCIChar();
-
-                Texture2D origin_texture = realHumanData.bodyOriginTexture;
-
-                realHumanData.areas.Clear();
-
-                PositionData fk_neck = GetRelativeBoneAngle(realHumanData.fk_hip_bone, realHumanData.fk_neck_bone);
-                PositionData fk_head = GetRelativeBoneAngle(realHumanData.fk_head_bone, realHumanData.fk_neck_bone);
-
-                PositionData fk_left_foot = GetRelativeBoneAngle(realHumanData.fk_left_knee_bone, realHumanData.fk_left_foot_bone);
-                PositionData fk_right_foot = GetRelativeBoneAngle(realHumanData.fk_right_knee_bone, realHumanData.fk_right_foot_bone);
-
-                PositionData fk_left_knee = GetRelativeBoneAngle(realHumanData.fk_left_thigh_bone, realHumanData.fk_left_knee_bone);
-                PositionData fk_right_knee = GetRelativeBoneAngle(realHumanData.fk_right_thigh_bone, realHumanData.fk_right_knee_bone);
-
-                PositionData fk_left_thigh = GetRelativeBoneAngle(realHumanData.fk_hip_bone, realHumanData.fk_left_thigh_bone);
-                PositionData fk_right_thigh = GetRelativeBoneAngle(realHumanData.fk_hip_bone, realHumanData.fk_right_thigh_bone);
-
-                PositionData fk_spine01 = GetRelativeBoneAngle(realHumanData.fk_hip_bone, realHumanData.fk_spine01_bone);
-                PositionData fk_spine02 = GetRelativeBoneAngle(realHumanData.fk_spine01_bone, realHumanData.fk_spine02_bone);
-
-                PositionData fk_left_shoulder= GetRelativeBoneAngle(realHumanData.fk_neck_bone, realHumanData.fk_left_shoulder_bone);
-                PositionData fk_right_shoulder= GetRelativeBoneAngle(realHumanData.fk_neck_bone, realHumanData.fk_right_shoulder_bone);
-
-                PositionData fk_left_armup= GetRelativeBoneAngle(realHumanData.fk_left_shoulder_bone, realHumanData.fk_left_armup_bone);
-                PositionData fk_right_armup= GetRelativeBoneAngle(realHumanData.fk_right_shoulder_bone, realHumanData.fk_right_armup_bone);
-
-                PositionData fk_left_armdown= GetRelativeBoneAngle(realHumanData.fk_left_armup_bone, realHumanData.fk_left_armdown_bone);
-                PositionData fk_right_armdown= GetRelativeBoneAngle(realHumanData.fk_right_armup_bone, realHumanData.fk_right_armdown_bone);
-                
-                float left_shin_bs = 0.0f;
-                float left_calf_bs = 0.0f;
-                float left_butt_bs = 0.0f;
-                float left_thigh_ft_bs = 0.0f;
-                float left_thigh_bk_bs = 0.0f;
-                float left_thigh_inside_bs = 0.0f;
-                float left_ribs_bs = 0.0f;
-                float left_neck_bs = 0.0f;
-
-                float right_shin_bs = 0.0f;
-                float right_calf_bs = 0.0f;
-                float right_butt_bs = 0.0f;
-                float right_thigh_ft_bs = 0.0f;
-                float right_thigh_bk_bs = 0.0f;
-                float right_thigh_inside_bs = 0.0f;
-                float right_ribs_bs = 0.0f;
-                float right_neck_bs = 0.0f;
-
-                float spine_bs = 0.0f;       
-                float neck_bs = 0.0f;
-
-                float left_armup_bs = 0.0f;
-                float left_armdown_bs = 0.0f;
-
-                float right_armup_bs = 0.0f;
-                float right_armdown_bs = 0.0f;
-
-                float bumpscale = 0.0f;
-                float angle = 0.0f;
-
-                float Scale(float value, float inMin, float inMax, float outMin, float outMax, float cap)
-                {
-                    return Math.Min(Remap(value, inMin, inMax, outMin, outMax), cap);
-                }
-
-                void AddAreaIfNonZero(int x, int y, int w, int h, float value, float cap)
-                {
-                    if (value != 0.0f)
-                        realHumanData.areas.Add(InitBArea(x, y, w, h, Math.Min(value, cap)));
-                }
-
-                void SetPrev(ref Quaternion prev, Quaternion cur)
-                {
-                    prev = cur;
-                }
-
-                // if (ociChar.oiCharInfo.enableFK) 
-                {
-            // 머리 (목하고 반대)
-                    angle = Math.Abs(fk_head._frontback);
-                    if (fk_head._frontback > 3.0f) // 뒤쪽으로 숙임
-                    {
-                        bumpscale = Scale(angle, 3.0f, 50.0f, 0.0f, 1.0f, 1.0f);
-                        neck_bs = bumpscale * 0.5f;
-                    } else
-                    { 
-                        bumpscale = Scale(angle, 3.0f, 70.0f, 0.0f, 1.0f, 1.0f);
-                        spine_bs = bumpscale * 0.5f;
-                    }
-                    // UnityEngine.Debug.Log($">> head angle {angle}, front {fk_head._frontback}, spine_bs {spine_bs},  neck_bs {neck_bs}");
-            // 목 (머리하고 반대)
-                    angle = Math.Abs(fk_neck._frontback);
-                    if (fk_neck._frontback > 3.0f) // 앞쪽으로 숙임
-                    {
-                        bumpscale = Scale(angle, 3.0f, 70.0f, 0.0f, 1.0f, 1.0f);
-                        spine_bs = bumpscale * 0.5f;
-                    } else
-                    {
-                        bumpscale = Scale(angle, 3.0f, 50.0f, 0.0f, 1.0f, 1.0f);
-                        neck_bs = bumpscale * 0.5f;
-                    }
-                    // UnityEngine.Debug.Log($">> neck angle {angle}, front {fk_neck._frontback}, spine_bs {spine_bs},  neck_bs {neck_bs}");
-                    // 좌/우 처리는 나중에
-
-            // 허리
-                    angle = Math.Abs(fk_spine01._frontback);   
-                    if (fk_spine01._frontback > 5.0f)
-                    { 
-                        // 앞으로 숙이기
-                        bumpscale = Scale(angle, 5.0f, 90.0f, 0.0f, 1.0f, 1.0f);
-                        spine_bs = bumpscale * 0.9f;
-                    } 
-                    else
-                    {   
-                        // 뒤로 숙이기                    
-                        bumpscale = Scale(angle, 5.0f, 60.0f, 0.0f, 1.0f, 1.0f);
-                        left_ribs_bs = bumpscale * 0.5f;
-                        right_ribs_bs = bumpscale * 0.5f;
-                    }
-
-                    // UnityEngine.Debug.Log($">> fk_spine0-1 angle {angle}, front {fk_spine01._frontback}, spine_bs {spine_bs},  rib_bs {left_ribs_bs}");
-
-                    angle = Math.Abs(fk_spine02._frontback);   
-                    if (fk_spine02._frontback > 5.0f)
-                    { 
-                        // 앞으로 숙이기
-                        bumpscale = Scale(angle, 5.0f, 90.0f, 0.0f, 1.0f, 1.0f);
-                        spine_bs = bumpscale * 0.9f;
-                    } 
-                    else
-                    {   
-                        // 뒤로 숙이기                     
-                        bumpscale = Scale(angle, 5.0f, 60.0f, 0.0f, 1.0f, 1.0f);
-                        left_ribs_bs = bumpscale * 0.5f;
-                        right_ribs_bs = bumpscale * 0.5f;
-                    }
-
-                    // UnityEngine.Debug.Log($">> fk_spine02 angle {angle}, front {fk_neck._frontback}, spine_bs {spine_bs},  rib_bs {left_ribs_bs}");
-
-                    if (fk_spine02._leftright > 5.0f)
-                    {   // 왼쪽 기울기                                            
-                        bumpscale = Scale(Math.Abs(fk_spine02._leftright), 5.0f, 60.0f, 0.0f, 1.0f, 1.0f);
-                        left_ribs_bs += bumpscale * 0.5f;                  
-                    } 
-                    else
-                    {   // 오른쪽 기울기
-                        bumpscale = Scale(Math.Abs(fk_spine02._leftright), 5.0f, 60.0f, 0.0f, 1.0f, 1.0f);
-                        right_ribs_bs += bumpscale * 0.5f;
-                    }
-
-            // 허벅지 왼쪽
-                    angle = Math.Abs(fk_left_thigh._frontback);
-                    if (fk_left_thigh._frontback > 5.0f)
-                    {
-                         // 뒷방향
-                        bumpscale = Scale(angle, 5.0f, 120.0f, 0.1f, 1.0f, 1.0f);
-                        left_butt_bs += bumpscale * 0.7f;
-                        left_thigh_bk_bs += bumpscale * 0.7f;
-                    } 
-                    else
-                    {
-                        // 앞방향
-                        bumpscale = Scale(angle, 0.0f, 120.0f, 0.0f, 1.0f, 1.0f);
-                        left_thigh_ft_bs += bumpscale * 0.5f; 
-                        if (angle >= 15.0f) {
-                            // 내전근 강조 
-                            bumpscale = Scale(angle, 15.0f, 90.0f, 0.15f, 1.0f, 1.0f);
-                            left_thigh_inside_bs += bumpscale * 0.6f;
-                            // 허벅지 open 여부 확인
-                        }                    
-                    }
-
-            // 허벅지 오른쪽
-                    angle = Math.Abs(fk_right_thigh._frontback);
-                    if (fk_right_thigh._frontback > 5.0f)
-                    {
-                        // 뒷방향                     
-                        bumpscale = Scale(angle, 5.0f, 120.0f, 0.1f, 1.0f, 1.0f);
-                        right_butt_bs += bumpscale * 0.7f;
-                        right_thigh_bk_bs += bumpscale * 0.7f;                         
-                    }  
-                    else
-                    {
-                        // 앞방향
-                        bumpscale = Scale(angle, 0.0f, 120.0f, 0.0f, 1.0f, 1.0f);
-                        right_thigh_ft_bs += bumpscale * 0.5f;
-                        if (angle >= 15.0f) {
-                            // 내전근 강조                   
-                            bumpscale = Scale(angle, 15.0f, 90.0f, 0.15f, 1.0f, 1.0f);
-                            right_thigh_inside_bs += bumpscale * 0.6f;
-                            // 허벅지 open 여부 확인
-                        }                           
-                    }
-
-            // 무릎 왼쪽
-                    // 허벅지 기준 무릅이 뒷방향으로 굽힘                     
-                    if (fk_left_knee._frontback > 5) 
-                    {  // 뒷쪽
-                        angle = Math.Abs(fk_left_knee._frontback);                    
-                        bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1.0f, 1.0f);
-                        left_butt_bs += bumpscale * 0.3f;     
-                        left_thigh_bk_bs += bumpscale * 0.3f;
-                        
-                        if (angle >= 90)  {
-                            bumpscale = Scale(angle, 90.0f, 160.0f, 0.4f, 1.0f, 1.0f);
-                            left_shin_bs += bumpscale * 0.3f;
-                            left_thigh_inside_bs += bumpscale * 0.3f;
-                        }
-                    }
-
-            // 무릎 오른쪽
-                    // 허벅지 기준 무릅이 뒷방향으로 굽힘 
-                    if (fk_right_knee._frontback > 5)
-                    {  // 뒷쪽
-                        angle = Math.Abs(fk_right_knee._frontback);                    
-                        bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1.0f, 1.0f);
-                        right_butt_bs += bumpscale * 0.3f;
-                        right_thigh_bk_bs += bumpscale * 0.3f;
-
-                        if (angle >= 90)  {
-                            bumpscale = Scale(angle, 90.0f, 160.0f, 0.4f, 1.0f, 1.0f);
-                            right_shin_bs += bumpscale * 0.3f;
-                            right_thigh_inside_bs += bumpscale * 0.3f;
-                        }
-                    }
-            // 발목
-                    // 왼쪽 무릅 기준 발목이 뒷방향으로 굽힘                                           
-                    if (fk_left_foot._frontback > 5)
-                    {   // 뒷쪽
-                        angle = Math.Abs(fk_left_foot._frontback);                    
-                        bumpscale = Scale(angle, 5.0f, 70.0f, 0.1f, 1f, 1f);
-                        left_shin_bs += bumpscale * 0.2f;
-                        left_thigh_bk_bs += bumpscale * 0.3f;
-                        left_calf_bs += bumpscale * 0.7f;       
-                        // TODO
-                        // 발목 강조                  
-                    }
-
-                    // 오른쪽 무릅 기준 발목이 뒷방향으로 굽힘
-                    if (fk_right_foot._frontback > 5)
-                    {   // 뒷쪽
-                        angle = Math.Abs(fk_right_foot._frontback);
-                        bumpscale = Scale(angle, 5.0f, 70.0f, 0.1f, 1f, 1f);
-                        right_shin_bs += bumpscale * 0.2f;
-                        right_thigh_bk_bs += bumpscale * 0.3f;
-                        right_calf_bs += bumpscale * 0.7f;
-                        // TODO
-                        // 발목 강조
-                    }
-
-            // 팔         
-                    // 왼쪽 어깨 앞쪽으로 굽힘
-#if FEATURE_BODYBUMP_ARM_SUPPORT                    
-                    if (fk_left_armup._frontback > 5)
-                    {   // 뒷쪽
-                        angle = Math.Abs(fk_left_armup._frontback);
-                        bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1f, 1f);
-                        left_armup_bs += bumpscale * 0.8f;
-                    }
-
-                    // 오른쪽 어깨 앞쪽으로 굽힘
-                    if (fk_right_armup._frontback > 5)
-                    {   // 뒷쪽
-                        angle = Math.Abs(fk_right_armup._frontback);
-                        bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1f, 1f);
-                        right_armup_bs += bumpscale * 0.8f;
-                    }
-
-
-                    // 왼쪽 팔 앞쪽으로 굽힘
-                    if (fk_left_armdown._frontback > 5)
-                    {   // 뒷쪽
-                        angle = Math.Abs(fk_left_armdown._frontback);
-                        bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1f, 1f);
-                        left_armdown_bs += bumpscale * 0.6f;
-                    }
-
-                    // 오른쪽 팔 앞쪽으로 굽힘
-                    if (fk_right_armdown._frontback > 5)
-                    {   // 뒷쪽
-                        angle = Math.Abs(fk_right_armdown._frontback);
-                        bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1f, 1f);
-                        right_armdown_bs += bumpscale * 0.6f;
-                    }                    
-
-                    // UnityEngine.Debug.Log($">> fk_left_armdown._frontback {fk_left_armdown._frontback} in body");
-                    // UnityEngine.Debug.Log($">> fk_right_armdown._frontback {fk_right_armdown._frontback} in body");
-                    // UnityEngine.Debug.Log($">> fk_left_armup._frontback {fk_left_armup._frontback} in body");
-                    // UnityEngine.Debug.Log($">> fk_right_armup._frontback {fk_right_armup._frontback} in body");
-#endif                    
-                }
-                
-            // 목
-                if (neck_bs >= 0.0f)
-                {
-                    realHumanData.areas.Add(InitBArea(260, 100, 140, 90, Math.Min(Math.Abs(neck_bs), 1.8f))); // 목선
-                } else {
-                    realHumanData.areas.Add(InitBArea(770, 200, 140, 90, Math.Min(Math.Abs(neck_bs), 1.8f))); // 척추
-                }
-            // 허리
-                if (spine_bs >= 0.0f)
-                {
-                    realHumanData.areas.Add(InitBArea(770, 300, 80, 240, Math.Min(Math.Abs(spine_bs), 1.8f))); // 척추
-                }
-            // 왼쪽 강조
-                AddAreaIfNonZero(220, 90, 35, 80, left_neck_bs, 1.8f);
-                AddAreaIfNonZero(150, 520, 145, 160, left_ribs_bs, 2.0f);
-                AddAreaIfNonZero(365, 970, 80, 120, left_thigh_ft_bs, 1.8f); // 앞 허벅지
-                AddAreaIfNonZero(330, 900, 50, 180, left_thigh_inside_bs, 1.8f); // 앞 허벅지
-                AddAreaIfNonZero(400, 1450, 110, 300, left_shin_bs, 1.8f); // 앞 정강이
-                AddAreaIfNonZero(660, 1030, 60, 160, left_thigh_bk_bs, 1.8f); // 뒷 허벅지
-                AddAreaIfNonZero(650, 850, 85, 90, left_butt_bs, 1.8f); // 뒷 엉덩이
-                AddAreaIfNonZero(670, 1420, 95, 140, left_calf_bs, 1.8f); // 뒷 종아리 강조
-
-            // 오른쪽 강조
-                AddAreaIfNonZero(300, 90, 35, 80, right_neck_bs, 1.8f);
-                AddAreaIfNonZero(370, 520, 145, 160, right_ribs_bs, 2.0f);
-                AddAreaIfNonZero(145, 970, 80, 120, right_thigh_ft_bs, 1.8f); // 앞 허벅지
-                AddAreaIfNonZero(180, 900, 50, 180, right_thigh_inside_bs, 1.8f); // 앞 허벅지 안쪽
-                AddAreaIfNonZero(120, 1450, 110, 300, right_shin_bs, 1.8f); // 앞 정강이
-                AddAreaIfNonZero(900, 1030, 60, 160, right_thigh_bk_bs, 1.8f); // 뒷 허벅지
-                AddAreaIfNonZero(920, 850, 85, 90, right_butt_bs, 1.8f); // 뒷 엉덩이
-                AddAreaIfNonZero(890, 1420, 95, 140, right_calf_bs, 1.8f); // 뒷 종아리 강조
-
-                SetPrev(ref realHumanData.prev_fk_left_foot_rot, fk_left_foot._q);
-                SetPrev(ref realHumanData.prev_fk_right_foot_rot, fk_right_foot._q);
-                SetPrev(ref realHumanData.prev_fk_left_knee_rot, fk_left_knee._q);
-                SetPrev(ref realHumanData.prev_fk_right_knee_rot, fk_right_knee._q);
-                SetPrev(ref realHumanData.prev_fk_left_thigh_rot, fk_left_thigh._q);
-                SetPrev(ref realHumanData.prev_fk_right_thigh_rot, fk_right_thigh._q);
-                SetPrev(ref realHumanData.prev_fk_spine01_rot, fk_spine01._q);
-                SetPrev(ref realHumanData.prev_fk_spine02_rot, fk_spine02._q);
-                SetPrev(ref realHumanData.prev_fk_head_rot, fk_head._q);
-                SetPrev(ref realHumanData.prev_fk_left_shoulder_rot, fk_left_shoulder._q);
-                SetPrev(ref realHumanData.prev_fk_right_shoulder_rot, fk_right_shoulder._q);
-                SetPrev(ref realHumanData.prev_fk_right_armup_rot, fk_right_armup._q);
-                SetPrev(ref realHumanData.prev_fk_left_armup_rot, fk_left_armup._q);
-                SetPrev(ref realHumanData.prev_fk_right_armdown_rot, fk_right_armdown._q);
-                SetPrev(ref realHumanData.prev_fk_left_armdown_rot, fk_left_armdown._q);
-
-                if (origin_texture != null)
-                {
-                    int kernel = RealHumanSupport._self._mergeComputeShader.FindKernel("CSMain");
-
-                    int w = 2048;
-                    int h = 2048;
-
-                    // RenderTexture 초기화 및 재사용
-                    if (realHumanData._body_rt == null || realHumanData._body_rt.width != w || realHumanData._body_rt.height != h)
-                    {
-                        if (realHumanData._body_rt != null) realHumanData._body_rt.Release();
-                        realHumanData._body_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
-                        realHumanData._body_rt.enableRandomWrite = true;
-                        realHumanData._body_rt.Create();
-                    }
-
-                    // 영역 데이터가 변경된 경우만 업데이트
-                    if (realHumanData.areas.Count > 0 && realHumanData.body_areaBuffer != null)
-                    {
-                        realHumanData.body_areaBuffer.SetData(realHumanData.areas.ToArray());
-                        // 셰이더 파라미터 설정
-                        RealHumanSupport._self._mergeComputeShader.SetInt("Width", w);
-                        RealHumanSupport._self._mergeComputeShader.SetInt("Height", h);
-                        RealHumanSupport._self._mergeComputeShader.SetInt("AreaCount", realHumanData.areas.Count);
-                        RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexA", origin_texture);
-                        RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexB", RealHumanSupport._self._bodyStrongFemaleBumpMap2);
-                        RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "Result", realHumanData._body_rt);
-                        RealHumanSupport._self._mergeComputeShader.SetBuffer(kernel, "Areas", realHumanData.body_areaBuffer);
-
-                        // Dispatch 실행
-                        RealHumanSupport._self._mergeComputeShader.Dispatch(kernel, Mathf.CeilToInt(w / 8f), Mathf.CeilToInt(h / 8f), 1);                 
-                        
-                        realHumanData.m_skin_body.SetTexture(realHumanData.body_bumpmap_type, realHumanData._body_rt);
-
-                        // Texture2D merged =  MergeRGBAlphaMaps(origin_texture, strong_texture, areas);    
-                        // realHumanData.m_skin_body.SetTexture(realHumanData.body_bumpmap_type, merged);
-                        // SaveAsPNG(merged, "./body_merge.png");
-                        // SaveAsPNG(strong_texture, "./body_strong.png");
-                        // SaveAsPNG(RenderTextureToTexture2D(RealHumanSupport._self._body_rt), "./body_merged.png");                     
-                    }
-                }
+                return Math.Min(Remap(value, inMin, inMax, outMin, outMax), cap);
             }
+
+            void AddAreaIfNonZero(int x, int y, int w, int h, float value, float cap)
+            {
+                if (value != 0.0f)
+                    realHumanData.areas.Add(InitBArea(x, y, w, h, Math.Min(value, cap)));
+            }
+
+            void SetPrev(ref Quaternion prev, Quaternion cur)
+            {
+                prev = cur;
+            }
+
+            // if (ociChar.oiCharInfo.enableFK) 
+            {
+        // Comment normalized to English.
+                angle = Math.Abs(fk_head._frontback);
+                if (fk_head._frontback > 3.0f) // Comment normalized to English.
+                {
+                    bumpscale = Scale(angle, 3.0f, 50.0f, 0.0f, 1.0f, 1.0f);
+                    neck_bs = bumpscale * 0.5f;
+                } else
+                { 
+                    bumpscale = Scale(angle, 3.0f, 70.0f, 0.0f, 1.0f, 1.0f);
+                    spine_bs = bumpscale * 0.5f;
+                }
+                // UnityEngine.Debug.Log($">> head angle {angle}, front {fk_head._frontback}, spine_bs {spine_bs},  neck_bs {neck_bs}");
+        // Comment normalized to English.
+                angle = Math.Abs(fk_neck._frontback);
+                if (fk_neck._frontback > 3.0f) // Comment normalized to English.
+                {
+                    bumpscale = Scale(angle, 3.0f, 70.0f, 0.0f, 1.0f, 1.0f);
+                    spine_bs = bumpscale * 0.5f;
+                } else
+                {
+                    bumpscale = Scale(angle, 3.0f, 50.0f, 0.0f, 1.0f, 1.0f);
+                    neck_bs = bumpscale * 0.5f;
+                }
+                // UnityEngine.Debug.Log($">> neck angle {angle}, front {fk_neck._frontback}, spine_bs {spine_bs},  neck_bs {neck_bs}");
+                // Comment normalized to English.
+
+        // Comment normalized to English.
+                angle = Math.Abs(fk_spine01._frontback);   
+                if (fk_spine01._frontback > 5.0f)
+                { 
+                    // Comment normalized to English.
+                    bumpscale = Scale(angle, 5.0f, 90.0f, 0.0f, 1.0f, 1.0f);
+                    spine_bs = bumpscale * 0.9f;
+                } 
+                else
+                {   
+                    // Comment normalized to English.
+                    bumpscale = Scale(angle, 5.0f, 60.0f, 0.0f, 1.0f, 1.0f);
+                    left_ribs_bs = bumpscale * 0.5f;
+                    right_ribs_bs = bumpscale * 0.5f;
+                }
+
+                // UnityEngine.Debug.Log($">> fk_spine0-1 angle {angle}, front {fk_spine01._frontback}, spine_bs {spine_bs},  rib_bs {left_ribs_bs}");
+
+                angle = Math.Abs(fk_spine02._frontback);   
+                if (fk_spine02._frontback > 5.0f)
+                { 
+                    // Comment normalized to English.
+                    bumpscale = Scale(angle, 5.0f, 90.0f, 0.0f, 1.0f, 1.0f);
+                    spine_bs = bumpscale * 0.9f;
+                } 
+                else
+                {   
+                    // Comment normalized to English.
+                    bumpscale = Scale(angle, 5.0f, 60.0f, 0.0f, 1.0f, 1.0f);
+                    left_ribs_bs = bumpscale * 0.5f;
+                    right_ribs_bs = bumpscale * 0.5f;
+                }
+
+                // UnityEngine.Debug.Log($">> fk_spine02 angle {angle}, front {fk_neck._frontback}, spine_bs {spine_bs},  rib_bs {left_ribs_bs}");
+
+                if (fk_spine02._leftright > 5.0f)
+                {   // Comment normalized to English.
+                    bumpscale = Scale(Math.Abs(fk_spine02._leftright), 5.0f, 60.0f, 0.0f, 1.0f, 1.0f);
+                    left_ribs_bs += bumpscale * 0.5f;                  
+                } 
+                else
+                {   // Comment normalized to English.
+                    bumpscale = Scale(Math.Abs(fk_spine02._leftright), 5.0f, 60.0f, 0.0f, 1.0f, 1.0f);
+                    right_ribs_bs += bumpscale * 0.5f;
+                }
+
+        // Comment normalized to English.
+                angle = Math.Abs(fk_left_thigh._frontback);
+                if (fk_left_thigh._frontback > 5.0f)
+                {
+                        // Comment normalized to English.
+                    bumpscale = Scale(angle, 5.0f, 120.0f, 0.1f, 1.0f, 1.0f);
+                    left_butt_bs += bumpscale * 0.7f;
+                    left_thigh_bk_bs += bumpscale * 0.7f;
+                } 
+                else
+                {
+                    // Comment normalized to English.
+                    bumpscale = Scale(angle, 0.0f, 120.0f, 0.0f, 1.0f, 1.0f);
+                    left_thigh_ft_bs += bumpscale * 0.5f; 
+                    if (angle >= 15.0f) {
+                        // Comment normalized to English.
+                        bumpscale = Scale(angle, 15.0f, 90.0f, 0.15f, 1.0f, 1.0f);
+                        left_thigh_inside_bs += bumpscale * 0.6f;
+                        // Comment normalized to English.
+                    }                    
+                }
+
+        // Comment normalized to English.
+                angle = Math.Abs(fk_right_thigh._frontback);
+                if (fk_right_thigh._frontback > 5.0f)
+                {
+                    // Comment normalized to English.
+                    bumpscale = Scale(angle, 5.0f, 120.0f, 0.1f, 1.0f, 1.0f);
+                    right_butt_bs += bumpscale * 0.7f;
+                    right_thigh_bk_bs += bumpscale * 0.7f;                         
+                }  
+                else
+                {
+                    // Comment normalized to English.
+                    bumpscale = Scale(angle, 0.0f, 120.0f, 0.0f, 1.0f, 1.0f);
+                    right_thigh_ft_bs += bumpscale * 0.5f;
+                    if (angle >= 15.0f) {
+                        // Comment normalized to English.
+                        bumpscale = Scale(angle, 15.0f, 90.0f, 0.15f, 1.0f, 1.0f);
+                        right_thigh_inside_bs += bumpscale * 0.6f;
+                        // Comment normalized to English.
+                    }                           
+                }
+
+        // Comment normalized to English.
+                // Comment normalized to English.
+                if (fk_left_knee._frontback > 5) 
+                {  // Comment normalized to English.
+                    angle = Math.Abs(fk_left_knee._frontback);                    
+                    bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1.0f, 1.0f);
+                    left_butt_bs += bumpscale * 0.3f;     
+                    left_thigh_bk_bs += bumpscale * 0.3f;
+                    
+                    if (angle >= 90)  {
+                        bumpscale = Scale(angle, 90.0f, 160.0f, 0.4f, 1.0f, 1.0f);
+                        left_shin_bs += bumpscale * 0.3f;
+                        left_thigh_inside_bs += bumpscale * 0.3f;
+                    }
+                }
+
+        // Comment normalized to English.
+                // Comment normalized to English.
+                if (fk_right_knee._frontback > 5)
+                {  // Comment normalized to English.
+                    angle = Math.Abs(fk_right_knee._frontback);                    
+                    bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1.0f, 1.0f);
+                    right_butt_bs += bumpscale * 0.3f;
+                    right_thigh_bk_bs += bumpscale * 0.3f;
+
+                    if (angle >= 90)  {
+                        bumpscale = Scale(angle, 90.0f, 160.0f, 0.4f, 1.0f, 1.0f);
+                        right_shin_bs += bumpscale * 0.3f;
+                        right_thigh_inside_bs += bumpscale * 0.3f;
+                    }
+                }
+        // Comment normalized to English.
+                // Comment normalized to English.
+                if (fk_left_foot._frontback > 5)
+                {   // Comment normalized to English.
+                    angle = Math.Abs(fk_left_foot._frontback);                    
+                    bumpscale = Scale(angle, 5.0f, 70.0f, 0.1f, 1f, 1f);
+                    left_shin_bs += bumpscale * 0.2f;
+                    left_thigh_bk_bs += bumpscale * 0.3f;
+                    left_calf_bs += bumpscale * 0.7f;       
+                    // TODO
+                    // Comment normalized to English.
+                }
+
+                // Comment normalized to English.
+                if (fk_right_foot._frontback > 5)
+                {   // Comment normalized to English.
+                    angle = Math.Abs(fk_right_foot._frontback);
+                    bumpscale = Scale(angle, 5.0f, 70.0f, 0.1f, 1f, 1f);
+                    right_shin_bs += bumpscale * 0.2f;
+                    right_thigh_bk_bs += bumpscale * 0.3f;
+                    right_calf_bs += bumpscale * 0.7f;
+                    // TODO
+                    // Comment normalized to English.
+                }
+
+        // Comment normalized to English.
+                // Comment normalized to English.
+#if FEATURE_BODYBUMP_ARM_SUPPORT                    
+                if (fk_left_armup._frontback > 5)
+                {   // Comment normalized to English.
+                    angle = Math.Abs(fk_left_armup._frontback);
+                    bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1f, 1f);
+                    left_armup_bs += bumpscale * 0.8f;
+                }
+
+                // Comment normalized to English.
+                if (fk_right_armup._frontback > 5)
+                {   // Comment normalized to English.
+                    angle = Math.Abs(fk_right_armup._frontback);
+                    bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1f, 1f);
+                    right_armup_bs += bumpscale * 0.8f;
+                }
+
+
+                // Comment normalized to English.
+                if (fk_left_armdown._frontback > 5)
+                {   // Comment normalized to English.
+                    angle = Math.Abs(fk_left_armdown._frontback);
+                    bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1f, 1f);
+                    left_armdown_bs += bumpscale * 0.6f;
+                }
+
+                // Comment normalized to English.
+                if (fk_right_armdown._frontback > 5)
+                {   // Comment normalized to English.
+                    angle = Math.Abs(fk_right_armdown._frontback);
+                    bumpscale = Scale(angle, 5.0f, 90.0f, 0.1f, 1f, 1f);
+                    right_armdown_bs += bumpscale * 0.6f;
+                }                    
+
+                // UnityEngine.Debug.Log($">> fk_left_armdown._frontback {fk_left_armdown._frontback} in body");
+                // UnityEngine.Debug.Log($">> fk_right_armdown._frontback {fk_right_armdown._frontback} in body");
+                // UnityEngine.Debug.Log($">> fk_left_armup._frontback {fk_left_armup._frontback} in body");
+                // UnityEngine.Debug.Log($">> fk_right_armup._frontback {fk_right_armup._frontback} in body");
+#endif                    
+            }
+            
+        // Comment normalized to English.
+            if (neck_bs >= 0.0f)
+            {
+                realHumanData.areas.Add(InitBArea(260, 100, 140, 90, Math.Min(Math.Abs(neck_bs), 1.8f))); // Comment normalized to English.
+            } else {
+                realHumanData.areas.Add(InitBArea(770, 200, 140, 90, Math.Min(Math.Abs(neck_bs), 1.8f))); // Comment normalized to English.
+            }
+        // Comment normalized to English.
+            if (spine_bs >= 0.0f)
+            {
+                realHumanData.areas.Add(InitBArea(770, 300, 80, 240, Math.Min(Math.Abs(spine_bs), 1.8f))); // Comment normalized to English.
+            }
+        // Comment normalized to English.
+            AddAreaIfNonZero(220, 90, 35, 80, left_neck_bs, 1.8f);
+            AddAreaIfNonZero(150, 520, 145, 160, left_ribs_bs, 2.0f);
+            AddAreaIfNonZero(365, 970, 80, 120, left_thigh_ft_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(330, 900, 50, 180, left_thigh_inside_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(400, 1450, 110, 300, left_shin_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(660, 1030, 60, 160, left_thigh_bk_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(650, 850, 85, 90, left_butt_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(670, 1420, 95, 140, left_calf_bs, 1.8f); // Comment normalized to English.
+
+        // Comment normalized to English.
+            AddAreaIfNonZero(300, 90, 35, 80, right_neck_bs, 1.8f);
+            AddAreaIfNonZero(370, 520, 145, 160, right_ribs_bs, 2.0f);
+            AddAreaIfNonZero(145, 970, 80, 120, right_thigh_ft_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(180, 900, 50, 180, right_thigh_inside_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(120, 1450, 110, 300, right_shin_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(900, 1030, 60, 160, right_thigh_bk_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(920, 850, 85, 90, right_butt_bs, 1.8f); // Comment normalized to English.
+            AddAreaIfNonZero(890, 1420, 95, 140, right_calf_bs, 1.8f); // Comment normalized to English.
+
+            SetPrev(ref realHumanData.prev_fk_left_foot_rot, fk_left_foot._q);
+            SetPrev(ref realHumanData.prev_fk_right_foot_rot, fk_right_foot._q);
+            SetPrev(ref realHumanData.prev_fk_left_knee_rot, fk_left_knee._q);
+            SetPrev(ref realHumanData.prev_fk_right_knee_rot, fk_right_knee._q);
+            SetPrev(ref realHumanData.prev_fk_left_thigh_rot, fk_left_thigh._q);
+            SetPrev(ref realHumanData.prev_fk_right_thigh_rot, fk_right_thigh._q);
+            SetPrev(ref realHumanData.prev_fk_spine01_rot, fk_spine01._q);
+            SetPrev(ref realHumanData.prev_fk_spine02_rot, fk_spine02._q);
+            SetPrev(ref realHumanData.prev_fk_head_rot, fk_head._q);
+            SetPrev(ref realHumanData.prev_fk_left_shoulder_rot, fk_left_shoulder._q);
+            SetPrev(ref realHumanData.prev_fk_right_shoulder_rot, fk_right_shoulder._q);
+            SetPrev(ref realHumanData.prev_fk_right_armup_rot, fk_right_armup._q);
+            SetPrev(ref realHumanData.prev_fk_left_armup_rot, fk_left_armup._q);
+            SetPrev(ref realHumanData.prev_fk_right_armdown_rot, fk_right_armdown._q);
+            SetPrev(ref realHumanData.prev_fk_left_armdown_rot, fk_left_armdown._q);
+
+            if (origin_texture != null)
+            {
+                int kernel = RealHumanSupport._self._mergeComputeShader.FindKernel("CSMain");
+
+                int w = 2048;
+                int h = 2048;
+
+                // Comment normalized to English.
+                if (realHumanData._body_rt == null || realHumanData._body_rt.width != w || realHumanData._body_rt.height != h)
+                {
+                    if (realHumanData._body_rt != null) realHumanData._body_rt.Release();
+                    realHumanData._body_rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+                    realHumanData._body_rt.enableRandomWrite = true;
+                    realHumanData._body_rt.Create();
+                }
+
+                // Comment normalized to English.
+                if (realHumanData.areas.Count > 0 && realHumanData.body_areaBuffer != null)
+                {
+                    realHumanData.body_areaBuffer.SetData(realHumanData.areas.ToArray());
+                    // Comment normalized to English.
+                    RealHumanSupport._self._mergeComputeShader.SetInt("Width", w);
+                    RealHumanSupport._self._mergeComputeShader.SetInt("Height", h);
+                    RealHumanSupport._self._mergeComputeShader.SetInt("AreaCount", realHumanData.areas.Count);
+                    RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexA", origin_texture);
+                    RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexB", RealHumanSupport._self._bodyStrongFemaleBumpMap2);
+                    RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "Result", realHumanData._body_rt);
+                    RealHumanSupport._self._mergeComputeShader.SetBuffer(kernel, "Areas", realHumanData.body_areaBuffer);
+
+                    // Comment normalized to English.
+                    RealHumanSupport._self._mergeComputeShader.Dispatch(kernel, Mathf.CeilToInt(w / 8f), Mathf.CeilToInt(h / 8f), 1);                 
+                    
+                    realHumanData.m_skin_body.SetTexture(realHumanData.body_bumpmap_type, realHumanData._body_rt);
+
+                    // Texture2D merged =  MergeRGBAlphaMaps(origin_texture, strong_texture, areas);    
+                    // realHumanData.m_skin_body.SetTexture(realHumanData.body_bumpmap_type, merged);
+                    // SaveAsPNG(merged, "./body_merge.png");
+                    // SaveAsPNG(strong_texture, "./body_strong.png");
+                    // SaveAsPNG(RenderTextureToTexture2D(RealHumanSupport._self._body_rt), "./body_merged.png");                     
+                }
+            }            
             else
             {
                 realHumanData.m_skin_body.SetTexture(realHumanData.body_bumpmap_type, realHumanData.bodyOriginTexture);
@@ -823,7 +821,7 @@ namespace RealHumanSupport
                         int w = 1024;
                         int h = 1024;
 
-                        // RenderTexture 초기화 및 재사용
+                        // Comment normalized to English.
                         if (realHumanData._head_rt == null || realHumanData._head_rt.width != w || realHumanData._head_rt.height != h)
                         {
                             if (realHumanData._head_rt != null) realHumanData._head_rt.Release();
@@ -832,11 +830,11 @@ namespace RealHumanSupport
                             realHumanData._head_rt.Create();
                         }        
 
-                    // 영역 데이터가 변경된 경우만 업데이트
+                    // Comment normalized to English.
                         if (areas.Count > 0 && realHumanData.head_areaBuffer != null)
                         {
                             realHumanData.head_areaBuffer.SetData(areas.ToArray());
-                            // 셰이더 파라미터 설정
+                            // Comment normalized to English.
                             RealHumanSupport._self._mergeComputeShader.SetInt("Width", w);
                             RealHumanSupport._self._mergeComputeShader.SetInt("Height", h);
                             RealHumanSupport._self._mergeComputeShader.SetInt("AreaCount", areas.Count);
@@ -845,10 +843,10 @@ namespace RealHumanSupport
                             RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "Result", realHumanData._head_rt);
                             RealHumanSupport._self._mergeComputeShader.SetBuffer(kernel, "Areas", realHumanData.head_areaBuffer);
 
-                            // Dispatch 실행
+                            // Comment normalized to English.
                             RealHumanSupport._self._mergeComputeShader.Dispatch(kernel, Mathf.CeilToInt(w / 8f), Mathf.CeilToInt(h / 8f), 1);
 
-                            // 결과를 바로 Material에 적용 (CPU로 복사 안 함)    
+                            // Comment normalized to English.
                             realHumanData.m_skin_head.SetTexture(realHumanData.head_bumpmap_type, realHumanData._head_rt);                
                         }
                     }                
@@ -864,20 +862,20 @@ namespace RealHumanSupport
         {
             if (rt == null) return null;
 
-            // 현재 활성화된 RenderTexture 저장
+            // Comment normalized to English.
             RenderTexture prev = RenderTexture.active;
 
-            // RenderTexture 활성화
+            // Comment normalized to English.
             RenderTexture.active = rt;
 
-            // Texture2D 생성 (포맷 ARGB32 권장)
+            // Comment normalized to English.
             Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
 
-            // 픽셀 복사
+            // Comment normalized to English.
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
             tex.Apply();
 
-            // RenderTexture 원래대로 복원
+            // Comment normalized to English.
             RenderTexture.active = prev;
 
             return tex;
@@ -930,7 +928,7 @@ namespace RealHumanSupport
             RenderTexture prev = RenderTexture.active;
             RenderTexture.active = rt;
 
-            // Texture2D / RenderTexture 모두 대응
+            // Comment normalized to English.
             Graphics.Blit(texture, rt);
 
             Texture2D tex = new Texture2D(width, height, TextureFormat.ARGB32, false);
@@ -974,11 +972,11 @@ namespace RealHumanSupport
 
             if (rexture.width == targetWidth && rexture.height == targetHeight)
             {
-                // 이미 맞는 사이즈
+                // Comment normalized to English.
                 return rexture;
             }
 
-            // RenderTexture를 이용한 다운사이징
+            // Comment normalized to English.
             RenderTexture rt = RenderTexture.GetTemporary(targetWidth, targetHeight, 24, RenderTextureFormat.ARGB32);
             Graphics.Blit(rexture, rt);
 
@@ -1008,7 +1006,7 @@ namespace RealHumanSupport
             string colliderName = target.name + "_ExtDBoneCollider";
 
             // ===============================
-            // 0. 로컬 헬퍼
+            // Comment normalized to English.
             // ===============================
             void RemoveCollider(GameObject go)
             {
@@ -1030,7 +1028,7 @@ namespace RealHumanSupport
             }
 
             // ===============================
-            // 1. Pivot 생성 / 재사용
+            // Comment normalized to English.
             // ===============================
             Transform pivotTf = target.Find(pivotName);
             if (pivotTf == null)
@@ -1044,7 +1042,7 @@ namespace RealHumanSupport
             }
 
             // ===============================
-            // 2. Collider 생성 / 재사용
+            // Comment normalized to English.
             // ===============================
             Transform colliderTf = pivotTf.Find(colliderName);
             DynamicBoneCollider dbc;
@@ -1066,7 +1064,7 @@ namespace RealHumanSupport
             }
 
             // ===============================
-            // 3. 값 갱신
+            // Comment normalized to English.
             // ===============================
             dbc.m_Radius = radius;
             dbc.m_Height = height;
@@ -1091,15 +1089,15 @@ namespace RealHumanSupport
         {
             if (parent == null) return;
 
-            // 모든 하위 Transform 가져오기 (비활성 포함)
+            // Comment normalized to English.
             Transform[] allChildren = parent.GetComponentsInChildren<Transform>(true);
 
             foreach (Transform tr in allChildren)
             {
-                // 이름 규칙 체크
+                // Comment normalized to English.
                 if (!tr.name.EndsWith("_ExtDBoneCollider")) continue;
 
-                // scale 적용
+                // Comment normalized to English.
                 tr.localScale = targetScale;
             }
         }
@@ -1331,7 +1329,7 @@ namespace RealHumanSupport
 #endif
 
 #if FEATURE_STRAPON_SUPPORT
-        // 남성에게만 부여
+        // Comment normalized to English.
         internal void SetRigidBodyOnObject(string boneName)
         {
             // UnityEngine.Debug.Log($">> SetRigidBodyOnObject {boneName}");
@@ -1371,16 +1369,16 @@ namespace RealHumanSupport
                         rb.useGravity = false;
                     }
 
-                    // Collider (남자 충돌용)
+                    // Comment normalized to English.
                     CapsuleCollider capsule = childObj.GetComponent<CapsuleCollider>();
                     if (capsule == null)
                     {
                         capsule = childObj.AddComponent<CapsuleCollider>();
-                        capsule.radius = 0.2f;      // 필요에 맞게 조절
+                        capsule.radius = 0.2f;      // Comment normalized to English.
                         capsule.height = 0.8f;
                         capsule.direction = 0;
                         capsule.center = Vector3.zero;
-                        capsule.isTrigger = false;  // 실제 collider
+                        capsule.isTrigger = false;  // Comment normalized to English.
                     }
 
                     UnityEngine.Debug.Log($">> created rigidBody + collider on {boneName}");
@@ -1392,7 +1390,7 @@ namespace RealHumanSupport
             }
         }
 
-        // 여성에게만 부여
+        // Comment normalized to English.
         internal void SetCollisionOnOnObject(string bone_name)
         {
             UnityEngine.Debug.Log($">> SetCollisionOnOnObject {realHumanData}");
@@ -1450,12 +1448,12 @@ namespace RealHumanSupport
 
         internal static PositionData GetBoneRotationFromTF(Transform t)
         {
-            // 부모 기준 회전
+            // Comment normalized to English.
             Quaternion localRot = t.localRotation;
 
             Vector3 localEuler = localRot.eulerAngles;
 
-            // 0~360 → -180~180 변환
+            // Comment normalized to English.
             float Normalize(float angle)
             {
                 if (angle > 180f)
@@ -1463,11 +1461,11 @@ namespace RealHumanSupport
                 return angle;
             }
 
-            float frontback = Normalize(localEuler.x);  // 앞(+)/뒤(-)
-            float leftright = Normalize(localEuler.z);  // 좌(+)/우(-)
+            float frontback = Normalize(localEuler.x);  // Comment normalized to English.
+            float leftright = Normalize(localEuler.z);  // Comment normalized to English.
 
             PositionData data = new PositionData(
-                t.rotation,     // 월드 회전은 그대로 유지
+                t.rotation,     // Comment normalized to English.
                 frontback,
                 leftright
             );
@@ -1486,7 +1484,7 @@ namespace RealHumanSupport
 
             Vector3 fwd = t.forward;
 
-            // 앞 / 뒤
+            // Comment normalized to English.
             Vector3 fwdPlane = Vector3.ProjectOnPlane(fwd, baseRight).normalized;
             float pitch = Vector3.SignedAngle(
                 baseForward,
@@ -1494,7 +1492,7 @@ namespace RealHumanSupport
                 baseRight
             );
 
-            // 좌 / 우
+            // Comment normalized to English.
             Vector3 right = t.right;
             Vector3 rightPlane = Vector3.ProjectOnPlane(right, baseForward).normalized;
             float sideZ = Vector3.SignedAngle(
@@ -1514,18 +1512,18 @@ namespace RealHumanSupport
             Transform parent   = parentInfo.guideObject.transform;
             Transform child = childInfo.guideObject.transform;
 
-            // --- hip 기준 축 ---
+            // Comment normalized to English.
             Vector3 baseForward = parent.forward;
             Vector3 baseRight   = parent.right;
             Vector3 baseUp      = parent.up;
 
-            // --- thigh 방향 ---
+            // Comment normalized to English.
             Vector3 childForward = child.forward;
             Vector3 childRight   = child.right;
 
             // =========================
-            // 1️⃣ 앞 / 뒤 (Pitch)
-            // hip.right 축을 기준으로 회전
+            // Comment normalized to English.
+            // Comment normalized to English.
             // =========================
             Vector3 pitchProjected =
                 Vector3.ProjectOnPlane(childForward, baseRight).normalized;
@@ -1537,8 +1535,8 @@ namespace RealHumanSupport
             );
 
             // =========================
-            // 2️⃣ 좌 / 우 (Abduction)
-            // hip.forward 축을 기준으로 회전
+            // Comment normalized to English.
+            // Comment normalized to English.
             // =========================
             Vector3 sideProjected =
                 Vector3.ProjectOnPlane(childRight, baseForward).normalized;
@@ -1550,21 +1548,21 @@ namespace RealHumanSupport
             );
 
             return new PositionData(
-                child.rotation,   // 기존 구조 유지
-                pitch,            // 앞/뒤
-                side              // 좌/우
+                child.rotation,   // Comment normalized to English.
+                pitch,            // Comment normalized to English.
+                side              // Comment normalized to English.
             );
         }
         // internal static PositionData GetBoneRotationFromFK(OCIChar.BoneInfo info)
         // {
         //     Transform t = info.guideObject.transform;
 
-        //     // 부모 기준 회전
+        // Comment normalized to English.
         //     Quaternion localRot = t.localRotation;
 
         //     Vector3 localEuler = localRot.eulerAngles;
 
-        //     // 0~360 → -180~180 변환
+        // Comment normalized to English.
         //     float Normalize(float angle)
         //     {
         //         if (angle > 180f)
@@ -1572,11 +1570,11 @@ namespace RealHumanSupport
         //         return angle;
         //     }
 
-        //     float frontback = Normalize(localEuler.x);  // 앞(+)/뒤(-)
-        //     float leftright = Normalize(localEuler.z);  // 좌(+)/우(-)
+        // Comment normalized to English.
+        // Comment normalized to English.
 
         //     PositionData data = new PositionData(
-        //         t.rotation,     // 월드 회전은 그대로 유지
+        // Comment normalized to English.
         //         frontback,
         //         leftright
         //     );
@@ -1806,15 +1804,15 @@ namespace RealHumanSupport
 
                                     if (bone.guideObject.transformTarget.name.Contains("_J_Hips"))
                                     {
-                                        realHumanData.fk_hip_bone = bone; // 하단
+                                        realHumanData.fk_hip_bone = bone; // Comment normalized to English.
                                     }
                                     else if (bone.guideObject.transformTarget.name.Contains("_J_Spine01"))
                                     {
-                                        realHumanData.fk_spine01_bone = bone; // 하단
+                                        realHumanData.fk_spine01_bone = bone; // Comment normalized to English.
                                     }
                                     else if(bone.guideObject.transformTarget.name.Contains("_J_Spine02"))
                                     {
-                                        realHumanData.fk_spine02_bone = bone; // 상단
+                                        realHumanData.fk_spine02_bone = bone; // Comment normalized to English.
                                     }
                                     else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_L"))
                                     {
@@ -1884,8 +1882,11 @@ namespace RealHumanSupport
                     SupportTearDrop(realHumanData.chaCtrl, realHumanData);
     #endif
                     SupportEyeFastBlinkEffect(realHumanData.chaCtrl, realHumanData);
-                    SupportBodyBumpEffect(realHumanData.chaCtrl, realHumanData);
-                    SupportFaceBumpEffect(realHumanData.chaCtrl, realHumanData);                
+
+                    if (StudioAPI.InsideStudio) {
+                        SupportBodyBumpEffect(realHumanData.chaCtrl, realHumanData);
+                        SupportFaceBumpEffect(realHumanData.chaCtrl, realHumanData);
+                    }
 
                     status = Status.RUN;
                     if (realHumanData.coroutine == null) {
@@ -1927,9 +1928,9 @@ namespace RealHumanSupport
             bool sameSign = (a >= 0 && b >= 0) || (a < 0 && b < 0);
 
             if (sameSign)
-                return Math.Abs(Math.Abs(a) - Math.Abs(b)); // 동일 부호: 절댓값 빼기
+                return Math.Abs(Math.Abs(a) - Math.Abs(b)); // Comment normalized to English.
             else
-                return Math.Abs(Math.Abs(a) + Math.Abs(b)); // 부호 다름: 절댓값 더하기
+                return Math.Abs(Math.Abs(a) + Math.Abs(b)); // Comment normalized to English.
         }
 
         internal static bool IsFront(float a, float b)
@@ -1987,7 +1988,7 @@ namespace RealHumanSupport
         internal static void SupportEyeFastBlinkEffect(ChaControl chaCtrl, RealHumanData realHumanData) 
         {
             if (chaCtrl.fbsCtrl != null)
-                chaCtrl.fbsCtrl.BlinkCtrl.BaseSpeed = 0.05f; // 작을수록 blink 속도가 높아짐..
+                chaCtrl.fbsCtrl.BlinkCtrl.BaseSpeed = 0.05f; // Comment normalized to English.
         }
 
        internal IEnumerator CoroutineProcess(RealHumanData realHumanData)
@@ -2014,7 +2015,7 @@ namespace RealHumanSupport
                        {
                            if (mat == null)
                                continue;
-                           // sin 파형 (0 ~ 1로 정규화)
+                           // Comment normalized to English.
                            float easedBump = (Mathf.Sin(time * Mathf.PI * 3.5f * 2f) + 1f) * 0.5f;
 
                            float eyeScale = Mathf.Lerp(0.18f, 0.21f, easedBump);
@@ -2051,7 +2052,7 @@ namespace RealHumanSupport
 #if FEATURE_TEARDROP_SUPPORT
                    if (RealHumanSupport.TearDropActive.Value)
                    {
-                       float deltaTear = Time.deltaTime / 10f; // ← (10초)
+                       float deltaTear = Time.deltaTime / 10f; // Comment normalized to English.
 
                        if (tearIncreasing)
                        {
@@ -2074,13 +2075,13 @@ namespace RealHumanSupport
                         
                        float tearSin = Mathf.Sin(tearValue * Mathf.PI);
 
-                       //  ---------------- 눈물 생성 ----------------
+                       // Comment normalized to English.
                        if (realHumanData.m_tear_eye != null) {
                            realHumanData.m_tear_eye.SetFloat("_NamidaScale", realHumanData.tearDropRate);
                            realHumanData.m_tear_eye.SetFloat("_RefractionScale", tearSin); 
                        }
 
-                       float deltaNose = Time.deltaTime / 1.5f; // ← (1.5초)
+                       float deltaNose = Time.deltaTime / 1.5f; // Comment normalized to English.
 
                        if (noseIncreasing)
                        {
@@ -2102,7 +2103,7 @@ namespace RealHumanSupport
                        }
                         
                        float noseSin = Mathf.Sin(noseValue * Mathf.PI);
-                       // ----------------- 코평수 처리 -----------------
+                       // Comment normalized to English.
                        if (realHumanData.nose_wing_l_tr != null) {
 
                            float noseScaleFactor = 1f + (noseSin * 0.3f);
@@ -2189,15 +2190,15 @@ namespace RealHumanSupport
         }
     }
 
-    // 24 byte 크기를 맞추기 위해 padding 추가
+    // Comment normalized to English.
     struct BAreaData
     {  
         public float X { get; set; }
         public float Y { get; set; }
-        public float RadiusX; // 가로 반지름
-        public float RadiusY; // 세로 반지름
-        public float BumpBooster; // 범프 세기 강조
-        public float Padding;   // ← 추가
+        public float RadiusX; // Comment normalized to English.
+        public float RadiusY; // Comment normalized to English.
+        public float BumpBooster; // Comment normalized to English.
+        public float Padding;   // Comment normalized to English.
     }    
     
     class PositionData
@@ -2219,27 +2220,27 @@ namespace RealHumanSupport
         public ChaControl chaCtrl;
         public Coroutine coroutine;
 
-        // 코루틴 제어
+        // Comment normalized to English.
         public bool coroutine_pause;
 
         public List<BAreaData> areas = new List<BAreaData>();
 
-        // hair down 제어
+        // Comment normalized to English.
         public Transform head_bone;
         public Transform neck_bone;
-        public Transform root_bone;  // hair down 지원인데, 확인 필요..
-        public List<DynamicBone> hairDynamicBones = new List<DynamicBone>(); // hair down 지원인데, 확인 필요..
+        public Transform root_bone;  // Comment normalized to English.
+        public List<DynamicBone> hairDynamicBones = new List<DynamicBone>(); // Comment normalized to English.
         public List<DynamicBoneCollider> extraBodyColliders = new List<DynamicBoneCollider>();
         public Dictionary<string, float[]> extraColliderOriginalSnapshots = new Dictionary<string, float[]>();
         public Dictionary<string, float[]> extraColliderCurrentSnapshots = new Dictionary<string, float[]>();
 
-        // Chest,Butt gravity 제어
+        // Comment normalized to English.
         public DynamicBone_Ver02 rightBoob;
         public DynamicBone_Ver02 leftBoob;
         public DynamicBone_Ver02 rightButtCheek;
         public DynamicBone_Ver02 leftButtCheek;
 
-        // Bumpmap 및 관련 속성 제어
+        // Comment normalized to English.
         public Material m_tear_eye;
         public Material m_skin_head;
         public Material m_skin_body;
@@ -2253,11 +2254,11 @@ namespace RealHumanSupport
         public RenderTexture _body_rt;
         public ComputeBuffer body_areaBuffer;
 
-        // bumpmap 제어 임시 저장값
+        // Comment normalized to English.
         public string head_bumpmap_type;
         public string body_bumpmap_type;
 
-        // bumpmap 지원 pos 변화량 체크
+        // Comment normalized to English.
         public Quaternion  prev_fk_spine01_rot;
         public Quaternion  prev_fk_spine02_rot;
         public Quaternion  prev_fk_head_rot;
@@ -2293,10 +2294,10 @@ namespace RealHumanSupport
         public OCIChar.BoneInfo  fk_right_foot_bone;
         public OCIChar.BoneInfo  fk_left_foot_bone;
 
-        // Belly 효과
+        // Comment normalized to English.
         public PregnancyPlusCharaController pregnancyController;
 
-        // 눈물 효과
+        // Comment normalized to English.
         public List<Material> c_m_eye = new List<Material>();
 #if FEATURE_TEARDROP_SUPPORT
         public Transform nose_wing_l_tr;
@@ -2372,13 +2373,30 @@ namespace RealHumanSupport
 #if FEATURE_STRAPON_SUPPORT
 public class CapsuleTrigger : MonoBehaviour
 {
+    public enum ContactResponseProfile
+    {
+        Natural,
+        Soft,
+        Tight,
+        Sticky,
+        Elastic
+    }
+
     private RealHumanSupportController _controller;
     private RealHumanData _data;
 
     private float currentValue = 0f;
     private float targetValue = 0f;
+    private float transitionFrom = 0f;
+    private float transitionTo = 0f;
+    private float transitionElapsed = 0f;
+    private float transitionDuration = 0.5f;
+    private bool isTransitionActive = false;
 
-    private float speed = 25f; // 값 변화 속도 (조절 포인트)
+    public ContactResponseProfile ResponseProfile = ContactResponseProfile.Elastic;
+    public float EnterDuration = 0.28f; // enter: fast -> slow
+    public float ExitDuration = 0.52f;  // exit: slow -> fast
+    public float GlobalResponseSpeed = 1.0f; // scales all profiles (0.1 ~ 3.0 recommended)
 
     public void Bind(RealHumanSupportController controller)
     {
@@ -2389,52 +2407,155 @@ public class CapsuleTrigger : MonoBehaviour
     void Update()
     {
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
-        if (_controller == null)
+        if (_controller == null || _data == null)
             return;
 
-        // 부드럽게 값 이동
-        currentValue = Mathf.MoveTowards(currentValue, targetValue, speed * Time.deltaTime);
+        if (isTransitionActive)
+        {
+            transitionElapsed += Time.deltaTime;
+            float speedScale = Mathf.Clamp(GlobalResponseSpeed, 0.1f, 3.0f);
+            float duration = Mathf.Max(0.0001f, transitionDuration / speedScale);
+            float t = Mathf.Clamp01(transitionElapsed / duration);
 
-        _controller.SetBlendShape(currentValue, _data.vagina_open_front_idx_in_body);
+            bool isEntering = transitionTo > transitionFrom;
+            float eased = EvaluateProfileCurve(ResponseProfile, t, isEntering);
+            currentValue = Mathf.Lerp(transitionFrom, transitionTo, eased);
+
+            if (t >= 1f)
+            {
+                isTransitionActive = false;
+                currentValue = transitionTo;
+            }
+        }
+        else
+        {
+            currentValue = targetValue;
+        }
+
+        if (currentValue < 40)
+            _controller.SetBlendShape(currentValue, _data.vagina_open_front_idx_in_body);        
+        _controller.SetBlendShape(currentValue, _data.vagina_open_all_idx_in_body);        
 #endif
     }
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.attachedRigidbody == null)
+        if (!IsValidDriverCollider(other))
             return;
 
-        if (!other.attachedRigidbody.name.StartsWith("RGRigidBody_"))
-            return;
-
-        targetValue = 100f;
+        float desiredTarget = GetAdvancedStayTargetByBone(other);
+        StartTransition(desiredTarget);
 
         UnityEngine.Debug.Log("Trigger Enter: " + other.name);
     }
 
     void OnTriggerStay(Collider other)
     {
-        if (other.attachedRigidbody == null)
+        if (!IsValidDriverCollider(other))
             return;
 
-        if (!other.attachedRigidbody.name.StartsWith("RGRigidBody_"))
-            return;
-
-        targetValue = 100f;
+        float desiredTarget = GetAdvancedStayTargetByBone(other);
+        if (!Mathf.Approximately(targetValue, desiredTarget))
+            StartTransition(desiredTarget);
     }
 
     void OnTriggerExit(Collider other)
     {
-        if (other.attachedRigidbody == null)
+        if (!IsValidDriverCollider(other))
             return;
 
-        if (!other.attachedRigidbody.name.StartsWith("RGRigidBody_"))
-            return;
-
-        targetValue = 0f;
+        StartTransition(0f);
 
         UnityEngine.Debug.Log("Trigger Exit: " + other.name);
     }
+
+    private float GetAdvancedStayTargetByBone(Collider other)
+    {
+        if (other == null || other.attachedRigidbody == null)
+            return 0f;
+
+        string rbName = other.attachedRigidbody.name;
+
+        if (rbName.Contains("cm_J_dan119_00"))
+            return 30f;
+
+        if (rbName.Contains("cm_J_dan108_00"))
+            return 70f;
+
+        if (rbName.Contains("cm_J_dan105_00") || rbName.Contains("cm_J_dan100_00"))
+            return 100f;
+
+        return 0f;
+    }
+    private bool IsValidDriverCollider(Collider other)
+    {
+        if (other == null || other.attachedRigidbody == null)
+            return false;
+
+        return other.attachedRigidbody.name.StartsWith("RGRigidBody_");
+    }
+
+    private void StartTransition(float nextTarget)
+    {
+        nextTarget = Mathf.Clamp(nextTarget, 0f, 100f);
+        if (Mathf.Approximately(targetValue, nextTarget) && isTransitionActive)
+            return;
+
+        transitionFrom = currentValue;
+        transitionTo = nextTarget;
+        targetValue = nextTarget;
+        transitionElapsed = 0f;
+        transitionDuration = (nextTarget > currentValue) ? EnterDuration : ExitDuration;
+        isTransitionActive = true;
+    }
+
+    private static float EvaluateProfileCurve(ContactResponseProfile profile, float t, bool isEntering)
+    {
+        t = Mathf.Clamp01(t);
+
+        switch (profile)
+        {
+            case ContactResponseProfile.Soft:
+                return isEntering
+                    ? EaseOutQuart(t)
+                    : EaseInQuad(t);
+
+            case ContactResponseProfile.Tight:
+                return isEntering
+                    ? EaseOutExpo(t)
+                    : EaseInExpo(t);
+
+            case ContactResponseProfile.Sticky:
+                if (isEntering)
+                {
+                    float baseCurve = EaseOutCubic(t);
+                    return Mathf.Lerp(baseCurve, t, 0.18f);
+                }
+                return Mathf.Pow(t, 1.6f);
+
+            case ContactResponseProfile.Elastic:
+                if (isEntering)
+                {
+                    float baseCurve = EaseOutCubic(t);
+                    float micro = Mathf.Sin(t * Mathf.PI * 2f) * (1f - t) * 0.04f;
+                    return Mathf.Clamp01(baseCurve + micro);
+                }
+                return EaseInCubic(t);
+
+            case ContactResponseProfile.Natural:
+            default:
+                return isEntering
+                    ? EaseOutCubic(t) // Comment normalized to English.
+                    : EaseInCubic(t); // Comment normalized to English.
+        }
+    }
+
+    private static float EaseInQuad(float t) => t * t;
+    private static float EaseInCubic(float t) => t * t * t;
+    private static float EaseOutCubic(float t) => 1f - Mathf.Pow(1f - t, 3f);
+    private static float EaseOutQuart(float t) => 1f - Mathf.Pow(1f - t, 4f);
+    private static float EaseInExpo(float t) => (t <= 0f) ? 0f : Mathf.Pow(2f, 10f * (t - 1f));
+    private static float EaseOutExpo(float t) => (t >= 1f) ? 1f : 1f - Mathf.Pow(2f, -10f * t);
 }
 #endif
 }

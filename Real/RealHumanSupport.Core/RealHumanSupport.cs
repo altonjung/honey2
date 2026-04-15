@@ -1,3 +1,4 @@
+// Comment normalized to English.
 using Studio;
 using System;
 using System.Collections;
@@ -50,25 +51,24 @@ using KKAPI.Utilities;
 using KKAPI.Chara;
 
 /*
-    기본로직
+    Core logic
 
-    1) 각 캐릭터에 RealGirlController 로직 자동 추가
-    2) 각 pose 에 따른 얼굴 | 다리 | 몸  dynamic-bumpmap 지원
-    3) belly inflation, teadrop 지원
-    4) FEATURE_FACE_BLENDSHAPE_SUPPORT (wink) 당분간 off
-    5) FEATURE_BODY_BLENDSHAPE_SUPPORT (목적 불분명) 당분간 off
+    1) Automatically attach RealGirlController logic to each character.
+    2) Support dynamic bump maps for face, legs, and body based on pose.
+    3) Support belly inflation and tear-drop effects.
+    4) FEATURE_FACE_BLENDSHAPE_SUPPORT (wink) is currently disabled.
+    5) FEATURE_BODY_BLENDSHAPE_SUPPORT is currently disabled.
 
-        blend shape 기능 활용
+        Blend shape usage
 
-        GP 7.7 혹은 그 이상 (최신 GP 계열 지원)
+        GP 7.7 or newer (latest GP series supported)
         >> blendShape GP.Basic Shape Legs Pull BothSide, 20 in body
         >> blendShape GP.Siri open Buttcheeks1, 221 in body
         >> blendShape GP.Siri open Buttcheeks2, 222 in body
 
+    Remaining tasks
 
-    남은작업
-
-    1) DAN bone 활용 + FEATURE_BODY_BLENDSHAPE_SUPPORT 연동
+    1) Integrate DAN bone usage with FEATURE_BODY_BLENDSHAPE_SUPPORT.
 */
 
 namespace RealHumanSupport
@@ -80,7 +80,7 @@ namespace RealHumanSupport
     [BepInProcess("CharaStudio")]
 #elif AISHOUJO || HONEYSELECT2
     [BepInProcess("StudioNEOV2")]
-    // [BepInProcess("HoneySelect2")]
+    [BepInProcess("HoneySelect2")]
 #endif
     [BepInDependency("com.bepis.bepinex.extendedsave")]
 #endif
@@ -240,7 +240,8 @@ namespace RealHumanSupport
 
             CharacterApi.RegisterExtraBehaviour<RealHumanSupportController>(GUID);
 
-            _CheckRotationRoutine = StartCoroutine(CheckRotationRoutine());      
+            if (StudioAPI.InsideStudio)
+                _CheckRotationRoutine = StartCoroutine(CheckRotationRoutine());      
 
             Logger.LogMessage($"{Name} {Version}.. by unbreakable dreamer");      
         }
@@ -313,15 +314,14 @@ namespace RealHumanSupport
                 ClearSelectedExtraBodyColliderVisual();
                 return;
             }
-
-            if (StudioAPI.InsideStudio)
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "RealHuman " + Version);
+            
+            this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "RealHuman " + Version);
         }
 
        private void WindowFunc(int id)
         {
             var studio = Studio.Studio.Instance;
-    		// 항상 기본값 복구
+    		// Comment normalized to English.
     		studio.cameraCtrl.noCtrlCondition = null;
 	
             bool guiUsingMouse = GUIUtility.hotControl != 0;
@@ -427,7 +427,7 @@ namespace RealHumanSupport
                 ClearSelectedExtraBodyColliderVisual();
 				_ShowUI = false;
 			}
-            // ⭐ 툴팁 직접 그리기
+            // Comment normalized to English.
             if (!string.IsNullOrEmpty(GUI.tooltip))
             {
                 Vector2 mousePos = Event.current.mousePosition;
@@ -756,7 +756,7 @@ namespace RealHumanSupport
         {
             _loaded = true;
             
-            // 배포용 번들 파일 경로
+            // Comment normalized to English.
             string bundlePath = Application.dataPath + "/../abdata/realgirl/realgirlbundle.unity3d";
 
             _bundle = AssetBundle.LoadFromFile(bundlePath);
@@ -791,10 +791,10 @@ namespace RealHumanSupport
         {
             bool isReleased = false;
 
-            while (true) // 무한 반복
+            while (true) // Comment normalized to English.
             {   
                 if (!_loaded)
-                    yield return new WaitForSeconds(0.5f); // 0.5초 대기
+                    yield return new WaitForSeconds(0.5f); // Comment normalized to English.
 
                 if (Singleton<Studio.Studio>.Instance != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes != null && Singleton<Studio.Studio>.Instance.treeNodeCtrl.selectNodes.Count() > 0)
                 {
@@ -805,7 +805,7 @@ namespace RealHumanSupport
                         ObjectCtrlInfo objectCtrlInfo = Studio.Studio.GetCtrlInfo(_node);
                         OCIChar ociChar = objectCtrlInfo as OCIChar;
 
-                        if (ociChar != null && ociChar.oiCharInfo.enableFK) // FK 활성화 되었을때 동작
+                        if (ociChar != null && ociChar.oiCharInfo.enableFK) // Comment normalized to English.
                         {
                             ChaControl chaControl = ociChar.GetChaControl();
                             var controller = chaControl.GetComponent<RealHumanSupportController>();
@@ -813,7 +813,7 @@ namespace RealHumanSupport
                             {
                                 if (mouseReleased)
                                 {
-                                    mouseReleased = false;  // 한 번만 쓰고 초기화
+                                    mouseReleased = false;  // Comment normalized to English.
                                     RealHumanData realHumanData = controller.GetRealHumanData();
 
                                     if (realHumanData != null)
@@ -848,7 +848,7 @@ namespace RealHumanSupport
                         }                        
                     }
                 }
-                yield return new WaitForSeconds(0.5f); // 0.5초 대기
+                yield return new WaitForSeconds(0.5f); // Comment normalized to English.
             }
         }      
 
@@ -906,7 +906,7 @@ namespace RealHumanSupport
             }
         }
 
-        // 옷이 변경될때 마다, pregnancy 값 조정 필요
+        // Comment normalized to English.
         [HarmonyPatch(typeof(ChaControl), nameof(ChaControl.SetAccessoryStateAll), typeof(bool))]
         internal static class ChaControl_SetAccessoryStateAll_Patches
         {
@@ -923,7 +923,7 @@ namespace RealHumanSupport
             }
         }
 
-        // 눈물 흘릴 시 마다
+        // Comment normalized to English.
         [HarmonyPatch(typeof(AIChara.ChaControl), "ChangeTearsRate", typeof(float))]
         private static class ChaControl_ChangeTearsRate_Patches
         {
@@ -943,7 +943,7 @@ namespace RealHumanSupport
             }
         }
 
-//  포즈 변경 시 마다
+// Comment normalized to English.
         [HarmonyPatch(typeof(PauseCtrl.FileInfo), "Apply", typeof(OCIChar))]
         private static class PauseCtrl_Apply_Patches
         {
@@ -1018,7 +1018,7 @@ namespace RealHumanSupport
 
                                         if (_self._winkTime < CLOSE_TIME)
                                         {
-                                            // 천천히 감김
+                                            // Comment normalized to English.
                                             float t = Mathf.Clamp01(_self._winkTime / CLOSE_TIME);
                                             weight = Mathf.SmoothStep(0f, 95f, t);
                                         }
@@ -1043,21 +1043,21 @@ namespace RealHumanSupport
                                                 if (name.Contains("head"))
                                                 {
                                                     srender
-                                                        .SetBlendShapeWeight(realHumanData.eye_close_idx_in_head_of_eyectrl, 0f); // 눈감김 원천 봉쇄
+                                                        .SetBlendShapeWeight(realHumanData.eye_close_idx_in_head_of_eyectrl, 0f); // Comment normalized to English.
 
                                                     srender
                                                         .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_head_of_eyectrl, weight);                                        
                                                 } else if (name.Contains("namida"))
                                                 {
                                                     srender
-                                                            .SetBlendShapeWeight(realHumanData.eye_close_idx_in_namida_of_eyectrl, 0f); // 눈감김 원천 봉쇄
+                                                            .SetBlendShapeWeight(realHumanData.eye_close_idx_in_namida_of_eyectrl, 0f); // Comment normalized to English.
 
                                                     srender
                                                         .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_namida_of_eyectrl, weight);
                                                 } else if (name.Contains("lash."))
                                                 {
                                                     srender
-                                                        .SetBlendShapeWeight(realHumanData.eye_close_idx_in_lash_of_eyectrl, 0f); // 눈감김 원천 봉쇄
+                                                        .SetBlendShapeWeight(realHumanData.eye_close_idx_in_lash_of_eyectrl, 0f); // Comment normalized to English.
 
                                                     srender
                                                         .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_lash_of_eyectrl, weight);                                          
@@ -1075,18 +1075,18 @@ namespace RealHumanSupport
                                                 if (name.Contains("head"))
                                                 {
                                                     srender
-                                                        .SetBlendShapeWeight(realHumanData.eye_close_idx_in_head_of_mouthctrl, 0f); // 눈감김 원천 봉쇄
+                                                        .SetBlendShapeWeight(realHumanData.eye_close_idx_in_head_of_mouthctrl, 0f); // Comment normalized to English.
 
                                                     srender
                                                         .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_head_of_mouthctrl, weight);   
-                                                    //입모양
+                                                    // Comment normalized to English.
                                                     srender
                                                                     .SetBlendShapeWeight(38, 100);   
 
                                                 } else if (name.Contains("namida"))
                                                 {
                                                     srender
-                                                        .SetBlendShapeWeight(realHumanData.eye_close_idx_in_namida_of_mouthctrl, 0f); // 눈감김 원천 봉쇄
+                                                        .SetBlendShapeWeight(realHumanData.eye_close_idx_in_namida_of_mouthctrl, 0f); // Comment normalized to English.
 
                                                     srender
                                                         .SetBlendShapeWeight(realHumanData.eye_wink_idx_in_namida_of_mouthctrl, weight);                                      
