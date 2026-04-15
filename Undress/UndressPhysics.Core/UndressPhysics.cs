@@ -32,6 +32,7 @@ using System;
 using KKAPI.Studio;
 using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
+using static KKAPI.Maker.MakerConstants;
 #endif
 
 /*
@@ -143,7 +144,6 @@ namespace UndressPhysics
 
         #region Accessors
         #endregion
-
 
         #region Unity Methods
         protected override void Awake()
@@ -379,186 +379,112 @@ namespace UndressPhysics
             cloth.worldAccelerationScale = 1.0f;
             cloth.worldVelocityScale = 0.0f;
 
-            var coeffs = cloth.coefficients;
-            int vertCount = coeffs.Length;
-            if (vertCount == 0)
+            if (cloth != null)
             {
-                Logger.LogMessage("[UndressDiag] coeff count is 0");
-                yield break;
-            }
+                var coeffs = cloth.coefficients;
+                int vertCount = coeffs.Length;
 
-            const float MaxDistanceSentinelThreshold = 100000f;
-            const float NormalizedStartDistance = 0f;
+                const float MaxDistanceSentinelThreshold = 100000f;
+                const float NormalizedStartDistance = 0f;
 
-            float startMin = float.MaxValue;
-            float startMax = float.MinValue;
-            for (int i = 0; i < vertCount; i++)
-            {
-                float v = coeffs[i].maxDistance;
-                if (v < startMin) startMin = v;
-                if (v > startMax) startMax = v;
-            }
-
-            float[] startDistances = new float[vertCount];
-            for (int i = 0; i < vertCount; i++)
-            {
-                float raw = coeffs[i].maxDistance;
-
-                // Some outfits use float.MaxValue-like sentinel distances.
-                // Normalize them so Lerp can produce meaningful pull-down values.
-                if (raw >= MaxDistanceSentinelThreshold)
-                    raw = NormalizedStartDistance;
-
-                startDistances[i] = raw;
-            }
-
-            SkinnedMeshRenderer smr = cloth.GetComponent<SkinnedMeshRenderer>();
-            if (smr == null)
-                yield break;
-
-            Vector3[] vertices = smr.sharedMesh.vertices;
-            Bounds startBounds = smr.bounds;
-            float startBoundsMinY = startBounds.min.y;
-            float startBoundsMaxY = startBounds.max.y;
-
-            float[] worldYs = new float[vertCount];
-
-            float minY = float.MaxValue;
-            float maxY = float.MinValue;
-
-            Matrix4x4 localToWorld = smr.transform.localToWorldMatrix;
-
-            for (int i = 0; i < vertCount; i++)
-            {
-                float y = localToWorld.MultiplyPoint3x4(vertices[i]).y;
-                worldYs[i] = y;
-
-                if (y < minY) minY = y;
-                if (y > maxY) maxY = y;
-            }
-
-            float invRange = (maxY - minY) > 0f ? 1f / (maxY - minY) : 0f;
-
-            float[] normalizedY = new float[vertCount];
-            for (int i = 0; i < vertCount; i++)
-                normalizedY[i] = (worldYs[i] - minY) * invRange;
-
-            float endPull = 5.0f;
-
-            float topMaxDistance = 0f;
-            float midMaxDistance = 0f;
-            float bottomMaxDistance = 0f;
-
-            float startRadius = undressData.IsTop ? 0.5f : 1.0f; // Initial collider size for push-down.
-            float endRadius = undressData.IsTop ? 1.6f : 2.4f; // Final collider size for push-down.
-            var pivotCollider = undressData.collider;
-            Vector3 startColliderCenter = pivotCollider != null ? pivotCollider.center : Vector3.zero;
-            float endCenterYOffset = undressData.IsTop ? -0.25f : -1.00f;
-
-            float timer = 0f;
-            int changedVertexCount = 0;
-            Logger.LogMessage($"[UndressDiag] start cloth={cloth.name}, isTop={undressData.IsTop}, duration={ClothUndressDuration.Value:0.00}, force={ClothUndressForce.Value:0.00}, startMin={startMin:0.000}, startMax={startMax:0.000}, boundsY=({startBoundsMinY:0.000},{startBoundsMaxY:0.000})");
-            
-            while (timer < ClothUndressDuration.Value && !_quickStop)
-            {   
-                if (cloth == null)
-                    yield break;
-
-                float t = timer / ClothUndressDuration.Value;
-
-                if (pivotCollider != null) {
-                    pivotCollider.radius = Mathf.Lerp(startRadius, endRadius, t);
-                    pivotCollider.height = pivotCollider.radius * endRadius;
-                    float yOffset = Mathf.Lerp(0f, endCenterYOffset, t);
-                    pivotCollider.center = startColliderCenter + new Vector3(0f, yOffset, 0f);
-                }
-
-                if (undressData.IsTop) {
-                    topMaxDistance = 1.5f * ClothUndressForce.Value * 1.5f;
-                    midMaxDistance = 2.0f * ClothUndressForce.Value * 2.5f;
-                    bottomMaxDistance = 2.5f * ClothUndressForce.Value * 3.5f; 
-                } else
-                {
-                    topMaxDistance = 1.5f * ClothUndressForce.Value * 1.5f;
-                    midMaxDistance = 3.5f * ClothUndressForce.Value * 3f;
-                    bottomMaxDistance = 5.5f * ClothUndressForce.Value * 4f;
-                }
-                
-                // Apply pull curve.
-                float pullBase = PullCurve.Evaluate(t) * endPull;
-                float pullFloor = undressData.IsTop ? 2.0f : 3.5f;
-                float pull = Mathf.Max(pullBase, pullFloor);
-                cloth.externalAcceleration = Vector3.down * pull;
-
-                bool changed = false;
-
+                float[] startDistances = new float[vertCount];
                 for (int i = 0; i < vertCount; i++)
                 {
-                    // Height-based delay.
-                    float delay = normalizedY[i] * 0.2f; // Higher vertices react later.
-                    float localT = Mathf.Clamp01((t - delay) / (1f - delay));
+                    float raw = coeffs[i].maxDistance;
 
-                    // Apply animation curve.
-                    float curveT = UndressCurve.Evaluate(localT);
+                    // Some outfits use float.MaxValue-like sentinel distances.
+                    // Normalize them so Lerp can produce meaningful pull-down values.
+                    if (raw >= MaxDistanceSentinelThreshold)
+                        raw = NormalizedStartDistance;
 
-                    float targetMaxDistance;
-
-                    if (normalizedY[i] > 0.80f)
-                    {
-                        targetMaxDistance = Mathf.Lerp(
-                            startDistances[i],
-                            topMaxDistance,
-                            curveT);
-                    }
-                    else if (normalizedY[i] > 0.60f)
-                    {
-                        targetMaxDistance = Mathf.Lerp(
-                            startDistances[i],
-                            midMaxDistance,
-                            curveT);
-                    }
-                    else
-                    {
-                        targetMaxDistance = Mathf.Lerp(
-                            startDistances[i],
-                            bottomMaxDistance,
-                            curveT);
-                    }
-
-                    if (Mathf.Abs(coeffs[i].maxDistance - targetMaxDistance) > 0.0001f)
-                    {
-                        coeffs[i].maxDistance = targetMaxDistance;
-                        changed = true;
-                        changedVertexCount++;
-                    }
+                    startDistances[i] = raw;
                 }
 
-                if (changed)
-                   cloth.coefficients = coeffs;
 
-                timer += Time.deltaTime;
-                yield return null;
-            }
+                SkinnedMeshRenderer smr = cloth.GetComponent<SkinnedMeshRenderer>();
 
-            if (pivotCollider != null)
-            {
-                pivotCollider.center = startColliderCenter;
-            }
+                if (smr != null)
+                {
+                    Vector3[] vertices = smr.sharedMesh.vertices;
 
-            float endMin = float.MaxValue;
-            float endMax = float.MinValue;
-            var endCoeffs = cloth.coefficients;
-            int endCount = endCoeffs.Length;
-            for (int i = 0; i < endCount; i++)
-            {
-                float v = endCoeffs[i].maxDistance;
-                if (v < endMin) endMin = v;
-                if (v > endMax) endMax = v;
-            }
-            Bounds endBounds = smr.bounds;
-            float endBoundsMinY = endBounds.min.y;
-            float endBoundsMaxY = endBounds.max.y;
-            Logger.LogMessage($"[UndressDiag] end cloth={cloth.name}, elapsed={timer:0.00}, quickStop={_quickStop}, changedWrites={changedVertexCount}, endMin={endMin:0.000}, endMax={endMax:0.000}, boundsY=({endBoundsMinY:0.000},{endBoundsMaxY:0.000})");
+                    // 🔹 아래로 당기는 힘 설정
+                    float startPull = 0.0f;    // 시작은 거의 없음
+                    float endPull   = 5.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
+
+                    // y좌표 기반 정규화
+                    float minY = float.MaxValue;
+                    float maxY = float.MinValue;
+                    foreach (var v in vertices)
+                    {
+                        float y = smr.transform.TransformPoint(v).y;
+                        minY = Mathf.Min(minY, y);
+                        maxY = Mathf.Max(maxY, y);
+                    }
+                    float rangeY = maxY - minY;
+
+                    float[] normalizedYs = new float[vertices.Length];
+                    for (int i = 0; i < vertices.Length; i++)
+                    {
+                        float y = smr.transform.TransformPoint(vertices[i]).y;
+                        normalizedYs[i] = (y - minY) / rangeY;
+                    }
+
+                    float timer = 0f;
+                    float topMaxDistance = 3.0f * ClothUndressForce.Value;
+                    float midMaxDistance = 5.0f * ClothUndressForce.Value;
+                    float bottomMaxDistance = 3.0f * ClothUndressForce.Value;
+
+                    float startRadius = undressData.IsTop ? 0.5f : 1.0f; // Initial collider size for push-down.
+                    float endRadius = undressData.IsTop ? 1.6f : 2.4f; // Final collider size for push-down.
+                    var pivotCollider = undressData.collider;
+                    Vector3 startColliderCenter = pivotCollider != null ? pivotCollider.center : Vector3.zero;
+                    float endCenterYOffset = undressData.IsTop ? -0.25f : -1.00f;
+
+                    while (timer < ClothUndressDuration.Value && !_quickStop)
+                    {
+                        if (cloth == null)
+                            break;
+
+                        float t = timer / ClothUndressDuration.Value;
+                        float tSmooth = Mathf.SmoothStep(0f, 1f, t);
+
+                        if (pivotCollider != null) {
+                            pivotCollider.radius = Mathf.Lerp(startRadius, endRadius, t);
+                            pivotCollider.height = pivotCollider.radius * endRadius;
+                            float yOffset = Mathf.Lerp(0f, endCenterYOffset, t);
+                            pivotCollider.center = startColliderCenter + new Vector3(0f, yOffset, 0f);
+                        }
+
+    
+                        float pullForce = Mathf.Lerp(startPull, endPull, tSmooth);
+                        if (cloth != null)
+                            cloth.externalAcceleration = Vector3.down * pullForce;
+
+                        float topScale = Mathf.Lerp(1f, 1.4f, tSmooth);
+                        float midScale = Mathf.Lerp(1f, 2.0f, tSmooth);
+                        float bottomScale = Mathf.Lerp(1f, 2.5f, tSmooth);
+
+                        for (int i = 0; i < coeffs.Length; i++)
+                        {
+                            float targetMaxDistance;
+                            if (normalizedYs[i] > 0.80f)
+                                targetMaxDistance = Mathf.Lerp(startDistances[i], topMaxDistance * topScale, tSmooth);
+                            else if (normalizedYs[i] > 0.40f)
+                                targetMaxDistance = Mathf.Lerp(startDistances[i], midMaxDistance * midScale, tSmooth);
+                            else
+                                targetMaxDistance = Mathf.Lerp(startDistances[i], bottomMaxDistance * bottomScale, tSmooth);
+
+                            coeffs[i].maxDistance = targetMaxDistance;
+                        }
+
+                        timer += Time.deltaTime;
+                        if (cloth != null)
+                            cloth.coefficients = coeffs;
+
+                        yield return null;     
+                    }
+                }
+            }       
         }
 
         private IEnumerator DoUnressCoroutine(UndressData undressData, Cloth cloth)
@@ -583,11 +509,6 @@ namespace UndressPhysics
                     }
                 }
                 Logger.LogMessage($"[UndressDiag] links cloth={cloth.name}, sphere={sphereCount}, capsule={capsuleCount}, pivotLinked={hasPivotCapsule}, pivotName={(undressData.collider != null ? undressData.collider.name : "null")}");
-
-                undressData.cloth.ClearTransformMotion();
-                undressData.cloth.worldVelocityScale = 0f;
-                undressData.cloth.worldAccelerationScale = 1f;
-                undressData.cloth.useGravity = true;
 
                 // Back up cloth coefficients.
                 ClothSkinningCoefficient[] coeffs = cloth.coefficients;
@@ -627,19 +548,23 @@ namespace UndressPhysics
             if (endCoroutineCnt == _undressDataList.Count)
             {
                 Logger.LogMessage("undress done");
-                // cloth.enabled = false;
-                // cloth.enabled = true;
                 EndUndress(undressData.ociChar.GetChaControl());
             }
         }
 
+        private IEnumerator StartUndressDelayed(UndressData data)
+        {
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            data.coroutine = StartCoroutine(DoUnressCoroutine(data, data.cloth));
+        }
+
         private void DoUndressAll(){
-            _undressAttemptSeq++;
             int endCoroutineCnt = 0;
             
             _quickStop = false;
-            Logger.LogMessage($"[UndressAttempt:{_undressAttemptSeq}] DoUndressAll called. existingData={_undressDataList.Count}");
-
+            
             // Count completed coroutines.
             foreach (UndressData undressData in _undressDataList)
             {
@@ -649,7 +574,6 @@ namespace UndressPhysics
 
             if (endCoroutineCnt != _undressDataList.Count)
             {
-                Logger.LogMessage($"[UndressAttempt:{_undressAttemptSeq}] wait until undress done");
                 return;
             }
 
@@ -682,7 +606,7 @@ namespace UndressPhysics
                         if (clothes.Length > 0) {
                             UndressPhysicsUtils.AllocateClothColliders(chaCtrl, UndressPhysicsUtils.topManifestXml, "top", "999999990", clothes, true);
                             UndressPhysicsUtils.AllocateClothColliders(chaCtrl, UndressPhysicsUtils.bottomManifestXml, "bottom", "8888888880", clothes, false);
-                            AllocateUndressData(chaCtrl, clothes, true);
+                            AllocateUndressData(chaCtrl, clothes[0], true);                            
                         }
                     }
 
@@ -695,61 +619,32 @@ namespace UndressPhysics
                             string meshName = smr != null && smr.sharedMesh != null ? smr.sharedMesh.name : "null";
                             Logger.LogMessage($"[UndressAttempt:{_undressAttemptSeq}] bottom cloth={GetTransformPath(c.transform)}, coeffs={c.coefficients.Length}, mesh={meshName}");
                         }
-
                         if (clothes.Length > 0) {
-                            UndressPhysicsUtils.AllocateClothColliders(chaCtrl, UndressPhysicsUtils.bottomManifestXml, "bottom", "8888888880", clothes, false);
-                            AllocateUndressData(chaCtrl, clothes, false);
+                            UndressPhysicsUtils.AllocateClothColliders(chaCtrl, UndressPhysicsUtils.bottomManifestXml, "bottom", "8888888880", clothes, false);                         
+                            AllocateUndressData(chaCtrl, clothes[0], false);                            
                         }
                     }
-
-                    int nullClothCount = 0;
-                    int nullColliderCount = 0;
-                    foreach (UndressData data in _undressDataList)
-                    {
-                        if (data == null || data.cloth == null)
-                            nullClothCount++;
-                        if (data == null || data.collider == null)
-                            nullColliderCount++;
-                    }
-                    Logger.LogMessage($"[UndressAttempt:{_undressAttemptSeq}] dataCount={_undressDataList.Count}, nullCloth={nullClothCount}, nullCollider={nullColliderCount}");
 
                     if (_undressDataList.Count == 0)
                     {
                         Logger.LogMessage("No physics cloths found");
                     } else
                     {
-                        RefreshClothStateBeforeUndress();
-                        int startedCount = 0;
-
                         // undress cloth collider auto assignment
                         foreach (UndressData undressData in _undressDataList)
                         {
                             if (undressData != null)
                             {
                                 if (undressData.coroutine == null) {
-                                    undressData.coroutine = StartCoroutine(DoUnressCoroutine(undressData, undressData.cloth));
-                                    startedCount++;
+                                    undressData.coroutine = StartCoroutine(StartUndressDelayed(undressData));
                                 }
                             }
                         }
-                        Logger.LogMessage($"[UndressAttempt:{_undressAttemptSeq}] startedCoroutines={startedCount}");
                     }
                 }   
             }         
         }
 
-        private void RefreshClothStateBeforeUndress()
-        {
-            foreach (UndressData data in _undressDataList)
-            {
-                if (data == null || data.cloth == null)
-                    continue;
-
-                data.cloth.ClearTransformMotion();
-                data.cloth.enabled = false;
-                data.cloth.enabled = true;
-            }
-        }
         private void EndUndress(ChaControl chaCtrl)
         {
             // Reset state.
@@ -759,7 +654,7 @@ namespace UndressPhysics
                     StopCoroutine(undressData.coroutine);
                 }
 
-                UndressPhysicsUtils.RestoreClothColliders(undressData.cloth);
+                UndressPhysicsUtils.RestoreClothColliders(undressData.cloth); // go to origin clothes
             }
 
             _undressDataList.Clear();
@@ -777,15 +672,17 @@ namespace UndressPhysics
             }
         }
 
-        private void AllocateUndressData(ChaControl chaCtrl, Cloth[] clothes, bool isTop)
+        private void AllocateUndressData(ChaControl chaCtrl, Cloth cloth, bool isTop)
         {   
             if (chaCtrl != null)
             {
-                foreach(Cloth cloth in clothes)
-                {
-                    UndressData undressData = UndressPhysicsUtils.CreateUndressData(cloth, chaCtrl, isTop);
-                    _undressDataList.Add(undressData);
-                }
+                UndressData undressData = UndressPhysicsUtils.CreateUndressData(cloth, chaCtrl, isTop);
+                _undressDataList.Add(undressData);        
+                // foreach(Cloth cloth in clothes)
+                // {
+                //     UndressData undressData = UndressPhysicsUtils.CreateUndressData(cloth, chaCtrl, isTop);
+                //     _undressDataList.Add(undressData);
+                // }
             }
         }
 
