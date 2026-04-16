@@ -54,7 +54,7 @@ using KKAPI.Chara;
     Agent 코드 수행
 
     목적:
-    - 활성화된 캐릭터가 착용한 Cloth 컴포넌트의 각 bone 정보를 시각화하고 position, scale 처리를 제공
+    - 의상 스키닝 본을 빠르게 매핑하고 위치/스케일을 조정하는 플러그인
 
     용어:
     - OCIChar: 캐릭터 
@@ -88,7 +88,6 @@ namespace ClothQuickTransform
 #endif
     [BepInDependency("com.bepis.bepinex.extendedsave")]
 #endif
-    // 의상 스키닝 본을 빠르게 매핑하고 위치/스케일을 조정하는 플러그인
     public class ClothQuickTransform : GenericPlugin
 #if IPA
                             , IEnhancedPlugin
@@ -143,8 +142,10 @@ namespace ClothQuickTransform
         private static readonly Color ModifiedEntryColor = new Color(1f, 0f, 0f, 1f);
         private static readonly Color UnmodifiedEntryColor = new Color(0.75f, 0.95f, 0.75f, 1f);
         private const float TransformCompareEpsilon = 0.001f;
+        private const float RotationCompareEpsilonDegrees = 0.1f;
         private static readonly float[] SliderStepOptions = new float[] { 1f, 0.1f, 0.01f, 0.001f };
         private int _posStepIndex = 1;
+        private int _rotStepIndex = 1;
         private int _scaleStepIndex = 2;
         private int _slotIndex = 0;
         private string _boneFilterText = string.Empty;
@@ -404,6 +405,10 @@ namespace ClothQuickTransform
                             ReadFloat(transferNode, "posX"),
                             ReadFloat(transferNode, "posY"),
                             ReadFloat(transferNode, "posZ")),
+                        rotation = new Vector3(
+                            ReadFloat(transferNode, "rotX"),
+                            ReadFloat(transferNode, "rotY"),
+                            ReadFloat(transferNode, "rotZ")),
                         scale = new Vector3(
                             ReadFloat(transferNode, "scaleX", 1f),
                             ReadFloat(transferNode, "scaleY", 1f),
@@ -518,6 +523,9 @@ namespace ClothQuickTransform
                         writer.WriteAttributeString("posX", entry.Value.position.x.ToString(CultureInfo.InvariantCulture));
                         writer.WriteAttributeString("posY", entry.Value.position.y.ToString(CultureInfo.InvariantCulture));
                         writer.WriteAttributeString("posZ", entry.Value.position.z.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("rotX", entry.Value.rotation.x.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("rotY", entry.Value.rotation.y.ToString(CultureInfo.InvariantCulture));
+                        writer.WriteAttributeString("rotZ", entry.Value.rotation.z.ToString(CultureInfo.InvariantCulture));
                         writer.WriteAttributeString("scaleX", entry.Value.scale.x.ToString(CultureInfo.InvariantCulture));
                         writer.WriteAttributeString("scaleY", entry.Value.scale.y.ToString(CultureInfo.InvariantCulture));
                         writer.WriteAttributeString("scaleZ", entry.Value.scale.z.ToString(CultureInfo.InvariantCulture));
@@ -734,6 +742,15 @@ namespace ClothQuickTransform
                             pos.z = SliderRow("Pos Z", pos.z, -2.0f, 2.0f, 0.0f, posStep);
                             entry.transfer.localPosition = pos;
 
+                            GUILayout.Label("<color=orange>Rotation</color>", RichLabel);
+                            DrawStepSelector(ref _rotStepIndex, "Step");
+                            Vector3 rot = NormalizeEuler(entry.transfer.localEulerAngles);
+                            float rotStep = SliderStepOptions[_rotStepIndex];
+                            rot.x = SliderRow("Rot X", rot.x, -180.0f, 180.0f, 0.0f, rotStep);
+                            rot.y = SliderRow("Rot Y", rot.y, -180.0f, 180.0f, 0.0f, rotStep);
+                            rot.z = SliderRow("Rot Z", rot.z, -180.0f, 180.0f, 0.0f, rotStep);
+                            entry.transfer.localRotation = Quaternion.Euler(rot);
+
                             GUILayout.Label("<color=orange>Scale</color>", RichLabel);
                             DrawStepSelector(ref _scaleStepIndex, "Step");
                             Vector3 scale = entry.transfer.localScale;
@@ -748,6 +765,7 @@ namespace ClothQuickTransform
                             if (GUILayout.Button("Reset All"))
                             {
                                 entry.transfer.localPosition = Vector3.zero;
+                                entry.transfer.localRotation = Quaternion.identity;
                                 entry.transfer.localScale = Vector3.one;
                                 StoreAdjustmentsFor(chaCtrl, CaptureAdjustments(entries), _slotIndex);
                             }
@@ -841,9 +859,11 @@ namespace ClothQuickTransform
                 return false;
 
             Vector3 pos = entry.transfer.localPosition;
+            Quaternion rot = entry.transfer.localRotation;
             Vector3 scale = entry.transfer.localScale;
 
             return !ApproximatelyVector(pos, Vector3.zero)
+                || !ApproximatelyQuaternion(rot, Quaternion.identity)
                 || !ApproximatelyVector(scale, Vector3.one);
         }
 
@@ -852,6 +872,29 @@ namespace ClothQuickTransform
             return Mathf.Abs(a.x - b.x) < TransformCompareEpsilon
                 && Mathf.Abs(a.y - b.y) < TransformCompareEpsilon
                 && Mathf.Abs(a.z - b.z) < TransformCompareEpsilon;
+        }
+
+        private bool ApproximatelyQuaternion(Quaternion a, Quaternion b)
+        {
+            return Quaternion.Angle(a, b) < RotationCompareEpsilonDegrees;
+        }
+
+        private Vector3 NormalizeEuler(Vector3 euler)
+        {
+            return new Vector3(
+                NormalizeAngle(euler.x),
+                NormalizeAngle(euler.y),
+                NormalizeAngle(euler.z));
+        }
+
+        private float NormalizeAngle(float angle)
+        {
+            angle %= 360f;
+            if (angle > 180f)
+                angle -= 360f;
+            else if (angle < -180f)
+                angle += 360f;
+            return angle;
         }
 
         private bool IsAdjustableBoneName(string normalizedBoneName)
@@ -1297,6 +1340,7 @@ namespace ClothQuickTransform
                 map[name] = new SavedAdjustment
                 {
                     position = entry.transfer.localPosition,
+                    rotation = NormalizeEuler(entry.transfer.localEulerAngles),
                     scale = entry.transfer.localScale
                 };
             }
@@ -1309,6 +1353,7 @@ namespace ClothQuickTransform
             if (saved.TryGetValue(entry.boneName, out var adj))
             {
                 entry.transfer.localPosition = adj.position;
+                entry.transfer.localRotation = Quaternion.Euler(adj.rotation);
                 entry.transfer.localScale = adj.scale;
             }
         }
@@ -1739,6 +1784,7 @@ namespace ClothQuickTransform
         internal struct SavedAdjustment
         {
             public Vector3 position;
+            public Vector3 rotation;
             public Vector3 scale;
         }
         #endregion

@@ -72,10 +72,10 @@ using KKAPI.Chara;
             2.2) sceneRead는 시 씬내 각 캐릭터의 각 PhysicCollider 에 1.5.1에서 저장한 xml 정보를 다시 PhysicCollider 로 업데이트 해야 한다.
 
     추가 요구 기능:
-        N/A
+        - 해당 옷에 cloth 컴포넌트가 없으면 'No Physics Cloth found' 라고 출력되어야 함
 
     현 버전 문제점:
-        N/A
+        - N/A
 */
 namespace ClothCollideVisualizer
 {
@@ -108,8 +108,8 @@ namespace ClothCollideVisualizer
         public override string[] Filter { get { return new[] { "StudioNEO_32", "StudioNEO_64" }; } }
 #endif
 
-        private const string GROUP_CAPSULE_COLLIDER = "Group: (C)Colliders";
-        private const string GROUP_SPHERE_COLLIDER = "Group: (S)Colliders";
+        private const string GROUP_CAPSULE_COLLIDER = "Capsule_Colliders";
+        private const string GROUP_SPHERE_COLLIDER = "Sphere_Colliders";
         private const int SlotTop = 0;
         private const int SlotBottom = 1;
         private const string ColliderSupportPrefix = "Cloth colliders support_";
@@ -223,23 +223,6 @@ namespace ClothCollideVisualizer
                 Init();
         }
 #endif
-
-        protected override void Update()
-        {            
-        }
-
-        protected override void OnGUI()
-        {
-            if (_loaded == false)
-                return;
-
-            if (StudioAPI.InsideStudio) {            
-                if (_ShowUI == false)             
-                    return;
-
-                _windowRect = GUILayout.Window(_uniqueId + 1, _windowRect, WindowFunc, "ClothCollideVisualizer " + Version);
-            }                
-        }
 
 #if FEATURE_SCENE_SAVE
         private void OnSceneLoad(string path)
@@ -961,6 +944,25 @@ namespace ClothCollideVisualizer
             return null;
         }
 #endif
+
+        protected override void Update()
+        {            
+        }
+
+        protected override void OnGUI()
+        {
+            if (_loaded == false)
+                return;
+
+            if (StudioAPI.InsideStudio) {            
+                if (_ShowUI == false)             
+                    return;
+
+                _windowRect = GUILayout.Window(_uniqueId + 1, _windowRect, WindowFunc, "ClothCollideVisualizer " + Version);
+            }                
+        }
+
+
         // 현재 스튜디오에서 선택된 OCIChar를 가져온다.
         private OCIChar GetCurrentOCI()
         {

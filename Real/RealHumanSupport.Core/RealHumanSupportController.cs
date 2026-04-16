@@ -1258,30 +1258,22 @@ namespace RealHumanSupport
                         {
                             realHumanData.anus_open_idx_in_body = idx;
                         }
+                        else if (name.Contains("GP.Anus Pull Out"))
+                        {
+                            realHumanData.anus_pullout_idx_in_body = idx;
+                        }                        
                         else if (name.Contains("GP.Vagina Open Front"))
                         {
                             realHumanData.vagina_open_front_idx_in_body = idx;
-                        }                        
+                        }                                                
                         else if (name.Contains("GP.Vagina Open All"))
                         {
                             realHumanData.vagina_open_all_idx_in_body = idx;
                         }
-                        // else if (name.Contains("RG.Thigh Left Bent"))
-                        // {
-                        //     realHumanData.thigh_left_bent_idx_in_body = idx;
-                        // }
-                        // else if (name.Contains("RG.Thigh Right Bent"))
-                        // {
-                        //     realHumanData.thigh_right_bent_idx_in_body = idx;
-                        // }
-                        // else if (name.Contains("RG.Pubis Left Bent"))
-                        // {
-                        //     realHumanData.pubis_left_bent_idx_in_body = idx;
-                        // }
-                        // else if (name.Contains("RG.Pubis Right Bent"))
-                        // {
-                        //     realHumanData.pubis_right_bent_idx_in_body = idx;
-                        // }
+                        else if (name.Contains("GP.Vagina Up"))
+                        {
+                            realHumanData.vagina_up_idx_in_body = idx;
+                        }
 
                         // UnityEngine.Debug.Log($">> blendShape {name}, {idx} in body"); 
                     }
@@ -2028,6 +2020,11 @@ namespace RealHumanSupport
                     
                    if (RealHumanSupport.BreathActive.Value)
                    {
+                       float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
+                       float vaginaFrontWeight = sinValue * 50f;
+                       SetBlendShape(vaginaFrontWeight, realHumanData.anus_pullout_idx_in_body);
+                       SetBlendShape(vaginaFrontWeight, realHumanData.vagina_up_idx_in_body);
+
                        if (realHumanData.pregnancyController != null)
                        {   
                            if(previosBellySize != realHumanData.pregnancyController.infConfig.inflationSize)
@@ -2040,8 +2037,6 @@ namespace RealHumanSupport
                                }
                            } else
                            {
-                               float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
-                     
                                realHumanData.pregnancyController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * realHumanData.BreathStrong;
                                realHumanData.pregnancyController.MeshInflate(new MeshInflateFlags(realHumanData.pregnancyController), "StudioSlider");
                                previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
@@ -2331,8 +2326,10 @@ namespace RealHumanSupport
         public int buttchecks1_idx_in_body;
         public int buttchecks2_idx_in_body;
         public int anus_open_idx_in_body;
+        public int anus_pullout_idx_in_body;
         public int vagina_open_front_idx_in_body;        
         public int vagina_open_all_idx_in_body;
+        public int vagina_up_idx_in_body;                
 
         public int thigh_left_bent_idx_in_body;
         public int thigh_right_bent_idx_in_body;
@@ -2352,8 +2349,10 @@ namespace RealHumanSupport
             buttchecks1_idx_in_body = -1;
             buttchecks2_idx_in_body = -1;
             anus_open_idx_in_body = -1;
+            anus_pullout_idx_in_body = -1;
             vagina_open_front_idx_in_body = -1;
             vagina_open_all_idx_in_body = -1;            
+            vagina_up_idx_in_body = -1;
 
             // fixed
             // thigh_left_bent_idx_in_body = -1;
@@ -2431,10 +2430,10 @@ public class CapsuleTrigger : MonoBehaviour
         {
             currentValue = targetValue;
         }
-
-        if (currentValue < 40)
-            _controller.SetBlendShape(currentValue, _data.vagina_open_front_idx_in_body);        
-        _controller.SetBlendShape(currentValue, _data.vagina_open_all_idx_in_body);        
+        
+        _controller.SetBlendShape(currentValue, _data.vagina_open_front_idx_in_body);
+        
+        // _controller.SetBlendShape(currentValue, _data.vagina_open_all_idx_in_body);
 #endif
     }
 
