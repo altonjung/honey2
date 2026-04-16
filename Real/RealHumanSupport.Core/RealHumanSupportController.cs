@@ -1228,8 +1228,8 @@ namespace RealHumanSupport
         }
 #endif 
 
-
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
+
         internal void SetBodyBlendShapes()
         {
             if (realHumanData != null)
@@ -1254,27 +1254,38 @@ namespace RealHumanSupport
                         {
                             realHumanData.buttchecks2_idx_in_body = idx;
                         }
-                        else if (name.Contains("GP.Anus Open Large 3"))
+                        else if (name.Contains("Breast Nipple Press Left")) 
+                        {
+
+                        }
+                        else if (name.Contains("Breast Nipple Press Right")) 
+                        {
+
+                        }
+                        else if (name.Contains("Anus Open Large 3")) 
                         {
                             realHumanData.anus_open_idx_in_body = idx;
                         }
-                        else if (name.Contains("GP.Anus Pull Out"))
+                        else if (name.Contains("Anus Pull Out"))
                         {
                             realHumanData.anus_pullout_idx_in_body = idx;
-                        }                        
-                        else if (name.Contains("GP.Vagina Open Front"))
+                        }
+                        else if (name.Contains("Vagina Up")) // 50 까지
                         {
-                            realHumanData.vagina_open_front_idx_in_body = idx;
+                            realHumanData.vagina_up_idx_in_body = idx; // collider 유형에 따라 깊이 조정
                         }                                                
-                        else if (name.Contains("GP.Vagina Open All"))
+                        else if (name.Contains("Vagina Open Front"))
                         {
-                            realHumanData.vagina_open_all_idx_in_body = idx;
-                        }
-                        else if (name.Contains("GP.Vagina Up"))
+                            realHumanData.vagina_open_front_idx_in_body = idx; // 100 까지
+                        }                                                
+                        else if (name.Contains("Vagina Open All Outside"))
                         {
-                            realHumanData.vagina_up_idx_in_body = idx;
+                            realHumanData.vagina_open_all_outside_idx_in_body = idx; // 30 까지 
                         }
-
+                        else if (name.Contains("Vagina Open Squeeze"))
+                        {
+                            realHumanData.vagina_open_squeeze_idx_in_body = idx; // 주기적 처리 0  ~ 100 
+                        }
                         // UnityEngine.Debug.Log($">> blendShape {name}, {idx} in body"); 
                     }
                 }
@@ -2021,7 +2032,7 @@ namespace RealHumanSupport
                    if (RealHumanSupport.BreathActive.Value)
                    {
                        float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
-                       float vaginaFrontWeight = sinValue * 50f;
+                       float vaginaFrontWeight = sinValue * 30f;
                        SetBlendShape(vaginaFrontWeight, realHumanData.anus_pullout_idx_in_body);
                        SetBlendShape(vaginaFrontWeight, realHumanData.vagina_up_idx_in_body);
 
@@ -2328,7 +2339,8 @@ namespace RealHumanSupport
         public int anus_open_idx_in_body;
         public int anus_pullout_idx_in_body;
         public int vagina_open_front_idx_in_body;        
-        public int vagina_open_all_idx_in_body;
+        public int vagina_open_all_outside_idx_in_body;
+        public int vagina_open_squeeze_idx_in_body;
         public int vagina_up_idx_in_body;                
 
         public int thigh_left_bent_idx_in_body;
@@ -2351,7 +2363,8 @@ namespace RealHumanSupport
             anus_open_idx_in_body = -1;
             anus_pullout_idx_in_body = -1;
             vagina_open_front_idx_in_body = -1;
-            vagina_open_all_idx_in_body = -1;            
+            vagina_open_all_outside_idx_in_body = -1;
+            vagina_open_squeeze_idx_in_body = -1;
             vagina_up_idx_in_body = -1;
 
             // fixed
@@ -2393,9 +2406,9 @@ public class CapsuleTrigger : MonoBehaviour
     private bool isTransitionActive = false;
 
     public ContactResponseProfile ResponseProfile = ContactResponseProfile.Elastic;
-    public float EnterDuration = 0.28f; // enter: fast -> slow
-    public float ExitDuration = 0.52f;  // exit: slow -> fast
-    public float GlobalResponseSpeed = 1.0f; // scales all profiles (0.1 ~ 3.0 recommended)
+    public float EnterDuration = 0.52f; // enter: slow -> fast
+        public float ExitDuration = 0.28f;  // exit: fast -> slow
+        public float GlobalResponseSpeed = 1.0f; // scales all profiles (0.1 ~ 3.0 recommended)
 
     public void Bind(RealHumanSupportController controller)
     {
@@ -2433,7 +2446,7 @@ public class CapsuleTrigger : MonoBehaviour
         
         _controller.SetBlendShape(currentValue, _data.vagina_open_front_idx_in_body);
         
-        // _controller.SetBlendShape(currentValue, _data.vagina_open_all_idx_in_body);
+        // _controller.SetBlendShape(currentValue, _data.vagina_open_all_outside_idx_in_body);
 #endif
     }
 

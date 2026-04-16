@@ -385,14 +385,13 @@ namespace UndressPhysics
 
                 cloth.worldVelocityScale = 0f;
                 cloth.worldAccelerationScale = 0f;
-                cloth.useGravity = false;
+                // cloth.useGravity = false;
 
                 cloth.enabled = false;
-                cloth.enabled = true;
+                cloth.enabled = true;                              
+                cloth.ClearTransformMotion();   // Important: reset simulation velocity.  
 
-                float[] originalMax = undressData.originalMaxDistances[cloth];
-
-                if (originalMax != null && originalMax.Length > 0)
+                if (undressData.originalMaxDistances.TryGetValue(cloth, out var originalMax)) 
                 {
                     var coeffs = cloth.coefficients;
                     int count = Mathf.Min(coeffs.Length, originalMax.Length);
@@ -400,10 +399,10 @@ namespace UndressPhysics
                     for (int i = 0; i < count; i++)
                         coeffs[i].maxDistance = originalMax[i];
 
+                    cloth.coefficients = coeffs;                 
                     cloth.coefficients = coeffs;
                 }
-
-                cloth.ClearTransformMotion();   // Important: reset simulation velocity.
+                 
             }
         }
     }

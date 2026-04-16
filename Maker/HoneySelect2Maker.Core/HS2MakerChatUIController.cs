@@ -34,6 +34,16 @@ using System.Text;
 using AIChara;
 #endif
 
+/*
+   1) 188 라인 아래 코드 오류             
+            if (chatReply != null)
+                nextAction = chatReply.next_action;
+
+   2) textAreaGO 는 참조할 수 없는 상황
+
+
+*/
+
 namespace HoneySelect2Maker
 {
     public class HS2ChatUIController
@@ -74,6 +84,7 @@ namespace HoneySelect2Maker
         private const float BubblePaddingY = 12.0f;
 
         private float _chatWindowWidthRatio = 1.0f;
+        private float _chatWindowHeightRatio = 1.0f;
         private float _dialoguePanelWidth = 560.0f;
         private float _dialoguePanelMinHeight = 76.0f;
         private Sprite _dialoguePanelBackgroundSprite;

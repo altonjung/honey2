@@ -440,12 +440,17 @@ namespace UndressPhysics
                     Vector3 startColliderCenter = pivotCollider != null ? pivotCollider.center : Vector3.zero;
                     float endCenterYOffset = undressData.IsTop ? -0.25f : -1.00f;
 
-                    while (timer < ClothUndressDuration.Value && !_quickStop)
+                    float duration = ClothUndressDuration.Value;
+                    while (timer < duration && !_quickStop)
                     {
                         if (cloth == null)
                             break;
 
-                        float t = timer / ClothUndressDuration.Value;
+                        topMaxDistance = 3.0f * ClothUndressForce.Value;
+                        midMaxDistance = 5.0f * ClothUndressForce.Value;
+                        bottomMaxDistance = 3.0f * ClothUndressForce.Value;
+
+                        float t = timer / duration;
                         float tSmooth = Mathf.SmoothStep(0f, 1f, t);
 
                         if (pivotCollider != null) {
@@ -455,17 +460,18 @@ namespace UndressPhysics
                             pivotCollider.center = startColliderCenter + new Vector3(0f, yOffset, 0f);
                         }
 
-    
                         float pullForce = Mathf.Lerp(startPull, endPull, tSmooth);
                         if (cloth != null)
                             cloth.externalAcceleration = Vector3.down * pullForce;
 
-                        float topScale = Mathf.Lerp(1f, 1.4f, tSmooth);
+                        float topScale = Mathf.Lerp(1f, 1.5f, tSmooth);
                         float midScale = Mathf.Lerp(1f, 2.0f, tSmooth);
                         float bottomScale = Mathf.Lerp(1f, 2.5f, tSmooth);
 
                         for (int i = 0; i < coeffs.Length; i++)
                         {
+                            var c = coeffs[i];
+
                             float targetMaxDistance;
                             if (normalizedYs[i] > 0.80f)
                                 targetMaxDistance = Mathf.Lerp(startDistances[i], topMaxDistance * topScale, tSmooth);
@@ -474,7 +480,8 @@ namespace UndressPhysics
                             else
                                 targetMaxDistance = Mathf.Lerp(startDistances[i], bottomMaxDistance * bottomScale, tSmooth);
 
-                            coeffs[i].maxDistance = targetMaxDistance;
+                            c.maxDistance = targetMaxDistance;
+                            coeffs[i] = c;
                         }
 
                         timer += Time.deltaTime;
@@ -494,6 +501,11 @@ namespace UndressPhysics
                 while (!_loaded)
                     yield return null;
 
+                // Warm up the cloth solver once so the first undress attempt
+                // starts from a consistent runtime state.
+                yield return StartCoroutine(WarmupClothSolver(cloth));
+                // UndressPhysicsUtils.RestoreMaxDistances(undressData);       
+
                 int sphereCount = cloth.sphereColliders != null ? cloth.sphereColliders.Length : 0;
                 int capsuleCount = cloth.capsuleColliders != null ? cloth.capsuleColliders.Length : 0;
                 bool hasPivotCapsule = false;
@@ -508,7 +520,6 @@ namespace UndressPhysics
                         }
                     }
                 }
-                Logger.LogMessage($"[UndressDiag] links cloth={cloth.name}, sphere={sphereCount}, capsule={capsuleCount}, pivotLinked={hasPivotCapsule}, pivotName={(undressData.collider != null ? undressData.collider.name : "null")}");
 
                 // Back up cloth coefficients.
                 ClothSkinningCoefficient[] coeffs = cloth.coefficients;
@@ -552,9 +563,31 @@ namespace UndressPhysics
             }
         }
 
+        private IEnumerator WarmupClothSolver(Cloth cloth)
+        {
+            if (cloth == null)
+                yield break;
+
+            // One physics step to settle solver state before undress starts.
+            // yield return new WaitForFixedUpdate();
+
+            // Rebind coefficients while disabled so Unity's native cloth solver
+            // starts in the same state as the post-restore path.
+            // var coeffs = cloth.coefficients;
+
+            cloth.enabled = false;
+            cloth.enabled = true;
+            cloth.ClearTransformMotion();
+            // cloth.coefficients = coeffs;
+
+            cloth.externalAcceleration = Vector3.zero;
+
+            // One physics step to settle solver state before undress starts.
+            yield return new WaitForFixedUpdate();
+        }
+
         private IEnumerator StartUndressDelayed(UndressData data)
         {
-            yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
 
             data.coroutine = StartCoroutine(DoUnressCoroutine(data, data.cloth));
@@ -596,12 +629,10 @@ namespace UndressPhysics
 
                     if (clothTop != null) {
                         Cloth[] clothes = clothTop.GetComponentsInChildren<Cloth>(true);
-                        Logger.LogMessage($"[UndressAttempt:{_undressAttemptSeq}] top cloth count={clothes.Length}");
                         foreach (Cloth c in clothes)
                         {
                             var smr = c.GetComponent<SkinnedMeshRenderer>();
                             string meshName = smr != null && smr.sharedMesh != null ? smr.sharedMesh.name : "null";
-                            Logger.LogMessage($"[UndressAttempt:{_undressAttemptSeq}] top cloth={GetTransformPath(c.transform)}, coeffs={c.coefficients.Length}, mesh={meshName}");
                         }
                         if (clothes.Length > 0) {
                             UndressPhysicsUtils.AllocateClothColliders(chaCtrl, UndressPhysicsUtils.topManifestXml, "top", "999999990", clothes, true);
@@ -612,12 +643,10 @@ namespace UndressPhysics
 
                     if (clothBottom != null) {
                         Cloth[] clothes = clothBottom.GetComponentsInChildren<Cloth>(true);
-                        Logger.LogMessage($"[UndressAttempt:{_undressAttemptSeq}] bottom cloth count={clothes.Length}");
                         foreach (Cloth c in clothes)
                         {
                             var smr = c.GetComponent<SkinnedMeshRenderer>();
                             string meshName = smr != null && smr.sharedMesh != null ? smr.sharedMesh.name : "null";
-                            Logger.LogMessage($"[UndressAttempt:{_undressAttemptSeq}] bottom cloth={GetTransformPath(c.transform)}, coeffs={c.coefficients.Length}, mesh={meshName}");
                         }
                         if (clothes.Length > 0) {
                             UndressPhysicsUtils.AllocateClothColliders(chaCtrl, UndressPhysicsUtils.bottomManifestXml, "bottom", "8888888880", clothes, false);                         
@@ -654,7 +683,7 @@ namespace UndressPhysics
                     StopCoroutine(undressData.coroutine);
                 }
 
-                UndressPhysicsUtils.RestoreClothColliders(undressData.cloth); // go to origin clothes
+                UndressPhysicsUtils.RestoreClothColliders(undressData.cloth); // back to origin clothes
             }
 
             _undressDataList.Clear();

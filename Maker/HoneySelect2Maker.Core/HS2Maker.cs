@@ -451,8 +451,7 @@ namespace HoneySelect2Maker
 
             yield return new WaitForEndOfFrame();            
 
-             //var chatUI = new HS2ChatUIController();
-            var chatUI = new HS2ChatSUIController();
+             var chatUI = new HS2ChatUIController();
             chatUI.SetFontFromOSBySystemLanguage();
 
             var user = new ChatUser
