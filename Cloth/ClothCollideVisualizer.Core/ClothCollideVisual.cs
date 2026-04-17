@@ -509,6 +509,11 @@ namespace ClothCollideVisualizer
             return result;
         }
 
+        private static bool HasPhysicsCloth(GameObject clothObj)
+        {
+            return clothObj != null && clothObj.GetComponentsInChildren<Cloth>(true).Length > 0;
+        }
+
         private static bool TryGetColliderCenter(Collider collider, out Vector3 center)
         {
             center = Vector3.zero;
@@ -1046,6 +1051,11 @@ namespace ClothCollideVisualizer
 
             if (physicCollider != null)
             {
+                ChaControl chaCtrl = ociChar != null ? ociChar.GetChaControl() : null;
+                GameObject topObj = (chaCtrl != null && chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 0) ? chaCtrl.objClothes[0] : null;
+                GameObject bottomObj = (chaCtrl != null && chaCtrl.objClothes != null && chaCtrl.objClothes.Length > 1) ? chaCtrl.objClothes[1] : null;
+                bool hasPhysicsCloth = HasPhysicsCloth(topObj) || HasPhysicsCloth(bottomObj);
+
                 if (!physicCollider.visualColliderAdded && !physicCollider.requireForceRefresh)
                     AddVisualColliders(ociChar);
 
@@ -1077,7 +1087,7 @@ namespace ClothCollideVisualizer
                 string filter = (_colliderFilterText ?? string.Empty).Trim();
                 bool hasFilter = !string.IsNullOrEmpty(filter);
 
-                _debugScroll = GUILayout.BeginScrollView(_debugScroll, GUI.skin.box, GUILayout.Height(180));
+                _debugScroll = GUILayout.BeginScrollView(_debugScroll, GUI.skin.box, GUILayout.Height(120));
                 int shownCount = 0;
                 for (int i = 0; i < physicCollider.debugEntries.Count; i++)
                 {
@@ -1114,6 +1124,10 @@ namespace ClothCollideVisualizer
                     GUI.contentColor = prevContentColor;
                 }
                 GUILayout.EndScrollView();
+
+                if (!hasPhysicsCloth)
+                    GUILayout.Label("<color=yellow>No Physics Cloth found</color>", RichLabel);
+
                 if (hasFilter)
                     GUILayout.Label($"Shown: {shownCount}/{physicCollider.debugEntries.Count}", RichLabel);
 
@@ -1124,8 +1138,8 @@ namespace ClothCollideVisualizer
                     bool isSelectedModified = GetEntryModifiedFlags(_selectedDebugEntry, out bool centerModified, out bool rotModified, out bool scaleModified);
                     string statusText = isSelectedModified ? "<color=red>Modified</color>" : "<color=#7CFC00>Unmodified</color>";
 
-                    GUILayout.Label($"<color=orange>{colliderType}</color>: {NormalizeColliderDisplayName(collider.name)}", RichLabel);
-                    GUILayout.Label($"Status: {statusText}", RichLabel);
+                    // GUILayout.Label($"<color=orange>{colliderType}</color>: {NormalizeColliderDisplayName(collider.name)}", RichLabel);
+                    // GUILayout.Label($"Status: {statusText}", RichLabel);
                     if (isSelectedModified)
                     {
                         string parts = string.Join(", ", new[]
@@ -1136,10 +1150,10 @@ namespace ClothCollideVisualizer
                         }.Where(v => !string.IsNullOrEmpty(v)).ToArray());
                         GUILayout.Label($"Modified: {parts}", RichLabel);
                     }
-                    GUILayout.Label($"Baseline Center: {_selectedDebugEntry.baselineCenter.x:0.###}, {_selectedDebugEntry.baselineCenter.y:0.###}, {_selectedDebugEntry.baselineCenter.z:0.###}", RichLabel);
-                    GUILayout.Label($"Baseline Rot: {_selectedDebugEntry.baselineLocalEuler.x:0.###}, {_selectedDebugEntry.baselineLocalEuler.y:0.###}, {_selectedDebugEntry.baselineLocalEuler.z:0.###}", RichLabel);
-                    GUILayout.Label($"Baseline Scale: {_selectedDebugEntry.baselineLocalScale.x:0.###}, {_selectedDebugEntry.baselineLocalScale.y:0.###}, {_selectedDebugEntry.baselineLocalScale.z:0.###}", RichLabel);
-                    draw_seperate();
+                    // GUILayout.Label($"Baseline Center: {_selectedDebugEntry.baselineCenter.x:0.###}, {_selectedDebugEntry.baselineCenter.y:0.###}, {_selectedDebugEntry.baselineCenter.z:0.###}", RichLabel);
+                    // GUILayout.Label($"Baseline Rot: {_selectedDebugEntry.baselineLocalEuler.x:0.###}, {_selectedDebugEntry.baselineLocalEuler.y:0.###}, {_selectedDebugEntry.baselineLocalEuler.z:0.###}", RichLabel);
+                    // GUILayout.Label($"Baseline Scale: {_selectedDebugEntry.baselineLocalScale.x:0.###}, {_selectedDebugEntry.baselineLocalScale.y:0.###}, {_selectedDebugEntry.baselineLocalScale.z:0.###}", RichLabel);
+                    // draw_seperate();
 
                     Transform debugTr = _selectedDebugEntry.debugTransform;
                     Transform debugCenterTr = _selectedDebugEntry.debugCenterTransform;

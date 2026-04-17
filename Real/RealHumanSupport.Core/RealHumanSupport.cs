@@ -363,7 +363,6 @@ namespace RealHumanSupport
                 GUILayout.Label(data.TearDropLevel.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal(); 
 
-                DrawExtraBodyColliderEditor(data);
 
                 if (GUILayout.Button("Force Refresh"))
                 {
@@ -372,6 +371,10 @@ namespace RealHumanSupport
                         controller.ExecuteRealHumanEffect(data.chaCtrl);
                     }
                 }
+
+                DrawExtraBodyColliderEditor(data);
+
+                GUILayout.BeginHorizontal();
 
                 if (TearDropActive.Value) {
                     if (GUILayout.Button("Tear(D)"))
@@ -411,6 +414,7 @@ namespace RealHumanSupport
                         EyeShakeActive.Value = true;
                     }
                 }
+                GUILayout.EndHorizontal();
 
                 if (GUILayout.Button("Default")) {
                     InitConfig();
@@ -468,7 +472,7 @@ namespace RealHumanSupport
             if (_selectedExtraBodyColliderIndex < 0 || _selectedExtraBodyColliderIndex >= colliders.Count)
                 _selectedExtraBodyColliderIndex = 0;
 
-            _extraBodyColliderScroll = GUILayout.BeginScrollView(_extraBodyColliderScroll, GUI.skin.box, GUILayout.Height(90));
+            _extraBodyColliderScroll = GUILayout.BeginScrollView(_extraBodyColliderScroll, GUI.skin.box, GUILayout.Height(120));
             for (int i = 0; i < colliders.Count; i++)
             {
                 DynamicBoneCollider collider = colliders[i];

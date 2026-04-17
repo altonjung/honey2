@@ -34,18 +34,23 @@ using System.Text;
 using AIChara;
 #endif
 
-/*
-   1) 188 라인 아래 코드 오류             
-            if (chatReply != null)
-                nextAction = chatReply.next_action;
-
-   2) textAreaGO 는 참조할 수 없는 상황
-
-
-*/
-
 namespace HoneySelect2Maker
 {
+    /*
+        Usage
+        1) Create UI: var chatUI = new HS2ChatUIController(); chatUI.CreateChatUI(chatController, actionController, user, heroin);
+        2) Output text: chatUI.AppendChat("System", "message");
+        3) Destroy UI: chatUI.DestroyChatUI();
+
+        Notes
+        - Type a message in the input box and press Enter to append it to the chat log.
+        - If EventSystem is missing, it is created automatically.
+
+        Font usage
+        Install .ttf or .otf files in C:\Users\<user>\AppData\Local\Microsoft\Windows\Fonts        
+
+    */
+    // Creates UGUI (Canvas + InputField/Text).
     public class HS2ChatUIController
     {
         public enum FontColorOption
@@ -77,20 +82,16 @@ namespace HoneySelect2Maker
         private readonly Dictionary<string, Sprite> _avatarSpriteCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
         private static Sprite _circleMaskSprite;
         private string _avatarFolderPath = UserData.Path + "/hs2maker/chat/avatar/";
-        private string _dialoguePanelFolderPath = UserData.Path + "/hs2maker/chat/dialogue/";
 
         private const float MaxBubbleWidth = 520.0f;
         private const float BubblePaddingX = 18.0f;
         private const float BubblePaddingY = 12.0f;
 
+        // Chat window size ratio (0~1): 1 means full screen.
         private float _chatWindowWidthRatio = 1.0f;
         private float _chatWindowHeightRatio = 1.0f;
-        private float _dialoguePanelWidth = 560.0f;
-        private float _dialoguePanelMinHeight = 76.0f;
-        private Sprite _dialoguePanelBackgroundSprite;
-        private Sprite _dialoguePanelLoadedBackgroundSprite;
-        private Color _dialoguePanelFallbackColor = new Color(0.08f, 0.08f, 0.10f, 0.72f);
 
+        // Creates the chat UI (canvas/panel/log/input) and anchors it to the bottom.
         internal void CreateChatUI(
             HS2ChatController chatController,
             HS2ActionController actionController,
@@ -162,7 +163,8 @@ namespace HoneySelect2Maker
 
             _chatInput.ActivateInputField();
         }
-        
+
+        // Collects user prompt: called on Enter and appends to the chat log.
         private async void OnSubmitInput(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -174,7 +176,6 @@ namespace HoneySelect2Maker
                 return;
             }
 
-            // your chat
             AppendChat("You", value.Trim());
             _chatInput.text = "waiting..";
   
@@ -188,20 +189,21 @@ namespace HoneySelect2Maker
                 _heroin,
                 value.Trim());
 
-            // assistant chat
-            string answer = chatReply != null && !string.IsNullOrWhiteSpace(chatReply.answer) ? chatReply.answer.Trim() : string.Empty;
-            AppendChat(_heroin.name, answer);            
-            
-            // action execution
+            string answer = chatReply != null && !string.IsNullOrWhiteSpace(chatReply.answer)
+                ? chatReply.answer.Trim()
+                : string.Empty;
+            AppendChat(_heroin.name, answer);
+
             string nextAction = "stay";
             if (chatReply != null)
-                nextAction = chatReply.next_action;
+                nextAction = chatReply.next_action.ToString().ToLowerInvariant();
             
             _chatInput.text = "";
-            _chatInput.ActivateInputField();            
+            _chatInput.ActivateInputField();
             _actionController.DoAction(this, nextAction);
         }
 
+        // Appends one line to the chat log text.
         internal void AppendChat(string speaker, string message)
         {
             if (_chatContent == null)
@@ -221,6 +223,7 @@ namespace HoneySelect2Maker
             }
         }
 
+        // Destroys chat UI objects and resets controller state.
         internal void DestroyChatUI()
         {
             if (_chatCanvasGO != null)
@@ -243,11 +246,14 @@ namespace HoneySelect2Maker
             HS2SceneController.DestroyCurrentRender();
         }
 
+        // Sets font size used by newly created messages/input text.
         internal void SetFontSize(int fontSize)
         {
             _fontSize = Mathf.Clamp(fontSize, 10, 40);
         }
 
+        // Sets chat window size using screen ratio (0.2~1.0) for width/height.
+        // Example: SetChatWindowSize(0.75f, 0.85f)
         internal void SetChatWindowSize(float widthRatio, float heightRatio)
         {
             _chatWindowWidthRatio = Mathf.Clamp(widthRatio, 0.2f, 1.0f);
@@ -269,37 +275,14 @@ namespace HoneySelect2Maker
             _chatRootRect.anchoredPosition = Vector2.zero;
         }
 
+        // Sets font colors for user/system (white or black).
         internal void SetFontColors(FontColorOption userColor, FontColorOption systemColor)
         {
             _userFontColor = userColor;
             _systemFontColor = systemColor;
         }
 
-        internal void SetDialoguePanelSize(float width, float minHeight)
-        {
-            _dialoguePanelWidth = Mathf.Clamp(width, 260.0f, 960.0f);
-            _dialoguePanelMinHeight = Mathf.Clamp(minHeight, 44.0f, 400.0f);
-        }
-
-        internal void SetDialoguePanelBackground(Sprite backgroundSprite)
-        {
-            _dialoguePanelBackgroundSprite = backgroundSprite;
-        }
-
-        internal void SetDialoguePanelFolderPath(string folderPath)
-        {
-            if (string.IsNullOrWhiteSpace(folderPath))
-                return;
-
-            _dialoguePanelFolderPath = folderPath;
-            _dialoguePanelLoadedBackgroundSprite = null;
-        }
-
-        internal void SetDialoguePanelFallbackColor(Color color)
-        {
-            _dialoguePanelFallbackColor = color;
-        }
-
+        // Ensures EventSystem exists; creates one if missing.
         private void EnsureEventSystem()
         {
             if (GameObject.FindObjectOfType<EventSystem>() != null)
@@ -311,6 +294,7 @@ namespace HoneySelect2Maker
             es.AddComponent<StandaloneInputModule>();
         }
 
+        // Creates a text child used by InputField text/placeholder.
         private Text CreateTextChild(Transform parent, string name, int fontSize, Color color, TextAnchor anchor, string text = "")
         {
             var go = new GameObject(name);
@@ -336,7 +320,7 @@ namespace HoneySelect2Maker
 
         private void CreateCloseButton(Transform parent)
         {
-            var buttonGO = new GameObject("ChatEndButton");
+            var buttonGO = new GameObject("ChatCloseButton");
             buttonGO.transform.SetParent(parent, false);
 
             var rect = buttonGO.AddComponent<RectTransform>();
@@ -426,11 +410,14 @@ namespace HoneySelect2Maker
             var lineLayout = lineGO.AddComponent<HorizontalLayoutGroup>();
             lineLayout.padding = new RectOffset(6, 6, 2, 2);
             lineLayout.spacing = 8.0f;
-            lineLayout.childAlignment = TextAnchor.UpperLeft;
+            lineLayout.childAlignment = isUser ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
             lineLayout.childControlHeight = true;
             lineLayout.childControlWidth = true;
             lineLayout.childForceExpandHeight = false;
             lineLayout.childForceExpandWidth = false;
+
+            if (isUser)
+                CreateSpacer(lineGO.transform);
 
             var rowGO = new GameObject("MessageRow");
             rowGO.transform.SetParent(lineGO.transform, false);
@@ -448,45 +435,32 @@ namespace HoneySelect2Maker
             rowLayout.childForceExpandWidth = false;
             rowLayout.childForceExpandHeight = false;
 
-            CreateAvatarWidget(rowGO.transform, speaker, isUser);
+            if (!isUser)
+                CreateAvatarWidget(rowGO.transform, speaker, isUser);
 
-            var dialoguePanelGO = new GameObject("DialoguePanel");
-            dialoguePanelGO.transform.SetParent(rowGO.transform, false);
-            var dialoguePanelImage = dialoguePanelGO.AddComponent<Image>();
-            var panelSprite = _dialoguePanelBackgroundSprite ?? GetDialoguePanelBackgroundSprite();
-            if (panelSprite != null)
-            {
-                dialoguePanelImage.sprite = panelSprite;
-                dialoguePanelImage.type = Image.Type.Sliced;
-                dialoguePanelImage.color = Color.white;
-            }
-            else
-            {
-                dialoguePanelImage.color = _dialoguePanelFallbackColor;
-            }
-            dialoguePanelImage.raycastTarget = false;
+            var textAreaGO = new GameObject("TextArea");
+            textAreaGO.transform.SetParent(rowGO.transform, false);
+            var textAreaLayout = textAreaGO.AddComponent<VerticalLayoutGroup>();
+            textAreaLayout.spacing = 4.0f;
+            textAreaLayout.padding = new RectOffset(0, 0, 0, 0);
+            textAreaLayout.childAlignment = isUser ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
+            textAreaLayout.childControlWidth = true;
+            textAreaLayout.childControlHeight = true;
+            textAreaLayout.childForceExpandWidth = false;
+            textAreaLayout.childForceExpandHeight = false;
 
-            var dialoguePanelLayout = dialoguePanelGO.AddComponent<VerticalLayoutGroup>();
-            dialoguePanelLayout.spacing = 6.0f;
-            dialoguePanelLayout.padding = new RectOffset(12, 12, 10, 10);
-            dialoguePanelLayout.childAlignment = TextAnchor.UpperLeft;
-            dialoguePanelLayout.childControlWidth = true;
-            dialoguePanelLayout.childControlHeight = true;
-            dialoguePanelLayout.childForceExpandWidth = false;
-            dialoguePanelLayout.childForceExpandHeight = false;
-
-            var dialoguePanelLE = dialoguePanelGO.AddComponent<LayoutElement>();
-            dialoguePanelLE.minWidth = 180.0f;
-            dialoguePanelLE.preferredWidth = _dialoguePanelWidth;
-            dialoguePanelLE.minHeight = _dialoguePanelMinHeight;
+            var textAreaLE = textAreaGO.AddComponent<LayoutElement>();
+            // Keep row compact; bubble width is still limited by MaxBubbleWidth during text measure.
+            textAreaLE.minWidth = 120.0f;
+            textAreaLE.preferredWidth = 0.0f;
 
             var nameGO = new GameObject("SpeakerName");
-            nameGO.transform.SetParent(dialoguePanelGO.transform, false);
+            nameGO.transform.SetParent(textAreaGO.transform, false);
             var nameText = nameGO.AddComponent<Text>();
             nameText.font = GetFont();
             nameText.fontSize = Mathf.Max(14, _fontSize - 6);
             nameText.color = isUser ? new Color(0.75f, 0.88f, 1.0f, 0.95f) : new Color(1.0f, 0.82f, 0.9f, 0.95f);
-            nameText.alignment = TextAnchor.MiddleLeft;
+            nameText.alignment = TextAnchor.MiddleRight;
             nameText.horizontalOverflow = HorizontalWrapMode.Overflow;
             nameText.verticalOverflow = VerticalWrapMode.Overflow;
             nameText.text = speaker;
@@ -506,16 +480,26 @@ namespace HoneySelect2Maker
             var bubbleTextGO = new GameObject("Message");
             bubbleTextGO.transform.SetParent(bubbleGO.transform, false);
             var bubbleRect = bubbleTextGO.AddComponent<RectTransform>();
-            bubbleRect.anchorMin = new Vector2(0.0f, 1.0f);
-            bubbleRect.anchorMax = new Vector2(0.0f, 1.0f);
-            bubbleRect.pivot = new Vector2(0.0f, 1.0f);
-            bubbleRect.anchoredPosition = new Vector2(BubblePaddingX, -BubblePaddingY);
+            if (isUser)
+            {
+                bubbleRect.anchorMin = new Vector2(1.0f, 1.0f);
+                bubbleRect.anchorMax = new Vector2(1.0f, 1.0f);
+                bubbleRect.pivot = new Vector2(1.0f, 1.0f);
+                bubbleRect.anchoredPosition = new Vector2(-BubblePaddingX, -BubblePaddingY);
+            }
+            else
+            {
+                bubbleRect.anchorMin = new Vector2(0.0f, 1.0f);
+                bubbleRect.anchorMax = new Vector2(0.0f, 1.0f);
+                bubbleRect.pivot = new Vector2(0.0f, 1.0f);
+                bubbleRect.anchoredPosition = new Vector2(BubblePaddingX, -BubblePaddingY);
+            }
 
             var bodyText = bubbleTextGO.AddComponent<Text>();
             bodyText.font = GetFont();
             bodyText.fontSize = _fontSize;
             bodyText.color = GetFontColor(isUser);
-            bodyText.alignment = TextAnchor.UpperLeft;
+            bodyText.alignment = TextAnchor.UpperRight;
             bodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
             bodyText.verticalOverflow = VerticalWrapMode.Overflow;
             bodyText.supportRichText = true;
@@ -525,10 +509,7 @@ namespace HoneySelect2Maker
             var bodyLE = bubbleTextGO.AddComponent<LayoutElement>();
             bodyLE.flexibleWidth = 0.0f;
 
-            var maxTextWidth = Mathf.Min(
-                MaxBubbleWidth - (BubblePaddingX * 2.0f),
-                _dialoguePanelWidth - (BubblePaddingX * 2.0f) - 24.0f);
-            maxTextWidth = Mathf.Max(120.0f, maxTextWidth);
+            var maxTextWidth = MaxBubbleWidth - (BubblePaddingX * 2.0f);
 
             // Measure unwrapped width first, then clamp to bubble max width.
             bodyText.horizontalOverflow = HorizontalWrapMode.Overflow;
@@ -551,14 +532,14 @@ namespace HoneySelect2Maker
             bubbleLE.preferredHeight = bubbleHeight;
             bubbleLE.minHeight = bubbleHeight;
 
-            float dialoguePanelHeight = Mathf.Max(
-                _dialoguePanelMinHeight,
-                nameLE.preferredHeight + bubbleHeight + dialoguePanelLayout.spacing + 20.0f);
-            dialoguePanelLE.preferredHeight = dialoguePanelHeight;
-            dialoguePanelLE.minHeight = dialoguePanelHeight;
+            if (isUser)
+                CreateAvatarWidget(rowGO.transform, speaker, isUser);
+
+            if (!isUser)
+                CreateSpacer(lineGO.transform);
 
             var lineLE = lineGO.AddComponent<LayoutElement>();
-            lineLE.preferredHeight = Mathf.Max(74.0f, dialoguePanelHeight + 8.0f);
+            lineLE.preferredHeight = Mathf.Max(74.0f, bubbleHeight + 26.0f);
             lineLE.minHeight = lineLE.preferredHeight;
 
             return lineGO;
@@ -653,6 +634,10 @@ namespace HoneySelect2Maker
 
             var candidates = new List<string>();
 
+            // Simplified avatar lookup rules:
+            // - User: me.png
+            // - Partner: heroin.png
+            // If missing, use default.png as fallback.
             if (isUser)
             {
                 candidates.Add(Path.Combine(_avatarFolderPath, "me.png"));
@@ -679,38 +664,6 @@ namespace HoneySelect2Maker
             }
 
             _avatarSpriteCache[key] = null;
-            return null;
-        }
-
-        private Sprite GetDialoguePanelBackgroundSprite()
-        {
-            if (_dialoguePanelLoadedBackgroundSprite != null)
-                return _dialoguePanelLoadedBackgroundSprite;
-
-            var candidates = new[]
-            {
-                Path.Combine(_dialoguePanelFolderPath, "dialogue_panel.png"),
-                Path.Combine(_dialoguePanelFolderPath, "panel.png"),
-                Path.Combine(_dialoguePanelFolderPath, "default.png"),
-            };
-
-            foreach (var path in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                if (!File.Exists(path))
-                    continue;
-
-                Texture2D tex = HS2SceneController.LoadTextureFromPng(path);
-                if (tex == null)
-                    continue;
-
-                _dialoguePanelLoadedBackgroundSprite = Sprite.Create(
-                    tex,
-                    new Rect(0, 0, tex.width, tex.height),
-                    new Vector2(0.5f, 0.5f),
-                    100f);
-                return _dialoguePanelLoadedBackgroundSprite;
-            }
-
             return null;
         }
 
@@ -773,13 +726,15 @@ namespace HoneySelect2Maker
             return option == FontColorOption.Black ? Color.black : Color.white;
         }
 
-            internal void SetFontResourcePath(string resourcePath)
+        // Sets font by Unity Resources path (example: "Fonts/NotoSansCJK").
+        internal void SetFontResourcePath(string resourcePath)
         {
             _customFontResourcePath = resourcePath;
             _customFont = null;
             _customOSFontNames = null;
         }
 
+        // Sets avatar folder and looks up `{speaker}.png` by message speaker name.
         internal void SetAvatarFolderPath(string folderPath)
         {
             if (string.IsNullOrWhiteSpace(folderPath))
@@ -789,6 +744,7 @@ namespace HoneySelect2Maker
             _avatarSpriteCache.Clear();
         }
 
+        // Sets font from an externally loaded Font object.
         internal void SetFont(Font font)
         {
             _customFont = font;
@@ -796,6 +752,7 @@ namespace HoneySelect2Maker
             _customOSFontNames = null;
         }
 
+        // Sets font from OS-installed fonts (example: "Noto Sans CJK KR").
         internal void SetFontFromOS(params string[] fontNames)
         {
             _customOSFontNames = fontNames;
@@ -803,6 +760,7 @@ namespace HoneySelect2Maker
             _customFontResourcePath = null;
         }
 
+        // Automatically selects font based on OS system language.
         internal void SetFontFromOSBySystemLanguage()
         {
             UnityEngine.Debug.Log($"SetFontFromOSBySystemLanguage {Application.systemLanguage}");
@@ -860,4 +818,6 @@ namespace HoneySelect2Maker
         }
     }
 }
+
+
 

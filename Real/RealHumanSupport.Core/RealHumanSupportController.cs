@@ -2033,6 +2033,7 @@ namespace RealHumanSupport
                    {
                        float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
                        float vaginaFrontWeight = sinValue * 30f;
+                      
                        SetBlendShape(vaginaFrontWeight, realHumanData.anus_pullout_idx_in_body);
                        SetBlendShape(vaginaFrontWeight, realHumanData.vagina_up_idx_in_body);
 

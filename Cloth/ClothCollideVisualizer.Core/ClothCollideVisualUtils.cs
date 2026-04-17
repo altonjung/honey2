@@ -20,7 +20,6 @@ namespace ClothCollideVisualizer
         internal const string topManifestXml = @"
             <AI_ClothColliders>
                 <cloth>
-                    <CapsuleCollider boneName='cf_J_Spine03' radius='0.90' center='0.00, 0.00, 0.00' height='2.60' direction='0' />
                 </cloth>
             </AI_ClothColliders>";
 

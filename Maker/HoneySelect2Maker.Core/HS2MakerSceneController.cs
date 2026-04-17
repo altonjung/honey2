@@ -1,4 +1,4 @@
-﻿﻿using Studio;
+using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -73,7 +73,7 @@ namespace HoneySelect2Maker
             if (!Directory.Exists(folderPath))
                 return mp4List;
 
-            // 모든 mp4 파일 가져오기
+            // Get all mp4 files
             string[] files = Directory.GetFiles(folderPath)
                               .Where(f =>
                                   f.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
@@ -84,7 +84,7 @@ namespace HoneySelect2Maker
             {
                 string fileName = Path.GetFileName(filePath);
 
-                // pattern 이 null 또는 빈값이면 전체 반환
+                // If pattern is null or empty, return all
                 if (string.IsNullOrWhiteSpace(pattern) ||
                     fileName.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
@@ -102,7 +102,7 @@ namespace HoneySelect2Maker
             if (!Directory.Exists(folderPath))
                 return pngList;
 
-            // 모든 mp4 파일 가져오기
+            // Get all mp4 files
             string[] files = Directory.GetFiles(folderPath)
                               .Where(f =>
                                   f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
@@ -112,7 +112,7 @@ namespace HoneySelect2Maker
             {
                 string fileName = Path.GetFileName(filePath);
 
-                // pattern 이 null 또는 빈값이면 전체 반환
+                // If pattern is null or empty, return all
                 if (string.IsNullOrWhiteSpace(pattern) ||
                     fileName.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
@@ -137,7 +137,7 @@ namespace HoneySelect2Maker
 
             var canvas = _overlayCanvasGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = sortingOrder; // 최상단
+            canvas.sortingOrder = sortingOrder; // Topmost
 
             _sceneCanvas = canvas;
 
@@ -169,16 +169,16 @@ namespace HoneySelect2Maker
             if (allBytes.Length <= SIGNATURE_SIZE)
                 throw new Exception("Invalid hs2m file.");
 
-            // signature 체크
+            // Check signature
             string signature = System.Text.Encoding.ASCII.GetString(allBytes, 0, SIGNATURE_SIZE);
             if (signature != "hs2maker")
                 throw new Exception("Invalid hs2m signature.");
 
-            // 임시 mp4 경로
+            // Temporary mp4 path
             string tempPath = Path.Combine(Path.GetTempPath(),
                 Path.GetFileNameWithoutExtension(hs2mPath) + "_temp.mp4");
 
-            // 8byte 이후만 저장
+            // Save bytes after the first 8 bytes only
             File.WriteAllBytes(tempPath, allBytes.Skip(SIGNATURE_SIZE).ToArray());
 
             return tempPath;
@@ -204,7 +204,7 @@ namespace HoneySelect2Maker
             if (!loop)
                 vp.loopPointReached -= OnVideoCompleted;
 
-            // RenderTexture 생성
+            // Create RenderTexture
             if (_sceneRT != null)
             {
                 _sceneRT.Release();
@@ -237,7 +237,7 @@ namespace HoneySelect2Maker
                 // AudioSource source = vp.GetTargetAudioSource(0);
                 // if (source != null)
                 // {
-                //     source.volume = 1.0f;   // 기본 최대값
+                //     source.volume = 1.0f;   // Default maximum volume
                 // }
             }
             else
@@ -341,7 +341,7 @@ namespace HoneySelect2Maker
                         {
                             if (sortingOrder == 9999)
                             {
-                                // 컷신용 제거
+                                // Remove for cutscene mode
                                 StopSceneVideo();
                             }
                         }
@@ -394,7 +394,7 @@ namespace HoneySelect2Maker
                         {
                             if (sortingOrder == 9999)
                             { 
-                                // 컷신용 제거
+                                // Remove for cutscene mode
                                 StopSceneVideo();
                             }
                         }
@@ -544,7 +544,7 @@ namespace HoneySelect2Maker
                     stringBuilder.Append(list2[j]).Append(".png");
                     // StringBuilder stringBuilder = new StringBuilder(list2[j]);
                     UnityEngine.Debug.Log($" >>>> {stringBuilder.ToString()} in FindAllCharsInRoomList");
-                    // 이름 추출 후 리스트에 추가
+                    // Extract name and add to list
                     result.Add(stringBuilder.ToString());
                 }
             }
@@ -562,7 +562,7 @@ namespace HoneySelect2Maker
 
             byte[] fileData = File.ReadAllBytes(path);
 
-            // 2x2는 placeholder 사이즈 (LoadImage 호출 시 실제 크기로 변경됨)
+            // 2x2 is a placeholder size (updated to actual size when LoadImage is called)
             Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
 
             if (!texture.LoadImage(fileData))
