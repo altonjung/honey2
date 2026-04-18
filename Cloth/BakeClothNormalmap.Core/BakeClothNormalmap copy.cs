@@ -69,7 +69,7 @@ namespace BakeClothNormalmap
         public const string Name = "BakeClothNormalmap";
         public const string Version = "0.9.0";
         public const string GUID = "com.alton.illusionplugins.bakenormalmap";
-        internal const string _ownerId = "BakeClothNormalmap";
+        internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
         private const string _extSaveKey = "BakeClothNormalmap";

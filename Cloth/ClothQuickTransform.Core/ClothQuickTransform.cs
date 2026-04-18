@@ -149,11 +149,19 @@ namespace ClothQuickTransform
         private int _scaleStepIndex = 2;
         private int _slotIndex = 0;
         private string _boneFilterText = string.Empty;
+
+#if FEATURE_PUBLIC        
+        private static readonly string[] ClothSlotLabels = new[]
+        {
+            "Top", "Bottom"
+        };
+#else 
         private static readonly string[] ClothSlotLabels = new[]
         {
             "Top", "Bottom", "Bra", "Pants", "Gloves", "Stockings", "Shoes"
         };
-    
+
+#endif
         private GUIStyle _richLabel;
 
         private GUIStyle RichLabel
@@ -426,7 +434,7 @@ namespace ClothQuickTransform
                 int dicKey;
                 bool hasDicKey = TryGetDicKey(ociChar.GetChaControl(), out dicKey);
                 int savedCount = savedBySlot.Values.Sum(v => v != null ? v.Count : 0);
-                UnityEngine.Debug.Log($">> SceneRead char dicKey={(hasDicKey ? dicKey.ToString() : "not-found")} savedTransfers={savedCount}");
+                // UnityEngine.Debug.Log($">> SceneRead char dicKey={(hasDicKey ? dicKey.ToString() : "not-found")} savedTransfers={savedCount}");
 
                 var mapData = GetDataAndCreate(ociChar);
                 if (mapData != null)

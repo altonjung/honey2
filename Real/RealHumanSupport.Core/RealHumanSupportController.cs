@@ -332,8 +332,8 @@ namespace RealHumanSupport
             
             float boob_radius = 0.4f;
 
-            extraBodyColliders.Add(AddExtraDynamicBoneCollider(leftBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 2.0f , new Vector3(0.0f, 0.0f, 0.0f)));
-            extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 2.0f, new Vector3(0.0f, 0.0f, 0.0f)));
+            extraBodyColliders.Add(AddExtraDynamicBoneCollider(leftBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 3.0f , new Vector3(0.0f, 0.0f, 0.0f)));
+            extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
             // Comment normalized to English.
             Transform leftShoulderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
@@ -2033,10 +2033,10 @@ namespace RealHumanSupport
                    {
                        float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
                        float vaginaFrontWeight = sinValue * 30f;
-                      
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT                      
                        SetBlendShape(vaginaFrontWeight, realHumanData.anus_pullout_idx_in_body);
                        SetBlendShape(vaginaFrontWeight, realHumanData.vagina_up_idx_in_body);
-
+#endif
                        if (realHumanData.pregnancyController != null)
                        {   
                            if(previosBellySize != realHumanData.pregnancyController.infConfig.inflationSize)

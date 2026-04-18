@@ -64,7 +64,7 @@ namespace WorkspaceSupport
         public const string Name = "WorkspaceSupport";
         public const string Version = "0.9.0";
         public const string GUID = "com.alton.illusionplugins.workspace";
-        internal const string _ownerId = "WorkspaceSupport";
+        internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
         private const string _extSaveKey = "workspace_support";

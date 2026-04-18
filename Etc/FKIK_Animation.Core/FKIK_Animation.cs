@@ -57,7 +57,7 @@ namespace FKIK_Animation
         public const string Name = "FKIK_Animation";
         public const string Version = "0.9.0.0";
         public const string GUID = "com.alton.illusionplugins.fkikanim";
-        internal const string _ownerId = "alton";
+        internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
         private const string _extSaveKey = "FKIK_Animation";

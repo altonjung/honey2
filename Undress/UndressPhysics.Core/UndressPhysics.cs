@@ -65,7 +65,7 @@ namespace UndressPhysics
         public const string Name = "UndressPhysics";
         public const string Version = "0.9.1.2";
         public const string GUID = "com.alton.illusionplugins.UndressPhysics";
-        internal const string _ownerId = "alton";
+        internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
         private const string _extSaveKey = "undress_physics";

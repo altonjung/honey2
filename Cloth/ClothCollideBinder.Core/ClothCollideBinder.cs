@@ -100,7 +100,7 @@ namespace ClothCollideBinder
         public const string Name = "ClothCollideBinder";
         public const string Version = "0.9.0.0";
         public const string GUID = "com.alton.illusionplugins.ClothCollideBinder";
-        internal const string _ownerId = "alton";
+        internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
         private const string _extSaveKey = "cloth_collide_binder";

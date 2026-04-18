@@ -82,7 +82,7 @@ namespace WindPhysics
         public const string Name = "WindPhysics";
         public const string Version = "0.9.8.1";
         public const string GUID = "com.alton.illusionplugins.windphysics";
-        internal const string _ownerId = "alton";
+        internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
         private const string _extSaveKey = "wind_physics";
@@ -106,7 +106,7 @@ namespace WindPhysics
         private static string _assemblyLocation;
         internal bool _loaded = false;
 
-#if FEATURE_VISUAL_WINDDIRECTION
+#if !FEATURE_PUBLIC
         // LineRenderer 객체
         private GameObject _windDirObj;
         private LineRenderer _windDirLine;
@@ -223,7 +223,7 @@ namespace WindPhysics
             if (_loaded == false)
                 return;
 
-#if FEATURE_VISUAL_WINDDIRECTION
+#if !FEATURE_PUBLIC
             UpdateWindDirectionLine();
 #endif
         }
@@ -311,6 +311,7 @@ namespace WindPhysics
             if (data != null)
             {
                 // ================= UI =================
+#if !FEATURE_PUBLIC                
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("park"))
                     ApplyScenePreset("park");
@@ -320,9 +321,9 @@ namespace WindPhysics
                     ApplyScenePreset("inWater");                    
                 if (GUILayout.Button("inSpace"))
                     ApplyScenePreset("inSpace");
-                // if (GUILayout.Button("rain"))
-                //     ApplyScenePreset("rain");
                 GUILayout.EndHorizontal();
+#endif
+
     // Global
                 GUILayout.Label("<color=orange>Global</color>", RichLabel);
                 // Direction
@@ -440,11 +441,6 @@ namespace WindPhysics
                 if(GUILayout.Button("Default"))
                 {
                     InitConfig();   
-                }   
-
-                if (GUILayout.Button("Close")) {
-                    Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
-                    _ShowUI = false;
                 }
                 
                 GUILayout.EndHorizontal();                
@@ -468,7 +464,7 @@ namespace WindPhysics
             GUI.DragWindow();
         }
 
-#if FEATURE_VISUAL_WINDDIRECTION
+#if !FEATURE_PUBLIC
         private void EnsureWindDirectionLine()
         {
             if (_windDirObj != null)
@@ -545,7 +541,7 @@ namespace WindPhysics
         {
             _loaded = true;
 
-#if FEATURE_VISUAL_WINDDIRECTION
+#if !FEATURE_PUBLIC
             EnsureWindDirectionLine();
 #endif
         }

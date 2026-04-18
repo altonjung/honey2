@@ -95,7 +95,7 @@ namespace ClothCollideVisualizer
         public const string Name = "ClothCollideVisualizer";
         public const string Version = "0.9.2.0";
         public const string GUID = "com.alton.illusionplugins.clothcollidevisualizer";
-        internal const string _ownerId = "alton";
+        internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
         private const string _extSaveKey = "cloth_collide_visualizer";
@@ -165,7 +165,6 @@ namespace ClothCollideVisualizer
         #region Unity Methods
         protected override void Awake()
         {
-
             base.Awake();
 
             _self = this;

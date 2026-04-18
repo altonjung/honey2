@@ -245,21 +245,23 @@ namespace WindPhysics
             float upWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(windWave, 0f));
             float downWave = Mathf.SmoothStep(0f, 1f, Mathf.Max(-windWave, 0f));
             float verticalWave = upWave - downWave;
+            const float downHalfCycleScale = 0.25f;
+            float asymmetricVerticalWave = verticalWave >= 0f
+                ? verticalWave
+                : verticalWave * downHalfCycleScale;
 
             Vector3 hairFinalWind = windEffect * windForce;
-            hairFinalWind.y += verticalWave * windUpForce * factor;
+            hairFinalWind.y += asymmetricVerticalWave * windUpForce * factor;
 
             Vector3 accessoriesFinalWind = windEffect * windForce;
-            accessoriesFinalWind.y += verticalWave * windUpForce * factor;
+            accessoriesFinalWind.y += asymmetricVerticalWave * windUpForce * factor;
 
             Vector3 baseWind = windEffect.sqrMagnitude > 0f ? windEffect.normalized : Vector3.zero;
             Vector3 externalWind = baseWind * windForce;
             float noise = (Mathf.PerlinNoise(time * 0.8f, 0f) - 0.5f) * 2f;
 
-            const float upBoost = 5.0f;
-
             Vector3 randomDirectionalWind = baseWind * noise * windForce;
-            Vector3 randomVerticalWind = Vector3.up * (verticalWave * windUpForce * upBoost);
+            Vector3 randomVerticalWind = Vector3.up * (asymmetricVerticalWave * windUpForce);
             Vector3 randomWind = randomDirectionalWind + randomVerticalWind;
 
             // Keep upward lift, but preserve directional wind even when gravity is non-negative.
@@ -478,8 +480,8 @@ namespace WindPhysics
                     Quaternion globalRotation = Quaternion.Euler(0f, WindPhysics.WindDirection.Value, 0f);
 
                     // Add small directional variation for less repetitive motion.
-                    float angleY = UnityEngine.Random.Range(-15, 15); // Front/back offset.
-                    float angleX = UnityEngine.Random.Range(-7, 7);   // Left/right offset.
+                    float angleY = UnityEngine.Random.Range(-10, 10); // Front/back offset.
+                    float angleX = UnityEngine.Random.Range(-5, 5);   // Left/right offset.
                     Quaternion localRotation = Quaternion.Euler(angleX, angleY, 0f);
 
                     Quaternion rotation = globalRotation * localRotation;
