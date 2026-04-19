@@ -99,6 +99,10 @@ namespace JointCorrectionSlider
             correctionData._danTop3PosBaseSet = false;
             correctionData._danTop3ScaleBaseSet = false;
             correctionData._danTop3RotBaseSet = false;
+
+            correctionData._danTop4PosBaseSet = false;
+            correctionData._danTop4ScaleBaseSet = false;
+            correctionData._danTop4RotBaseSet = false;
 #endif
 
             correctionData.ScriptInfoBaseByCategory.Clear();
@@ -120,7 +124,15 @@ namespace JointCorrectionSlider
                     };
                 }
             }
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
 
+            correctionData._legup01_L = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_LegUp01_L");
+            correctionData._legup01_R = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_LegUp01_R");
+            correctionData._legup01BaseSetL = false;
+            correctionData._legup01BaseSetR = false;
+
+            SetBodyBlendShapes();
+#endif
             correctionData.ScriptInfoBaseInitialized = correctionData.ScriptInfoBaseByCategory.Count > 0;
             return correctionData;
         }
@@ -159,6 +171,76 @@ namespace JointCorrectionSlider
         {
             return correctionData;
         }
+
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+        internal void SetBodyBlendShapes()
+        {
+            if (correctionData != null && correctionData.charControl != null && correctionData.charControl.objBody != null)
+            {
+                correctionData.fulleg_idx_in_body = -1;
+                correctionData.buttchecks1_idx_in_body = -1;
+
+                SkinnedMeshRenderer[] bodyRenderers = correctionData.charControl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
+                foreach (SkinnedMeshRenderer render in bodyRenderers.ToList())
+                {
+                    var mesh = render.sharedMesh;
+                    if (mesh == null)
+                        continue;
+                    for (int idx = 0; idx < mesh.blendShapeCount; idx++)
+                    {
+                        string name = mesh.GetBlendShapeName(idx) ?? string.Empty;
+
+                        if (name.IndexOf("Legs Pull BothSide", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            correctionData.fulleg_idx_in_body = idx;
+                        }
+                        else if (name.IndexOf("open Buttcheeks1", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            correctionData.buttchecks1_idx_in_body = idx;
+                        }                                             
+                    }
+                }
+            }                       
+        }
+
+        internal void SetBlendShape(float weight, int targetIdx)
+        {
+            if (correctionData == null || correctionData.charControl == null || correctionData.charControl.objBody == null)
+                return;
+            
+            if (targetIdx < 0)
+                return;
+
+            SkinnedMeshRenderer[] bodyRenderers = correctionData.charControl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            for (int i = 0; i < bodyRenderers.Length; i++)
+            {
+                SkinnedMeshRenderer render = bodyRenderers[i];
+                if (render == null || render.sharedMesh == null)
+                    continue;
+
+                UnityEngine.Mesh mesh = render.sharedMesh;
+                if (targetIdx < mesh.blendShapeCount)
+                {
+                    string nameAtTarget = mesh.GetBlendShapeName(targetIdx);
+                    if (nameAtTarget != null)
+                    {
+                        render.SetBlendShapeWeight(targetIdx, weight);
+                        continue;
+                    }
+                }
+
+                for (int idx = 0; idx < mesh.blendShapeCount; idx++)
+                {
+                    string name = mesh.GetBlendShapeName(idx);
+                    if (name != null)
+                    {
+                        render.SetBlendShapeWeight(idx, weight);
+                        break;
+                    }
+                }
+            }
+        }
+#endif        
     }
 
     class JointCorrectionSliderData
@@ -283,6 +365,27 @@ namespace JointCorrectionSlider
         public bool _danTop4RotBaseSet;
 #endif
 
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+        public Transform _legup01_L;
+        public Transform _legup01_R;
+
+        public UnityEngine.Vector3 _legup01BasePosL;
+        public UnityEngine.Vector3 _legup01BasePosR;
+        public UnityEngine.Vector3 _legup01BaseScaleL;
+        public UnityEngine.Vector3 _legup01BaseScaleR;
+        public bool _legup01BaseSetL;
+        public bool _legup01BaseSetR;        
+
+        public int fulleg_idx_in_body = -1;
+        public int buttchecks1_idx_in_body = -1;   
+
+        public int fullLegValue;
+        public int buttchecks1Value;
+
+        public int _prevFullLegValue;
+        public int _prevButtchecks1Value;
+#endif
+
         internal void Reset()
         {
             LeftShoulderValue = 0.0f;
@@ -297,7 +400,7 @@ namespace JointCorrectionSlider
             LeftKneeValue = 0.0f;
             RightKneeValue = 0.0f;
             LeftLegValue = 0.0f;
-            RightLegValue = 0.0f;
+            RightLegValue = 0.0f;            
 
 #if FEATURE_DAN_CORRECTION
             DanRootScaleValue = 0.0f;
@@ -320,7 +423,11 @@ namespace JointCorrectionSlider
             DanTop4PosValue = 0.0f;
             DanTop4RotateValue = 0.0f;
 #endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+            fullLegValue = 0;
+            buttchecks1Value = 0;
+
+#endif
         }
     }
 }
-

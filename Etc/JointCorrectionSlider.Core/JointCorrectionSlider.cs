@@ -127,6 +127,63 @@ namespace JointCorrectionSlider
         #region Private Types
 
         enum WinkState { Idle, Playing }
+
+        private enum CorrectionFieldId
+        {
+            LeftShoulder,
+            RightShoulder,
+            LeftArmUpper,
+            RightArmUpper,
+            LeftArmLower,
+            RightArmLower,
+            LeftElbow,
+            RightElbow,
+            LeftLeg,
+            RightLeg,
+            LeftKnee,
+            RightKnee,
+#if FEATURE_DAN_CORRECTION
+            DanTop1Scale,
+            DanTop2Scale,
+            DanTop3Scale,
+            DanTop4Length,
+            DanRootScale,
+#endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+            BlendFullLeg,
+            BlendButtCreek,
+#endif
+        }
+
+        private struct CorrectionFieldUi
+        {
+            public readonly CorrectionFieldId Id;
+            public readonly string Label;
+            public readonly string Tooltip;
+            public readonly float Min;
+            public readonly float Max;
+
+            public CorrectionFieldUi(CorrectionFieldId id, string label, string tooltip, float min, float max)
+            {
+                Id = id;
+                Label = label;
+                Tooltip = tooltip;
+                Min = min;
+                Max = max;
+            }
+        }
+
+        private class CorrectionCategoryUi
+        {
+            public readonly string Name;
+            public readonly CorrectionFieldUi[] Fields;
+
+            public CorrectionCategoryUi(string name, CorrectionFieldUi[] fields)
+            {
+                Name = name;
+                Fields = fields;
+            }
+        }
         #endregion
 
         #region Private Variables
@@ -150,8 +207,68 @@ namespace JointCorrectionSlider
         private const float ValueCompareEpsilon = 0.001f;
         private static readonly float[] SliderStepOptions = new float[] { 1f, 0.1f, 0.01f, 0.001f };
         private int _correctionStepIndex = 2;
+        private Vector2 _categoryScroll;
+        private Vector2 _targetScroll;
+        private int _selectedCategoryIndex;
+        private int _selectedTargetIndex;
 
         private static readonly int[] CorrectionCategoryIds = new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+        private static readonly CorrectionCategoryUi[] CorrectionUiCategories = new CorrectionCategoryUi[]
+        {
+            new CorrectionCategoryUi("Shoulder", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.LeftShoulder, "Sholdr(L)", "Left", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.RightShoulder, "Sholdr(R)", "Right", -1.0f, 1.0f)
+            }),
+            new CorrectionCategoryUi("Arm_Up", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.LeftArmUpper, "ArmUp(L)", "Left", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.RightArmUpper, "ArmUp(R)", "Right", -1.0f, 1.0f)
+            }),
+            new CorrectionCategoryUi("Arm_Dn", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.LeftArmLower, "ArmDn(L)", "Left", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.RightArmLower, "ArmDn(R)", "Right", -1.0f, 1.0f)
+            }),
+            new CorrectionCategoryUi("Elbow", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.LeftElbow, "Elbow(L)", "Left", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.RightElbow, "Elbow(R)", "Right", -1.0f, 1.0f)
+            }),
+            new CorrectionCategoryUi("Thigh", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.LeftLeg, "Thigh(L)", "Left", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.RightLeg, "Thigh(R)", "Right", -1.0f, 1.0f)
+            }),
+            new CorrectionCategoryUi("Knee", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.LeftKnee, "Knee(L)", "Back", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.RightKnee, "Knee(R)", "Back", -1.0f, 1.0f)
+            }),
+#if FEATURE_DAN_CORRECTION
+            new CorrectionCategoryUi("Dan Top", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.DanTop1Scale, "Glans1(S)", "Glans1 Scale", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.DanTop2Scale, "Glans2(S)", "Glans2 Scale", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.DanTop3Scale, "Glans3(S)", "Glans3 Scale", -1.0f, 1.0f)
+            }),
+            new CorrectionCategoryUi("Dan Length", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.DanTop4Length, "Dan(L)", "Penis Length", -1.0f, 0.0f)
+            }),
+            new CorrectionCategoryUi("Dan Scale", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.DanRootScale, "Dan(S)", "Penis Scale", -0.5f, 1.0f)
+            }),
+#endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+            new CorrectionCategoryUi("Body BlendShape", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.BlendFullLeg, "Thigh", "Creek", 0f, 100f),
+                new CorrectionFieldUi(CorrectionFieldId.BlendButtCreek, "Butt", "Creek", 0f, 100f),
+            }),
+#endif
+        };
     
         private int   _creating_char_sex = 0;
 
@@ -374,6 +491,12 @@ namespace JointCorrectionSlider
                     data.DanTop4PosValue = ReadFloat(boneNode, "danTop4Length", data.DanTop4PosValue);
                     data.DanTop4RotateValue = ReadFloat(boneNode, "danTop4Rotate", data.DanTop4RotateValue);
 #endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                    data.fullLegValue = Mathf.Clamp(ReadInt(boneNode, "fullLeg", data.fullLegValue), 0, 100);
+                    XmlNode buttchecks1Node = boneNode.SelectSingleNode("buttchecks1");
+                    if (buttchecks1Node != null)
+                        data.buttchecks1Value = Mathf.Clamp(ParseInt(buttchecks1Node.Attributes["value"]?.Value, data.buttchecks1Value), 0, 100);                                        
+#endif
                     if (ReadScriptInfoBaseNode(boneNode, data))
                         data.ScriptInfoBaseInitialized = true;
                 }
@@ -437,6 +560,10 @@ namespace JointCorrectionSlider
                     WriteValueNode(writer, "danTop4Length", data.DanTop4PosValue);
                     WriteValueNode(writer, "danTop4Rotate", data.DanTop4RotateValue);
 #endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                    WriteIntNode(writer, "fullLeg", data.fullLegValue);
+                    WriteIntNode(writer, "buttchecks1", data.buttchecks1Value);
+#endif
                     writer.WriteEndElement(); // config
                 
                     writer.WriteEndElement(); // character
@@ -494,7 +621,22 @@ namespace JointCorrectionSlider
             return ParseFloat(valueNode.Attributes["value"]?.Value);
         }
 
+        private int ReadInt(XmlNode parent, string nodeName, int fallback)
+        {
+            XmlNode valueNode = parent.SelectSingleNode(nodeName);
+            if (valueNode == null)
+                return fallback;
+            return ParseInt(valueNode.Attributes["value"]?.Value, fallback);
+        }
+
         private void WriteValueNode(XmlTextWriter writer, string nodeName, float value)
+        {
+            writer.WriteStartElement(nodeName);
+            writer.WriteAttributeString("value", value.ToString(CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
+        }
+
+        private void WriteIntNode(XmlTextWriter writer, string nodeName, int value)
         {
             writer.WriteStartElement(nodeName);
             writer.WriteAttributeString("value", value.ToString(CultureInfo.InvariantCulture));
@@ -727,6 +869,44 @@ namespace JointCorrectionSlider
                     data._prevRightElbow = data.RightElbowValue;
                     SetScriptInfo(currentOCIChar, data, 11, data.RightElbowValue);
                 }
+
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                JointCorrectionSliderController controller = currentOCIChar != null && currentOCIChar.GetChaControl() != null
+                    ? currentOCIChar.GetChaControl().GetComponent<JointCorrectionSliderController>()
+                    : null;
+                if (controller != null)
+                {
+                    EnsureBlendShapeIndices(data, controller);
+
+                    if (data.fullLegValue != data._prevFullLegValue)
+                    {
+                        if (data.fulleg_idx_in_body >= 0)
+                        {
+                            data._prevFullLegValue = data.fullLegValue;
+                            controller.SetBlendShape(data.fullLegValue, data.fulleg_idx_in_body);
+                        }
+                    }
+                    if (data.buttchecks1Value != data._prevButtchecks1Value)
+                    {
+                        bool applied = false;
+                        if (data.buttchecks1_idx_in_body >= 0)
+                        {
+                            controller.SetBlendShape(data.buttchecks1Value, data.buttchecks1_idx_in_body);
+                            applied = true;
+                        }
+                        if (applied)
+                            data._prevButtchecks1Value = data.buttchecks1Value;
+                    }
+                    // if (data.vaginOpenValue != data._prevVaginOpenValue)
+                    // {
+                    //     if (data.vagina_open_front_idx_in_body >= 0)
+                    //     {
+                    //         data._prevVaginOpenValue = data.vaginOpenValue;
+                    //         controller.SetBlendShape(data.vaginOpenValue, data.vagina_open_front_idx_in_body);
+                    //     }
+                    // }
+                }
+#endif
             }
         }
 
@@ -738,6 +918,10 @@ namespace JointCorrectionSlider
             {                
                 ApplyBoneTransform(data._shoulder02_s_L, data.LeftShoulderValue, ref data._shoulder02BaseSetL, ref data._shoulder02BasePosL, ref data._shoulder02BaseScaleL, TargetDirection.X_POS);
                 ApplyBoneTransform(data._shoulder02_s_R, data.RightShoulderValue, ref data._shoulder02BaseSetR, ref data._shoulder02BasePosR, ref data._shoulder02BaseScaleR, TargetDirection.X_POS);
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                ApplyFullLegPosition(data._legup01_L, data.fullLegValue, ref data._legup01BaseSetL, ref data._legup01BasePosL, ref data._legup01BaseScaleL, 1f);
+                ApplyFullLegPosition(data._legup01_R, data.fullLegValue, ref data._legup01BaseSetR, ref data._legup01BasePosR, ref data._legup01BaseScaleR, -1f);
+#endif
 #if FEATURE_DAN_CORRECTION
                 ApplyDanTransform(data._dan_top1, data.DanTop1PosValue, data.DanTop1ScaleValue, data.DanTop1RotateValue, ref data._danTop1PosBaseSet, ref data._danTop1PosBasePos, ref data._danTop1ScaleBaseSet, ref data._danTop1ScaleBasePos, ref data._danTop1RotBaseSet, ref data._danTop1RotBaseEuler, TargetDirection.Z_POS);
                 ApplyDanTransform(data._dan_top2, data.DanTop2PosValue, data.DanTop2ScaleValue, data.DanTop2RotateValue, ref data._danTop2PosBaseSet, ref data._danTop2PosBasePos, ref data._danTop2ScaleBaseSet, ref data._danTop2ScaleBasePos, ref data._danTop2RotBaseSet, ref data._danTop2RotBaseEuler, TargetDirection.Z_POS);
@@ -847,69 +1031,100 @@ namespace JointCorrectionSlider
 
             if (data != null)
             {
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                EnsureBlendShapeIndices(data);
+#endif
                 DrawStepSelector(ref _correctionStepIndex, "Step");
                 float correctionStep = SliderStepOptions[_correctionStepIndex];
 
-                GUILayout.Label("<color=orange>Shoulder</color>", RichLabel);
-                data.LeftShoulderValue = DrawCorrectionRow("Sholdr(L)", "Left", data.LeftShoulderValue, -1.0f, 1.0f, IsModifiedValue(data.LeftShoulderValue), correctionStep);
-                data.RightShoulderValue = DrawCorrectionRow("Sholdr(R)", "Right", data.RightShoulderValue, -1.0f, 1.0f, IsModifiedValue(data.RightShoulderValue), correctionStep);
-
-                // Top
-                GUILayout.Label("<color=orange>Arm_Up</color>", RichLabel);
-                data.LeftArmUpperValue = DrawCorrectionRow("ArmUp(L)", "Left", data.LeftArmUpperValue, -1.0f, 1.0f, IsModifiedValue(data.LeftArmUpperValue), correctionStep);
-                data.RightArmUpperValue = DrawCorrectionRow("ArmUp(R)", "Right", data.RightArmUpperValue, -1.0f, 1.0f, IsModifiedValue(data.RightArmUpperValue), correctionStep);
-
-                GUILayout.Label("<color=orange>Arm_Dn</color>", RichLabel);
-                data.LeftArmLowerValue = DrawCorrectionRow("ArmDn(L)", "Left", data.LeftArmLowerValue, -1.0f, 1.0f, IsModifiedValue(data.LeftArmLowerValue), correctionStep);
-                data.RightArmLowerValue = DrawCorrectionRow("ArmDn(R)", "Right", data.RightArmLowerValue, -1.0f, 1.0f, IsModifiedValue(data.RightArmLowerValue), correctionStep);
-
-                GUILayout.Label("<color=orange>Elbow</color>", RichLabel);
-                data.LeftElbowValue = DrawCorrectionRow("Elbow(L)", "Left", data.LeftElbowValue, -1.0f, 1.0f, IsModifiedValue(data.LeftElbowValue), correctionStep);
-                data.RightElbowValue = DrawCorrectionRow("Elbow(R)", "Right", data.RightElbowValue, -1.0f, 1.0f, IsModifiedValue(data.RightElbowValue), correctionStep);
-
-                // Bottom
-                GUILayout.Label("<color=orange>Thigh</color>", RichLabel);            
-                data.LeftLegValue = DrawCorrectionRow("Thigh(L)", "Left", data.LeftLegValue, -1.0f, 1.0f, IsModifiedValue(data.LeftLegValue), correctionStep);
-                data.RightLegValue = DrawCorrectionRow("Thigh(R)", "Right", data.RightLegValue, -1.0f, 1.0f, IsModifiedValue(data.RightLegValue), correctionStep);
-
-                GUILayout.Label("<color=orange>Knee</color>", RichLabel);            
-                data.LeftKneeValue = DrawCorrectionRow("Knee(L)", "Back", data.LeftKneeValue, -1.0f, 1.0f, IsModifiedValue(data.LeftKneeValue), correctionStep);
-                data.RightKneeValue = DrawCorrectionRow("Knee(R)", "Back", data.RightKneeValue, -1.0f, 1.0f, IsModifiedValue(data.RightKneeValue), correctionStep);
-                
-#if FEATURE_DAN_CORRECTION
-                if (data.charControl != null && data.charControl.sex == 0)
+                var visibleCategories = new List<CorrectionCategoryUi>();
+                for (int i = 0; i < CorrectionUiCategories.Length; i++)
                 {
-                    draw_seperate();
-                    
-                    if (data._dan_top1 != null && data._dan_top2 != null && data._dan_top3 != null)
+                    CorrectionCategoryUi category = CorrectionUiCategories[i];
+                    if (HasAvailableField(data, category))
+                        visibleCategories.Add(category);
+                }
+
+                if (visibleCategories.Count > 0)
+                {
+                    _selectedCategoryIndex = Mathf.Clamp(_selectedCategoryIndex, 0, visibleCategories.Count - 1);
+                    CorrectionCategoryUi selectedCategory = visibleCategories[_selectedCategoryIndex];
+                    List<CorrectionFieldUi> availableFields = GetAvailableFields(data, selectedCategory);
+
+                    if (availableFields.Count > 0)
+                        _selectedTargetIndex = Mathf.Clamp(_selectedTargetIndex, 0, availableFields.Count - 1);
+                    else
+                        _selectedTargetIndex = 0;
+
+                    GUILayout.BeginHorizontal();
+
+                    GUILayout.BeginVertical(GUILayout.Width(160));
+                    GUILayout.Label("<color=orange>Category</color>", RichLabel);
+                    _categoryScroll = GUILayout.BeginScrollView(_categoryScroll, GUI.skin.box, GUILayout.Height(118));
+                    for (int i = 0; i < visibleCategories.Count; i++)
                     {
-                        GUILayout.Label("<color=orange>Dan Top1</color>", RichLabel);
-                        data.DanTop1ScaleValue = DrawCorrectionRow("Glans1(S)", "Glans1 Scale", data.DanTop1ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1ScaleValue), correctionStep);
-                        // data.DanTop1PosValue = DrawCorrectionRow("Top1(P)", "Pos", data.DanTop1PosValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1PosValue), correctionStep);
-                        // data.DanTop1RotateValue = DrawCorrectionRow("Top1(R)", "Rotate", data.DanTop1RotateValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop1RotateValue), correctionStep);
+                        CorrectionCategoryUi category = visibleCategories[i];
+                        bool isSelected = i == _selectedCategoryIndex;
+                        bool isModified = IsCategoryModified(data, category);
+                        Color prevColor = GUI.contentColor;
+                        GUI.contentColor = isModified ? ModifiedEntryColor : UnmodifiedEntryColor;
+                        if (GUILayout.Toggle(isSelected, category.Name, GUI.skin.button))
+                        {
+                            if (!isSelected)
+                            {
+                                _selectedCategoryIndex = i;
+                                _selectedTargetIndex = 0;
+                            }
+                        }
+                        GUI.contentColor = prevColor;
+                    }
+                    GUILayout.EndScrollView();
+                    GUILayout.EndVertical();
 
-                        GUILayout.Label("<color=orange>Dan Top2</color>", RichLabel);
-                        data.DanTop2ScaleValue = DrawCorrectionRow("Glans2(S)", "Glans2 Scale", data.DanTop2ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2ScaleValue), correctionStep);
-                        // data.DanTop2PosValue = DrawCorrectionRow("Top2(P)", "Pos", data.DanTop2PosValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2PosValue), correctionStep);
-                        // data.DanTop2RotateValue = DrawCorrectionRow("Top2(R)", "Rotate", data.DanTop2RotateValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop2RotateValue), correctionStep);
+                    selectedCategory = visibleCategories[_selectedCategoryIndex];
+                    availableFields = GetAvailableFields(data, selectedCategory);
 
-                        GUILayout.Label("<color=orange>Dan Top3</color>", RichLabel);
-                        data.DanTop3ScaleValue = DrawCorrectionRow("Glans3(S)", "Glans3 Scale", data.DanTop3ScaleValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3ScaleValue), correctionStep);
-                        // data.DanTop3PosValue = DrawCorrectionRow("Top3(P)", "Pos", data.DanTop3PosValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3PosValue), correctionStep);
-                        // data.DanTop3RotateValue = DrawCorrectionRow("Top3(R)", "Rotate", data.DanTop3RotateValue, -1.0f, 1.0f, IsModifiedValue(data.DanTop3RotateValue), correctionStep);
-
-                        GUILayout.Label("<color=orange>Dan Length</color>", RichLabel);
-                        data.DanTop4PosValue = DrawCorrectionRow("Dan(L)", "Penis Length", data.DanTop4PosValue, -1.0f, 0.0f, IsModifiedValue(data.DanTop4PosValue), correctionStep);
-                        // data.DanBentValue = DrawCorrectionRow("Top3(B)", "Bend", data.DanBentValue, -1.0f, 1.0f, IsModifiedValue(data.DanBentValue), correctionStep);
-                    }        
-
-                    if (data._dan_root != null)
+                    GUILayout.BeginVertical(GUILayout.Width(160));
+                    GUILayout.Label("<color=orange>Target</color>", RichLabel);
+                    _targetScroll = GUILayout.BeginScrollView(_targetScroll, GUI.skin.box, GUILayout.Height(118));
+                    for (int i = 0; i < availableFields.Count; i++)
                     {
-                        GUILayout.Label("<color=orange>Dan Scale</color>", RichLabel);
-                        data.DanRootScaleValue = DrawCorrectionRow("Dan(S)", "Penis Scale", data.DanRootScaleValue, -0.5f, 1.0f, IsModifiedValue(data.DanRootScaleValue), correctionStep);
+                        CorrectionFieldUi field = availableFields[i];
+                        bool isSelected = i == _selectedTargetIndex;
+                        bool isModified = IsFieldModified(data, field.Id);
+                        Color prevColor = GUI.contentColor;
+                        GUI.contentColor = isModified ? ModifiedEntryColor : UnmodifiedEntryColor;
+                        if (GUILayout.Toggle(isSelected, field.Label, GUI.skin.button))
+                            _selectedTargetIndex = i;
+                        GUI.contentColor = prevColor;
+                    }
+                    GUILayout.EndScrollView();
+                    GUILayout.EndVertical();
+
+                    GUILayout.EndHorizontal();
+
+                    if (availableFields.Count > 0)
+                    {
+                        CorrectionFieldUi selectedField = availableFields[_selectedTargetIndex];
+                        float currentValue = GetFieldValue(data, selectedField.Id);
+                        float fieldStep = IsBlendShapeField(selectedField.Id) ? 1f : correctionStep;
+                        float updatedValue = DrawCorrectionRow(
+                            selectedField.Label,
+                            selectedField.Tooltip,
+                            currentValue,
+                            selectedField.Min,
+                            selectedField.Max,
+                            IsModifiedValue(currentValue),
+                            fieldStep);
+                        SetFieldValue(data, selectedField.Id, updatedValue);
+
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                        if (IsBlendShapeField(selectedField.Id) && GetBlendShapeTargetIndex(data, selectedField.Id) < 0)
+                            GUILayout.Label("<color=red>Select Golden Palace Body</color>", RichLabel);
+#endif
                     }
                 }
-#endif
+
                 if (GUILayout.Button("Default"))
                     InitConfig();
 //
@@ -939,6 +1154,202 @@ namespace JointCorrectionSlider
             Rect rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(0.3f));
             GUI.Box(rect, GUIContent.none);
             GUILayout.Space(10);
+        }
+
+        private bool HasAvailableField(JointCorrectionSliderData data, CorrectionCategoryUi category)
+        {
+            if (data == null || category == null || category.Fields == null)
+                return false;
+
+            for (int i = 0; i < category.Fields.Length; i++)
+            {
+                if (IsFieldAvailable(data, category.Fields[i].Id))
+                    return true;
+            }
+            return false;
+        }
+
+        private List<CorrectionFieldUi> GetAvailableFields(JointCorrectionSliderData data, CorrectionCategoryUi category)
+        {
+            List<CorrectionFieldUi> fields = new List<CorrectionFieldUi>();
+            if (data == null || category == null || category.Fields == null)
+                return fields;
+
+            for (int i = 0; i < category.Fields.Length; i++)
+            {
+                CorrectionFieldUi field = category.Fields[i];
+                if (IsFieldAvailable(data, field.Id))
+                    fields.Add(field);
+            }
+
+            return fields;
+        }
+
+        private bool IsCategoryModified(JointCorrectionSliderData data, CorrectionCategoryUi category)
+        {
+            if (data == null || category == null || category.Fields == null)
+                return false;
+
+            for (int i = 0; i < category.Fields.Length; i++)
+            {
+                CorrectionFieldUi field = category.Fields[i];
+                if (IsFieldAvailable(data, field.Id) && IsFieldModified(data, field.Id))
+                    return true;
+            }
+            return false;
+        }
+
+        private bool IsFieldAvailable(JointCorrectionSliderData data, CorrectionFieldId fieldId)
+        {
+            if (data == null)
+                return false;
+
+#if FEATURE_DAN_CORRECTION
+            bool isMale = data.charControl != null && data.charControl.sex == 0;
+            bool hasDanTop = isMale && data._dan_top1 != null && data._dan_top2 != null && data._dan_top3 != null && data._dan_top4 != null;
+            bool hasDanRoot = isMale && data._dan_root != null;
+#endif
+            switch (fieldId)
+            {
+#if FEATURE_DAN_CORRECTION
+                case CorrectionFieldId.DanTop1Scale:
+                case CorrectionFieldId.DanTop2Scale:
+                case CorrectionFieldId.DanTop3Scale:
+                case CorrectionFieldId.DanTop4Length:
+                    return hasDanTop;
+                case CorrectionFieldId.DanRootScale:
+                    return hasDanRoot;
+#endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                case CorrectionFieldId.BlendFullLeg:
+                    return data.charControl != null && data.charControl.sex == 1;
+                case CorrectionFieldId.BlendButtCreek:
+                    return data.charControl != null && data.charControl.sex == 1;
+#endif
+                default:
+                    return true;
+            }
+        }
+
+        private bool IsFieldModified(JointCorrectionSliderData data, CorrectionFieldId fieldId)
+        {
+            return IsModifiedValue(GetFieldValue(data, fieldId));
+        }
+
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+        private void EnsureBlendShapeIndices(JointCorrectionSliderData data, JointCorrectionSliderController controller = null)
+        {
+            if (data == null || data.charControl == null)
+                return;
+
+            // female only
+            if (data.charControl.sex != 1)
+                return;
+
+            bool needScan = data.fulleg_idx_in_body < 0
+                || (data.buttchecks1_idx_in_body < 0);
+                // || data.vagina_open_front_idx_in_body < 0;
+
+            if (!needScan)
+                return;
+
+            if (controller == null)
+                controller = data.charControl.GetComponent<JointCorrectionSliderController>();
+
+            if (controller != null)
+                controller.SetBodyBlendShapes();
+        }
+
+        private int GetBlendShapeTargetIndex(JointCorrectionSliderData data, CorrectionFieldId fieldId)
+        {
+            if (data == null)
+                return -1;
+
+            switch (fieldId)
+            {
+                case CorrectionFieldId.BlendFullLeg:
+                    return data.fulleg_idx_in_body;
+                case CorrectionFieldId.BlendButtCreek:
+                    return data.buttchecks1_idx_in_body;
+                default:
+                    return -1;
+            }
+        }
+#endif
+
+        private bool IsBlendShapeField(CorrectionFieldId fieldId)
+        {
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+            switch (fieldId)
+            {
+                case CorrectionFieldId.BlendFullLeg:
+                case CorrectionFieldId.BlendButtCreek:
+                    return true;
+            }
+#endif
+            return false;
+        }
+
+        private float GetFieldValue(JointCorrectionSliderData data, CorrectionFieldId fieldId)
+        {
+            switch (fieldId)
+            {
+                case CorrectionFieldId.LeftShoulder: return data.LeftShoulderValue;
+                case CorrectionFieldId.RightShoulder: return data.RightShoulderValue;
+                case CorrectionFieldId.LeftArmUpper: return data.LeftArmUpperValue;
+                case CorrectionFieldId.RightArmUpper: return data.RightArmUpperValue;
+                case CorrectionFieldId.LeftArmLower: return data.LeftArmLowerValue;
+                case CorrectionFieldId.RightArmLower: return data.RightArmLowerValue;
+                case CorrectionFieldId.LeftElbow: return data.LeftElbowValue;
+                case CorrectionFieldId.RightElbow: return data.RightElbowValue;
+                case CorrectionFieldId.LeftLeg: return data.LeftLegValue;
+                case CorrectionFieldId.RightLeg: return data.RightLegValue;
+                case CorrectionFieldId.LeftKnee: return data.LeftKneeValue;
+                case CorrectionFieldId.RightKnee: return data.RightKneeValue;
+#if FEATURE_DAN_CORRECTION
+                case CorrectionFieldId.DanTop1Scale: return data.DanTop1ScaleValue;
+                case CorrectionFieldId.DanTop2Scale: return data.DanTop2ScaleValue;
+                case CorrectionFieldId.DanTop3Scale: return data.DanTop3ScaleValue;
+                case CorrectionFieldId.DanTop4Length: return data.DanTop4PosValue;
+                case CorrectionFieldId.DanRootScale: return data.DanRootScaleValue;
+#endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                case CorrectionFieldId.BlendFullLeg: return data.fullLegValue;
+                case CorrectionFieldId.BlendButtCreek: return data.buttchecks1Value;
+#endif
+                default:
+                    return 0.0f;
+            }
+        }
+
+        private void SetFieldValue(JointCorrectionSliderData data, CorrectionFieldId fieldId, float value)
+        {
+            switch (fieldId)
+            {
+                case CorrectionFieldId.LeftShoulder: data.LeftShoulderValue = value; break;
+                case CorrectionFieldId.RightShoulder: data.RightShoulderValue = value; break;
+                case CorrectionFieldId.LeftArmUpper: data.LeftArmUpperValue = value; break;
+                case CorrectionFieldId.RightArmUpper: data.RightArmUpperValue = value; break;
+                case CorrectionFieldId.LeftArmLower: data.LeftArmLowerValue = value; break;
+                case CorrectionFieldId.RightArmLower: data.RightArmLowerValue = value; break;
+                case CorrectionFieldId.LeftElbow: data.LeftElbowValue = value; break;
+                case CorrectionFieldId.RightElbow: data.RightElbowValue = value; break;
+                case CorrectionFieldId.LeftLeg: data.LeftLegValue = value; break;
+                case CorrectionFieldId.RightLeg: data.RightLegValue = value; break;
+                case CorrectionFieldId.LeftKnee: data.LeftKneeValue = value; break;
+                case CorrectionFieldId.RightKnee: data.RightKneeValue = value; break;
+#if FEATURE_DAN_CORRECTION
+                case CorrectionFieldId.DanTop1Scale: data.DanTop1ScaleValue = value; break;
+                case CorrectionFieldId.DanTop2Scale: data.DanTop2ScaleValue = value; break;
+                case CorrectionFieldId.DanTop3Scale: data.DanTop3ScaleValue = value; break;
+                case CorrectionFieldId.DanTop4Length: data.DanTop4PosValue = value; break;
+                case CorrectionFieldId.DanRootScale: data.DanRootScaleValue = value; break;
+#endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                case CorrectionFieldId.BlendFullLeg: data.fullLegValue = Mathf.Clamp(Mathf.RoundToInt(value), 0, 100); break;
+                case CorrectionFieldId.BlendButtCreek: data.buttchecks1Value = Mathf.Clamp(Mathf.RoundToInt(value), 0, 100); break;
+#endif
+            }
         }
 
         private bool IsModifiedValue(float value)
@@ -1017,6 +1428,9 @@ namespace JointCorrectionSlider
         private const float Shoulder02PosXRange = 0.8f;
         private const float Shoulder02ScaleMin = 0.5f;
         private const float Shoulder02ScaleMax = 1.5f;
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+        private const float FullLegPosXRange = 0.2f;
+#endif
 #if FEATURE_DAN_CORRECTION
         private const float DanScaleMin = 0.5f;
         private const float DanScaleMax = 1.5f;
@@ -1076,6 +1490,35 @@ namespace JointCorrectionSlider
             tr.localPosition = newPos;
             tr.localScale = baseScale * scaleFactor;
         }
+
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+        private void ApplyFullLegPosition(
+            Transform tr,
+            int fullLegValue,
+            ref bool baseSet,
+            ref Vector3 basePos,
+            ref Vector3 baseScale,
+            float defaultXSign)
+        {
+            if (tr == null)
+                return;
+
+            if (!baseSet)
+            {
+                basePos = tr.localPosition;
+                baseScale = tr.localScale;
+                baseSet = true;
+            }
+
+            float normalized = Mathf.Clamp01(fullLegValue / 100f);
+            float posOffset = normalized * FullLegPosXRange;
+
+            float xSign = Mathf.Abs(basePos.x) > 1e-6f ? Mathf.Sign(basePos.x) : defaultXSign;
+            Vector3 newPos = basePos;
+            newPos.x -= posOffset * xSign;
+            tr.localPosition = newPos;
+        }
+#endif
 
 #if FEATURE_DAN_CORRECTION
         private void ApplyDanTransform(
@@ -1187,7 +1630,7 @@ namespace JointCorrectionSlider
             tr.localScale = scaleBase * scaleFactor;
             tr.localRotation = Quaternion.Euler(newEuler);
 
-            UnityEngine.Debug.Log($">> ApplyDanTransform posValue: {posValue}, pos: {tr.localPosition}, rotate: {tr.localRotation} scale: {tr.localScale}");
+            // UnityEngine.Debug.Log($">> ApplyDanTransform posValue: {posValue}, pos: {tr.localPosition}, rotate: {tr.localRotation} scale: {tr.localScale}");
         }
 #endif
         #endregion
@@ -1432,4 +1875,3 @@ namespace JointCorrectionSlider
     }    
 #endregion
 }
-

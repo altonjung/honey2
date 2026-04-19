@@ -2033,9 +2033,13 @@ namespace RealHumanSupport
                    {
                        float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
                        float vaginaFrontWeight = sinValue * 30f;
+                       float vaginaSqueezeWeight = sinValue * 80f;
+                       float vaginaOutsideWeight = sinValue * 50f;
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT                      
                        SetBlendShape(vaginaFrontWeight, realHumanData.anus_pullout_idx_in_body);
                        SetBlendShape(vaginaFrontWeight, realHumanData.vagina_up_idx_in_body);
+                       SetBlendShape(vaginaSqueezeWeight, realHumanData.vagina_open_squeeze_idx_in_body);
+                       SetBlendShape(vaginaSqueezeWeight, realHumanData.vagina_open_all_outside_idx_in_body);
 #endif
                        if (realHumanData.pregnancyController != null)
                        {   
