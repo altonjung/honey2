@@ -491,7 +491,9 @@ namespace WindPhysics
                     Vector3 windEffect = direction.normalized * UnityEngine.Random.Range(0.1f, 0.15f);
 
                     ApplyWind(windEffect, 1.0f, windData);
-                    yield return new WaitForSeconds(0.2f);
+                    yield return WaitForSecondsOrStop(0.2f);
+                    if (windData.wind_status != Status.RUN)
+                        continue;
 
                     // Fade out over the configured keep time.
                     WindPhysics.ClampWindKeepTimeToInterval();
@@ -502,6 +504,9 @@ namespace WindPhysics
                     float t = 0f;
                     while (t < fadeTime)
                     {
+                        if (windData.wind_status != Status.RUN)
+                            break;
+
                         t += Time.deltaTime;
                         float fadeFactor = Mathf.SmoothStep(1f, 0f, t / fadeTime); // Smoothly decrease.
                         ApplyWind(windEffect, fadeFactor, windData);
@@ -510,7 +515,7 @@ namespace WindPhysics
 
                     float waitTime = windInterval - keepWindTime;
                     if (waitTime > 0f)
-                        yield return new WaitForSeconds(waitTime);
+                        yield return WaitForSecondsOrStop(waitTime);
                     else
                         yield return null;
                 } 
@@ -524,6 +529,22 @@ namespace WindPhysics
 
                     yield break;
                 }
+            }
+        }
+
+        private IEnumerator WaitForSecondsOrStop(float duration)
+        {
+            if (duration <= 0f)
+                yield break;
+
+            float remaining = duration;
+            while (remaining > 0f)
+            {
+                if (windData == null || windData.wind_status != Status.RUN)
+                    yield break;
+
+                yield return null;
+                remaining -= Time.deltaTime;
             }
         }
 
