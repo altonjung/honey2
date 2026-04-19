@@ -146,8 +146,14 @@ namespace JointCorrectionSlider
             DanTop1Scale,
             DanTop2Scale,
             DanTop3Scale,
-            DanTop4Length,
+            DanRootLength,
             DanRootScale,
+            DanRootBent,
+#endif
+#if FEATURE_BUTT_CORRECTION
+            SiriPosX,
+            SiriPosY,
+            SiriScale,
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
             BlendFullLeg,
@@ -220,13 +226,10 @@ namespace JointCorrectionSlider
                 new CorrectionFieldUi(CorrectionFieldId.LeftShoulder, "Sholdr(L)", "Left", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightShoulder, "Sholdr(R)", "Right", -1.0f, 1.0f)
             }),
-            new CorrectionCategoryUi("Arm_Up", new[]
+            new CorrectionCategoryUi("Arm", new[]
             {
-                new CorrectionFieldUi(CorrectionFieldId.LeftArmUpper, "ArmUp(L)", "Left", -1.0f, 1.0f),
-                new CorrectionFieldUi(CorrectionFieldId.RightArmUpper, "ArmUp(R)", "Right", -1.0f, 1.0f)
-            }),
-            new CorrectionCategoryUi("Arm_Dn", new[]
-            {
+                new CorrectionFieldUi(CorrectionFieldId.LeftArmUpper, "ArmUp(L)", "Left upper arm", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.RightArmUpper, "ArmUp(R)", "Right upper arm", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.LeftArmLower, "ArmDn(L)", "Left", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightArmLower, "ArmDn(R)", "Right", -1.0f, 1.0f)
             }),
@@ -246,19 +249,22 @@ namespace JointCorrectionSlider
                 new CorrectionFieldUi(CorrectionFieldId.RightKnee, "Knee(R)", "Back", -1.0f, 1.0f)
             }),
 #if FEATURE_DAN_CORRECTION
-            new CorrectionCategoryUi("Dan Top", new[]
+            new CorrectionCategoryUi("Penis", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.DanTop1Scale, "Glans1(S)", "Glans1 Scale", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.DanTop2Scale, "Glans2(S)", "Glans2 Scale", -1.0f, 1.0f),
-                new CorrectionFieldUi(CorrectionFieldId.DanTop3Scale, "Glans3(S)", "Glans3 Scale", -1.0f, 1.0f)
+                new CorrectionFieldUi(CorrectionFieldId.DanTop3Scale, "Glans3(S)", "Glans3 Scale", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.DanRootLength, "Length", "Penis Length", -1.0f, 0.0f),
+                new CorrectionFieldUi(CorrectionFieldId.DanRootScale, "Scale", "Penis Scale", -0.5f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.DanRootBent, "Bent", "Penis Bent", -1.0f, 1.0f)
             }),
-            new CorrectionCategoryUi("Dan Length", new[]
+#endif
+#if FEATURE_BUTT_CORRECTION
+            new CorrectionCategoryUi("Butt", new[]
             {
-                new CorrectionFieldUi(CorrectionFieldId.DanTop4Length, "Dan(L)", "Penis Length", -1.0f, 0.0f)
-            }),
-            new CorrectionCategoryUi("Dan Scale", new[]
-            {
-                new CorrectionFieldUi(CorrectionFieldId.DanRootScale, "Dan(S)", "Penis Scale", -0.5f, 1.0f)
+                new CorrectionFieldUi(CorrectionFieldId.SiriPosX, "XPos", "Butt position X", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.SiriPosY, "YPos", "Butt position Y", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.SiriScale, "Scale", "Butt scale", -1.0f, 1.0f),
             }),
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
@@ -488,8 +494,26 @@ namespace JointCorrectionSlider
                     data.DanTop3PosValue = ReadFloat(boneNode, "danTop3Length", data.DanTop3PosValue);
                     data.DanTop3RotateValue = ReadFloat(boneNode, "danTop3Rotate", data.DanTop3RotateValue);
                     data.DanTop4ScaleValue = ReadFloat(boneNode, "danTop4Scale", data.DanTop4ScaleValue);
-                    data.DanTop4PosValue = ReadFloat(boneNode, "danTop4Length", data.DanTop4PosValue);
+                    data.DanTop4PosValue = ReadFloat(boneNode, "DanRootLength", data.DanTop4PosValue);
                     data.DanTop4RotateValue = ReadFloat(boneNode, "danTop4Rotate", data.DanTop4RotateValue);
+#endif
+#if FEATURE_BUTT_CORRECTION
+                    float siriPosX = ReadFloat(
+                        boneNode,
+                        "siriPosX",
+                        ReadFloat(boneNode, "siriPos", data.SiriPosLValue));
+                    float siriPosY = ReadFloat(
+                        boneNode,
+                        "siriPosY",
+                        ReadFloat(boneNode, "siriPos", data.SiriPosRValue));
+                    float siriScale = ReadFloat(
+                        boneNode,
+                        "siriScale",
+                        ReadFloat(boneNode, "siriScaleL", data.SiriScaleLValue));
+                    data.SiriPosLValue = siriPosX;
+                    data.SiriPosRValue = siriPosY;
+                    data.SiriScaleLValue = siriScale;
+                    data.SiriScaleRValue = siriScale;
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                     data.fullLegValue = Mathf.Clamp(ReadInt(boneNode, "fullLeg", data.fullLegValue), 0, 100);
@@ -557,8 +581,13 @@ namespace JointCorrectionSlider
                     WriteValueNode(writer, "danTop3Length", data.DanTop3PosValue);
                     WriteValueNode(writer, "danTop3Rotate", data.DanTop3RotateValue);
                     WriteValueNode(writer, "danTop4Scale", data.DanTop4ScaleValue);
-                    WriteValueNode(writer, "danTop4Length", data.DanTop4PosValue);
+                    WriteValueNode(writer, "DanRootLength", data.DanTop4PosValue);
                     WriteValueNode(writer, "danTop4Rotate", data.DanTop4RotateValue);
+#endif
+#if FEATURE_BUTT_CORRECTION
+                    WriteValueNode(writer, "siriPosX", data.SiriPosLValue);
+                    WriteValueNode(writer, "siriPosY", data.SiriPosRValue);
+                    WriteValueNode(writer, "siriScale", data.SiriScaleLValue);
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                     WriteIntNode(writer, "fullLeg", data.fullLegValue);
@@ -918,16 +947,20 @@ namespace JointCorrectionSlider
             {                
                 ApplyBoneTransform(data._shoulder02_s_L, data.LeftShoulderValue, ref data._shoulder02BaseSetL, ref data._shoulder02BasePosL, ref data._shoulder02BaseScaleL, TargetDirection.X_POS);
                 ApplyBoneTransform(data._shoulder02_s_R, data.RightShoulderValue, ref data._shoulder02BaseSetR, ref data._shoulder02BasePosR, ref data._shoulder02BaseScaleR, TargetDirection.X_POS);
+#if FEATURE_BUTT_CORRECTION
+                ApplySiriTransform(data._siri_L, data.SiriPosLValue, data.SiriPosRValue, data.SiriScaleLValue, ref data._siriBaseSetL, ref data._siriBasePosL, ref data._siriBaseScaleL, 1f);
+                ApplySiriTransform(data._siri_R, data.SiriPosLValue, data.SiriPosRValue, data.SiriScaleRValue, ref data._siriBaseSetR, ref data._siriBasePosR, ref data._siriBaseScaleR, -1f);
+#endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                 ApplyFullLegPosition(data._legup01_L, data.fullLegValue, ref data._legup01BaseSetL, ref data._legup01BasePosL, ref data._legup01BaseScaleL, 1f);
                 ApplyFullLegPosition(data._legup01_R, data.fullLegValue, ref data._legup01BaseSetR, ref data._legup01BasePosR, ref data._legup01BaseScaleR, -1f);
 #endif
 #if FEATURE_DAN_CORRECTION
-                ApplyDanTransform(data._dan_top1, data.DanTop1PosValue, data.DanTop1ScaleValue, data.DanTop1RotateValue, ref data._danTop1PosBaseSet, ref data._danTop1PosBasePos, ref data._danTop1ScaleBaseSet, ref data._danTop1ScaleBasePos, ref data._danTop1RotBaseSet, ref data._danTop1RotBaseEuler, TargetDirection.Z_POS);
-                ApplyDanTransform(data._dan_top2, data.DanTop2PosValue, data.DanTop2ScaleValue, data.DanTop2RotateValue, ref data._danTop2PosBaseSet, ref data._danTop2PosBasePos, ref data._danTop2ScaleBaseSet, ref data._danTop2ScaleBasePos, ref data._danTop2RotBaseSet, ref data._danTop2RotBaseEuler, TargetDirection.Z_POS);
-                ApplyDanTransform(data._dan_top3, data.DanTop3PosValue, data.DanTop3ScaleValue, data.DanTop3RotateValue, ref data._danTop3PosBaseSet, ref data._danTop3PosBasePos, ref data._danTop3ScaleBaseSet, ref data._danTop3ScaleBasePos, ref data._danTop3RotBaseSet, ref data._danTop3RotBaseEuler, TargetDirection.Z_POS);
-                ApplyDanTransform(data._dan_top4, data.DanTop4PosValue, data.DanTop4ScaleValue, data.DanTop4RotateValue, ref data._danTop4PosBaseSet, ref data._danTop4PosBasePos, ref data._danTop4ScaleBaseSet, ref data._danTop4ScaleBasePos, ref data._danTop4RotBaseSet, ref data._danTop4RotBaseEuler, TargetDirection.Z_POS);                
-                ApplyDanTransform(data._dan_root, data.DanRootPosValue, data.DanRootScaleValue, data.DanRootRotateValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos, ref data._danRootRotBaseSet, ref data._danRootRotBaseEuler, TargetDirection.Z_POS);                
+                ApplyPenisTransform(data._dan_top1, data.DanTop1PosValue, data.DanTop1ScaleValue, data.DanTop1RotateValue, ref data._danTop1PosBaseSet, ref data._danTop1PosBasePos, ref data._danTop1ScaleBaseSet, ref data._danTop1ScaleBasePos, ref data._danTop1RotBaseSet, ref data._danTop1RotBaseEuler, false, TargetDirection.Z_POS);
+                ApplyPenisTransform(data._dan_top2, data.DanTop2PosValue, data.DanTop2ScaleValue, data.DanTop2RotateValue, ref data._danTop2PosBaseSet, ref data._danTop2PosBasePos, ref data._danTop2ScaleBaseSet, ref data._danTop2ScaleBasePos, ref data._danTop2RotBaseSet, ref data._danTop2RotBaseEuler, false, TargetDirection.Z_POS);
+                ApplyPenisTransform(data._dan_top3, data.DanTop3PosValue, data.DanTop3ScaleValue, data.DanTop3RotateValue, ref data._danTop3PosBaseSet, ref data._danTop3PosBasePos, ref data._danTop3ScaleBaseSet, ref data._danTop3ScaleBasePos, ref data._danTop3RotBaseSet, ref data._danTop3RotBaseEuler, false, TargetDirection.Z_POS);
+                ApplyPenisTransform(data._dan_top4, data.DanTop4PosValue, data.DanTop4ScaleValue, data.DanTop4RotateValue, ref data._danTop4PosBaseSet, ref data._danTop4PosBasePos, ref data._danTop4ScaleBaseSet, ref data._danTop4ScaleBasePos, ref data._danTop4RotBaseSet, ref data._danTop4RotBaseEuler, false, TargetDirection.Z_POS);                
+                ApplyPenisTransform(data._dan_root, data.DanRootPosValue, data.DanRootScaleValue, data.DanRootRotateValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos, ref data._danRootRotBaseSet, ref data._danRootRotBaseEuler, true, TargetDirection.Z_POS);                
 #endif
             }
         }
@@ -1060,7 +1093,7 @@ namespace JointCorrectionSlider
 
                     GUILayout.BeginVertical(GUILayout.Width(160));
                     GUILayout.Label("<color=orange>Category</color>", RichLabel);
-                    _categoryScroll = GUILayout.BeginScrollView(_categoryScroll, GUI.skin.box, GUILayout.Height(118));
+                    _categoryScroll = GUILayout.BeginScrollView(_categoryScroll, GUI.skin.box, GUILayout.Height(150));
                     for (int i = 0; i < visibleCategories.Count; i++)
                     {
                         CorrectionCategoryUi category = visibleCategories[i];
@@ -1086,7 +1119,7 @@ namespace JointCorrectionSlider
 
                     GUILayout.BeginVertical(GUILayout.Width(160));
                     GUILayout.Label("<color=orange>Target</color>", RichLabel);
-                    _targetScroll = GUILayout.BeginScrollView(_targetScroll, GUI.skin.box, GUILayout.Height(118));
+                    _targetScroll = GUILayout.BeginScrollView(_targetScroll, GUI.skin.box, GUILayout.Height(110));
                     for (int i = 0; i < availableFields.Count; i++)
                     {
                         CorrectionFieldUi field = availableFields[i];
@@ -1206,19 +1239,31 @@ namespace JointCorrectionSlider
 
 #if FEATURE_DAN_CORRECTION
             bool isMale = data.charControl != null && data.charControl.sex == 0;
-            bool hasDanTop = isMale && data._dan_top1 != null && data._dan_top2 != null && data._dan_top3 != null && data._dan_top4 != null;
-            bool hasDanRoot = isMale && data._dan_root != null;
 #endif
             switch (fieldId)
             {
+                case CorrectionFieldId.LeftShoulder:
+                    return data._shoulder02_s_L != null;
+                case CorrectionFieldId.RightShoulder:
+                    return data._shoulder02_s_R != null;
 #if FEATURE_DAN_CORRECTION
                 case CorrectionFieldId.DanTop1Scale:
+                    return isMale && data._dan_top1 != null;
                 case CorrectionFieldId.DanTop2Scale:
+                    return isMale && data._dan_top2 != null;
                 case CorrectionFieldId.DanTop3Scale:
-                case CorrectionFieldId.DanTop4Length:
-                    return hasDanTop;
+                    return isMale && data._dan_top3 != null;
+                case CorrectionFieldId.DanRootLength:
+                    return isMale && data._dan_top4 != null;
                 case CorrectionFieldId.DanRootScale:
-                    return hasDanRoot;
+                case CorrectionFieldId.DanRootBent:
+                    return isMale && data._dan_root != null;
+#endif
+#if FEATURE_BUTT_CORRECTION
+                case CorrectionFieldId.SiriPosX:
+                case CorrectionFieldId.SiriPosY:
+                case CorrectionFieldId.SiriScale:
+                    return data._siri_L != null && data._siri_R != null;
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                 case CorrectionFieldId.BlendFullLeg:
@@ -1310,8 +1355,14 @@ namespace JointCorrectionSlider
                 case CorrectionFieldId.DanTop1Scale: return data.DanTop1ScaleValue;
                 case CorrectionFieldId.DanTop2Scale: return data.DanTop2ScaleValue;
                 case CorrectionFieldId.DanTop3Scale: return data.DanTop3ScaleValue;
-                case CorrectionFieldId.DanTop4Length: return data.DanTop4PosValue;
+                case CorrectionFieldId.DanRootLength: return data.DanTop4PosValue;
                 case CorrectionFieldId.DanRootScale: return data.DanRootScaleValue;
+                case CorrectionFieldId.DanRootBent: return data.DanRootRotateValue;
+#endif
+#if FEATURE_BUTT_CORRECTION
+                case CorrectionFieldId.SiriPosX: return data.SiriPosLValue;
+                case CorrectionFieldId.SiriPosY: return data.SiriPosRValue;
+                case CorrectionFieldId.SiriScale: return data.SiriScaleLValue;
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                 case CorrectionFieldId.BlendFullLeg: return data.fullLegValue;
@@ -1342,8 +1393,17 @@ namespace JointCorrectionSlider
                 case CorrectionFieldId.DanTop1Scale: data.DanTop1ScaleValue = value; break;
                 case CorrectionFieldId.DanTop2Scale: data.DanTop2ScaleValue = value; break;
                 case CorrectionFieldId.DanTop3Scale: data.DanTop3ScaleValue = value; break;
-                case CorrectionFieldId.DanTop4Length: data.DanTop4PosValue = value; break;
+                case CorrectionFieldId.DanRootLength: data.DanTop4PosValue = value; break;
                 case CorrectionFieldId.DanRootScale: data.DanRootScaleValue = value; break;
+                case CorrectionFieldId.DanRootBent: data.DanRootRotateValue = value; break;
+#endif
+#if FEATURE_BUTT_CORRECTION
+                case CorrectionFieldId.SiriPosX: data.SiriPosLValue = value; break;
+                case CorrectionFieldId.SiriPosY: data.SiriPosRValue = value; break;
+                case CorrectionFieldId.SiriScale:
+                    data.SiriScaleLValue = value;
+                    data.SiriScaleRValue = value;
+                    break;
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                 case CorrectionFieldId.BlendFullLeg: data.fullLegValue = Mathf.Clamp(Mathf.RoundToInt(value), 0, 100); break;
@@ -1428,8 +1488,13 @@ namespace JointCorrectionSlider
         private const float Shoulder02PosXRange = 0.8f;
         private const float Shoulder02ScaleMin = 0.5f;
         private const float Shoulder02ScaleMax = 1.5f;
+#if FEATURE_BUTT_CORRECTION
+        private const float SiriPosRange = 0.5f;
+        private const float SiriScaleMin = 0.5f;
+        private const float SiriScaleMax = 1.5f;
+#endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
-        private const float FullLegPosXRange = 0.2f;
+        private const float FullLegPosXRange = 0.1f;
 #endif
 #if FEATURE_DAN_CORRECTION
         private const float DanScaleMin = 0.5f;
@@ -1491,6 +1556,46 @@ namespace JointCorrectionSlider
             tr.localScale = baseScale * scaleFactor;
         }
 
+#if FEATURE_BUTT_CORRECTION
+        private void ApplySiriTransform(
+            Transform tr,
+            float posXValue,
+            float posYValue,
+            float scaleValue,
+            ref bool baseSet,
+            ref Vector3 basePos,
+            ref Vector3 baseScale,
+            float xSign)
+        {
+            if (tr == null)
+                return;
+
+            if (!baseSet)
+            {
+                basePos = tr.localPosition;
+                baseScale = tr.localScale;
+                baseSet = true;
+            }
+
+            posXValue = Mathf.Clamp(posXValue, -1f, 1f);
+            posYValue = Mathf.Clamp(posYValue, -1f, 1f);
+            scaleValue = Mathf.Clamp(scaleValue, -1f, 1f);
+
+            float posOffsetX = posXValue * SiriPosRange;
+            float posOffsetY = posYValue * SiriPosRange;
+            Vector3 newPos = basePos;
+            newPos.x += posOffsetX * xSign;
+            newPos.y += posOffsetY;
+
+            float scaleFactor = (scaleValue >= 0f)
+                ? Mathf.Lerp(1f, SiriScaleMax, scaleValue)
+                : Mathf.Lerp(1f, SiriScaleMin, -scaleValue);
+
+            tr.localPosition = newPos;
+            tr.localScale = baseScale * scaleFactor;
+        }
+#endif
+
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
         private void ApplyFullLegPosition(
             Transform tr,
@@ -1521,7 +1626,7 @@ namespace JointCorrectionSlider
 #endif
 
 #if FEATURE_DAN_CORRECTION
-        private void ApplyDanTransform(
+        private void ApplyPenisTransform(
             Transform tr,
             float posValue,
             float scaleValue,
@@ -1532,6 +1637,7 @@ namespace JointCorrectionSlider
             ref Vector3 scaleBase,
             ref bool rotBaseSet,
             ref Vector3 rotBaseEuler,
+            bool rotateOnXAxisOnly = false,
             params TargetDirection[] directions)
         {
             if (tr == null)
@@ -1603,7 +1709,11 @@ namespace JointCorrectionSlider
 
             float rotOffset = rotateValue * DanRotateMaxDegrees;
             Vector3 newEuler = rotBaseEuler;
-            if (directions != null && directions.Length > 0)
+            if (rotateOnXAxisOnly)
+            {
+                newEuler.x += rotOffset;
+            }
+            else if (directions != null && directions.Length > 0)
             {
                 for (int i = 0; i < directions.Length; i++)
                 {
@@ -1630,7 +1740,7 @@ namespace JointCorrectionSlider
             tr.localScale = scaleBase * scaleFactor;
             tr.localRotation = Quaternion.Euler(newEuler);
 
-            // UnityEngine.Debug.Log($">> ApplyDanTransform posValue: {posValue}, pos: {tr.localPosition}, rotate: {tr.localRotation} scale: {tr.localScale}");
+            // UnityEngine.Debug.Log($">> ApplyPenisTransform posValue: {posValue}, pos: {tr.localPosition}, rotate: {tr.localRotation} scale: {tr.localScale}");
         }
 #endif
         #endregion

@@ -2039,7 +2039,6 @@ namespace RealHumanSupport
                        SetBlendShape(vaginaFrontWeight, realHumanData.anus_pullout_idx_in_body);
                        SetBlendShape(vaginaFrontWeight, realHumanData.vagina_up_idx_in_body);
                        SetBlendShape(vaginaSqueezeWeight, realHumanData.vagina_open_squeeze_idx_in_body);
-                       SetBlendShape(vaginaSqueezeWeight, realHumanData.vagina_open_all_outside_idx_in_body);
 #endif
                        if (realHumanData.pregnancyController != null)
                        {   
@@ -2059,6 +2058,8 @@ namespace RealHumanSupport
                            }
                        }
                    }
+
+
 
 #if FEATURE_TEARDROP_SUPPORT
                    if (RealHumanSupport.TearDropActive.Value)
@@ -2436,10 +2437,9 @@ public class CapsuleTrigger : MonoBehaviour
         {
             currentValue = targetValue;
         }
-        
-        _controller.SetBlendShape(currentValue, _data.vagina_open_front_idx_in_body);
-        
-        // _controller.SetBlendShape(currentValue, _data.vagina_open_all_outside_idx_in_body);
+
+        _controller.SetBlendShape(currentValue, _data.vagina_open_front_idx_in_body);                            
+        _controller.SetBlendShape(currentValue/2, _data.vagina_open_all_outside_idx_in_body);
 #endif
     }
 
@@ -2482,10 +2482,10 @@ public class CapsuleTrigger : MonoBehaviour
         string rbName = other.attachedRigidbody.name;
 
         if (rbName.Contains("cm_J_dan119_00"))
-            return 30f;
+            return 40f;
 
         if (rbName.Contains("cm_J_dan108_00"))
-            return 70f;
+            return 80f;
 
         if (rbName.Contains("cm_J_dan105_00") || rbName.Contains("cm_J_dan100_00"))
             return 100f;

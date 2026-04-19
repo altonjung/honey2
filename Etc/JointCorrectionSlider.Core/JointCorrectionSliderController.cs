@@ -77,6 +77,14 @@ namespace JointCorrectionSlider
             correctionData._shoulder02BaseSetL = false;
             correctionData._shoulder02BaseSetR = false;
 
+#if FEATURE_BUTT_CORRECTION
+            correctionData._siri_L = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Siri_s_L");
+            correctionData._siri_R = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Siri_s_R");
+
+            correctionData._siriBaseSetL = false;
+            correctionData._siriBaseSetR = false;
+#endif
+
 #if FEATURE_DAN_CORRECTION
             correctionData._dan_root = charControl.objAnim.transform.FindLoop("cm_J_dan_s");
             correctionData._dan_top1 = charControl.objAnim.transform.FindLoop("cm_J_dan119_00");
@@ -316,6 +324,27 @@ namespace JointCorrectionSlider
         public bool _shoulder02BaseSetL;
         public bool _shoulder02BaseSetR;
 
+#if FEATURE_BUTT_CORRECTION
+        public Transform _siri_L;
+        public Transform _siri_R;
+
+        public float SiriPosLValue = 0.0f;
+        public float SiriPosRValue = 0.0f;
+        public float SiriRotLValue = 0.0f;
+        public float SiriRotRValue = 0.0f;
+        public float SiriScaleLValue = 0.0f;
+        public float SiriScaleRValue = 0.0f;
+
+        public UnityEngine.Vector3 _siriBasePosL;
+        public UnityEngine.Vector3 _siriBasePosR;
+        public UnityEngine.Vector3 _siriBaseScaleL;
+        public UnityEngine.Vector3 _siriBaseScaleR;
+        public UnityEngine.Vector3 _siriBaseRotEulerL;
+        public UnityEngine.Vector3 _siriBaseRotEulerR;
+        public bool _siriBaseSetL;
+        public bool _siriBaseSetR;
+#endif
+
 #if FEATURE_DAN_CORRECTION
         public Transform _dan_root;
         public Transform _dan_top1;
@@ -422,6 +451,14 @@ namespace JointCorrectionSlider
             DanTop4ScaleValue = 0.0f;
             DanTop4PosValue = 0.0f;
             DanTop4RotateValue = 0.0f;
+#endif
+#if FEATURE_BUTT_CORRECTION
+            SiriPosLValue = 0.0f;
+            SiriPosRValue = 0.0f;
+            SiriRotLValue = 0.0f;
+            SiriRotRValue = 0.0f;
+            SiriScaleLValue = 0.0f;
+            SiriScaleRValue = 0.0f;
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
             fullLegValue = 0;
