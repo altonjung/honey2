@@ -98,6 +98,7 @@ namespace ClothQuickTransform
         public const string Version = "0.9.0.0";
         public const string GUID = "com.alton.illusionplugins.ClothQuickTransform";
         internal const string _ownerId = "Alton";
+        internal const string ReleaseType = "Pay";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
         private const string _extSaveKey = "cloth_transform_slider";
@@ -150,18 +151,11 @@ namespace ClothQuickTransform
         private int _slotIndex = 0;
         private string _boneFilterText = string.Empty;
 
-#if FEATURE_PUBLIC        
-        private static readonly string[] ClothSlotLabels = new[]
-        {
-            "Top", "Bottom"
-        };
-#else 
         private static readonly string[] ClothSlotLabels = new[]
         {
             "Top", "Bottom", "Bra", "Pants", "Gloves", "Stockings", "Shoes"
         };
 
-#endif
         private GUIStyle _richLabel;
 
         private GUIStyle RichLabel
@@ -175,6 +169,15 @@ namespace ClothQuickTransform
                 }
                 return _richLabel;
             }
+        }
+
+        private bool IsPaidOnlySlot(int slotIndex)
+        {
+#if FEATURE_PUBLIC
+            return slotIndex >= 2 && slotIndex <= 6;
+#else
+            return false;
+#endif
         }
         // Config
 
@@ -256,7 +259,7 @@ namespace ClothQuickTransform
                         ClearSelectedBoneHighlight();
                 }
 
-                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, "ClothQuickTransform " + Version);
+                this._windowRect = GUILayout.Window(_uniqueId + 1, this._windowRect, this.WindowFunc, $"{Name}_{ReleaseType} " + Version);
             }
         }
         #endregion
@@ -632,7 +635,11 @@ namespace ClothQuickTransform
             }
             else
             {
+                bool isPaidSlot = IsPaidOnlySlot(_slotIndex);
                 GUILayout.BeginHorizontal();
+                bool prevGuiEnabled = GUI.enabled;
+                if (isPaidSlot)
+                    GUI.enabled = false;
                 if (GUILayout.Button("Auto Map", GUILayout.Width(120)))
                 {
                     AutoMap(chaCtrl);
@@ -645,6 +652,7 @@ namespace ClothQuickTransform
                         ClearMappings(entries, true, mapData, _slotIndex);
                     }
                 }
+                GUI.enabled = prevGuiEnabled;
                 GUILayout.EndHorizontal();
 
                 draw_seperate();
@@ -652,19 +660,34 @@ namespace ClothQuickTransform
                 DrawClothSlotFilter();
                 if (prevSlotIndex != _slotIndex && mapData != null)
                 {
-                    var entries = GetOrCreateTransferEntriesFor(chaCtrl, _slotIndex);
-                    int selectedIndex = GetSelectedTransferIndex(mapData, _slotIndex);
-                    if (selectedIndex < 0 || selectedIndex >= entries.Count)
-                        SetSelectedTransferIndex(mapData, _slotIndex, entries.Count > 0 ? 0 : -1);
-                    if (entries.Count == 0 && CanAutoMap(chaCtrl))
-                        AutoMap(chaCtrl);
-                    UpdateSelectedBoneHighlight();
+                    if (IsPaidOnlySlot(_slotIndex))
+                    {
+                        // Keep internal mapping behavior for compatibility, but hide panel details.
+                        var entries = GetOrCreateTransferEntriesFor(chaCtrl, _slotIndex);
+                        if (entries.Count == 0 && CanAutoMap(chaCtrl))
+                            AutoMap(chaCtrl);
+                        ClearSelectedBoneHighlight();
+                    }
+                    else
+                    {
+                        var entries = GetOrCreateTransferEntriesFor(chaCtrl, _slotIndex);
+                        int selectedIndex = GetSelectedTransferIndex(mapData, _slotIndex);
+                        if (selectedIndex < 0 || selectedIndex >= entries.Count)
+                            SetSelectedTransferIndex(mapData, _slotIndex, entries.Count > 0 ? 0 : -1);
+                        if (entries.Count == 0 && CanAutoMap(chaCtrl))
+                            AutoMap(chaCtrl);
+                        UpdateSelectedBoneHighlight();
+                    }
                 }
                 draw_seperate();
 
                 if (mapData == null)
                 {
                     GUILayout.Label("<color=white>No mapper data</color>", RichLabel);
+                }
+                else if (IsPaidOnlySlot(_slotIndex))
+                {
+                    ClearSelectedBoneHighlight();
                 }
                 else
                 {
@@ -1599,16 +1622,24 @@ namespace ClothQuickTransform
         private void DrawClothSlotFilter()
         {
             GUILayout.Label("<color=orange>Cloth Slots</color>", RichLabel);
+            bool prevGuiEnabled = GUI.enabled;
             GUILayout.BeginHorizontal();
             if (GUILayout.Toggle(_slotIndex == 0, ClothSlotLabels[0], GUI.skin.button, GUILayout.Width(70))) _slotIndex = 0;
             if (GUILayout.Toggle(_slotIndex == 1, ClothSlotLabels[1], GUI.skin.button, GUILayout.Width(70))) _slotIndex = 1;
+            GUI.enabled = prevGuiEnabled && !IsPaidOnlySlot(2);
             if (GUILayout.Toggle(_slotIndex == 2, ClothSlotLabels[2], GUI.skin.button, GUILayout.Width(60))) _slotIndex = 2;
+            GUI.enabled = prevGuiEnabled && !IsPaidOnlySlot(3);
             if (GUILayout.Toggle(_slotIndex == 3, ClothSlotLabels[3], GUI.skin.button, GUILayout.Width(70))) _slotIndex = 3;
+            GUI.enabled = prevGuiEnabled && !IsPaidOnlySlot(4);
             if (GUILayout.Toggle(_slotIndex == 4, ClothSlotLabels[4], GUI.skin.button, GUILayout.Width(70))) _slotIndex = 4;
+            GUI.enabled = prevGuiEnabled;
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
+            GUI.enabled = prevGuiEnabled && !IsPaidOnlySlot(5);
             if (GUILayout.Toggle(_slotIndex == 5, ClothSlotLabels[5], GUI.skin.button, GUILayout.Width(150))) _slotIndex = 5;
+            GUI.enabled = prevGuiEnabled && !IsPaidOnlySlot(6);
             if (GUILayout.Toggle(_slotIndex == 6, ClothSlotLabels[6], GUI.skin.button, GUILayout.Width(70))) _slotIndex = 6;
+            GUI.enabled = prevGuiEnabled;
             GUILayout.EndHorizontal();
         }
 

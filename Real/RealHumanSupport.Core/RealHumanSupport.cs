@@ -91,7 +91,7 @@ namespace RealHumanSupport
     {
         #region Constants
         public const string Name = "RealGirlSupport";
-        public const string Version = "0.9.2.1";
+        public const string Version = "0.9.2.2";
         public const string GUID = "com.alton.illusionplugins.RealGirl";
         internal const string _ownerId = "Alton";
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
@@ -153,6 +153,7 @@ namespace RealHumanSupport
 
         private float _prevTFScale = 1.0f;
         private Vector2 _extraBodyColliderScroll;
+        private string _extraBodyColliderFilterText = string.Empty;
         private int _selectedExtraBodyColliderIndex = -1;
         private DynamicBoneCollider _selectedExtraBodyCollider;
         private static readonly float[] _extraColliderStepOptions = new float[] { 1f, 0.1f, 0.01f, 0.001f };
@@ -472,23 +473,55 @@ namespace RealHumanSupport
             if (_selectedExtraBodyColliderIndex < 0 || _selectedExtraBodyColliderIndex >= colliders.Count)
                 _selectedExtraBodyColliderIndex = 0;
 
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Filter", GUILayout.Width(42));
+            _extraBodyColliderFilterText = GUILayout.TextField(_extraBodyColliderFilterText ?? string.Empty, GUILayout.MinWidth(120));
+            if (GUILayout.Button("Clear", GUILayout.Width(52)))
+                _extraBodyColliderFilterText = string.Empty;
+            GUILayout.EndHorizontal();
+
+            string filter = (_extraBodyColliderFilterText ?? string.Empty).Trim();
+            bool hasFilter = !string.IsNullOrEmpty(filter);
+            var visibleColliders = colliders
+                .Select((collider, index) => new { collider, index })
+                .Where(x => x.collider != null)
+                .Where(x => !hasFilter
+                            || x.collider.name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0
+                            || x.collider.m_Direction.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0)
+                .ToList();
+
             _extraBodyColliderScroll = GUILayout.BeginScrollView(_extraBodyColliderScroll, GUI.skin.box, GUILayout.Height(120));
-            for (int i = 0; i < colliders.Count; i++)
+            for (int i = 0; i < visibleColliders.Count; i++)
             {
-                DynamicBoneCollider collider = colliders[i];
+                DynamicBoneCollider collider = visibleColliders[i].collider;
+                int sourceIndex = visibleColliders[i].index;
                 if (collider == null)
                     continue;
 
                 bool isModified = controller != null && controller.IsExtraColliderModified(collider);
                 string color = isModified ? "red" : "white";
                 string label = $"<color={color}>{collider.name} ({collider.m_Direction})</color>";
-                if (GUILayout.Toggle(_selectedExtraBodyColliderIndex == i, label, RichButton))
+                if (GUILayout.Toggle(_selectedExtraBodyColliderIndex == sourceIndex, label, RichButton))
                 {
-                    _selectedExtraBodyColliderIndex = i;
+                    _selectedExtraBodyColliderIndex = sourceIndex;
                     _selectedExtraBodyCollider = collider;
                 }
             }
             GUILayout.EndScrollView();
+
+            if (visibleColliders.Count == 0)
+            {
+                GUILayout.Label("<color=white>No collider matches filter</color>", RichLabel);
+                ClearSelectedExtraBodyColliderVisual();
+                return;
+            }
+
+            if (_selectedExtraBodyCollider == null || !_selectedExtraBodyCollider
+                || !visibleColliders.Any(v => v.collider == _selectedExtraBodyCollider))
+            {
+                _selectedExtraBodyCollider = visibleColliders[0].collider;
+                _selectedExtraBodyColliderIndex = visibleColliders[0].index;
+            }
 
             if (_selectedExtraBodyCollider == null || !_selectedExtraBodyCollider)
                 _selectedExtraBodyCollider = colliders[_selectedExtraBodyColliderIndex];

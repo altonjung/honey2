@@ -2343,12 +2343,6 @@ namespace RealHumanSupport
         public int vagina_open_all_outside_idx_in_body;
         public int vagina_open_squeeze_idx_in_body;
         public int vagina_up_idx_in_body;                
-
-        public int thigh_left_bent_idx_in_body;
-        public int thigh_right_bent_idx_in_body;
-
-        public int pubis_left_bent_idx_in_body;
-        public int pubis_right_bent_idx_in_body;
 #endif
 
         public float TearDropLevel = 0.3f;
@@ -2366,13 +2360,7 @@ namespace RealHumanSupport
             vagina_open_front_idx_in_body = -1;
             vagina_open_all_outside_idx_in_body = -1;
             vagina_open_squeeze_idx_in_body = -1;
-            vagina_up_idx_in_body = -1;
-
-            // fixed
-            // thigh_left_bent_idx_in_body = -1;
-            // thigh_right_bent_idx_in_body = -1;
-            // pubis_left_bent_idx_in_body = -1;
-            // pubis_right_bent_idx_in_body = -1;
+            vagina_up_idx_in_body = -1;            
 #endif
         }     
     }

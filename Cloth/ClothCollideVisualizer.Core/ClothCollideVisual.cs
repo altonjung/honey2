@@ -96,6 +96,7 @@ namespace ClothCollideVisualizer
         public const string Version = "0.9.2.0";
         public const string GUID = "com.alton.illusionplugins.clothcollidevisualizer";
         internal const string _ownerId = "Alton";
+        internal const string ReleaseType = "Pay";        
 #if KOIKATSU || AISHOUJO || HONEYSELECT2
         private const int _saveVersion = 0;
         private const string _extSaveKey = "cloth_collide_visualizer";
@@ -962,7 +963,7 @@ namespace ClothCollideVisualizer
                 if (_ShowUI == false)             
                     return;
 
-                _windowRect = GUILayout.Window(_uniqueId + 1, _windowRect, WindowFunc, "ClothCollideVisualizer " + Version);
+                _windowRect = GUILayout.Window(_uniqueId + 1, _windowRect, WindowFunc, $"{Name}_{ReleaseType} " + Version);
             }                
         }
 
