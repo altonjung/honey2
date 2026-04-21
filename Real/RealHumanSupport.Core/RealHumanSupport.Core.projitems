@@ -12,6 +12,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)RealHumanSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)RealHumanSupportController.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)RealHumanSupportCoroutine.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)RealHumanSupportCollider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)RealHumanSupportAction.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />

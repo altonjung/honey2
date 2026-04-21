@@ -1,4 +1,4 @@
-using Studio;
+﻿using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -51,24 +51,24 @@ using KKAPI.Utilities;
 using KKAPI.Chara;
 using static CharaUtils.Expression;
 /*
-    Agent 코드 수행
+    Agent 肄붾뱶 ?섑뻾
 
-    목적:
-    - 활성화된 캐릭터의 bone 조정 UI 제공
+    紐⑹쟻:
+    - ?쒖꽦?붾맂 罹먮┃?곗쓽 bone 議곗젙 UI ?쒓났
 
-    용어:
-    - OCIChar: 캐릭터 
-        > GetCurrentOCI 함수를 통해 현재 씬내 활성화된 캐리터를 획득
+    ?⑹뼱:
+    - OCIChar: 罹먮┃??
+        > GetCurrentOCI ?⑥닔瑜??듯빐 ?꾩옱 ?щ궡 ?쒖꽦?붾맂 罹먮━?곕? ?띾뱷
 
-    최소 요구 기능:
-        1) onGUI 내에 아래 UI를 구성해야 한다.
-            1.1) n개의 미리 정의된 bone 정보를 slider 형태로 제공             
-        2) sceneWrite, sceneRead가 가능한데, 현재 씬을 저장 후 다시 복원하는 기능이다.            
-            2.1) sceneWrite 함수는 씬내 각 캐릭터의 각 JointCorrectionSliderData 가 보유한 bone 이름과 bone 의 속성(position, scale) 정보를 xml에 저장한다.
-            2.2) sceneRead는 함수는 scenewrite 에서 저장한 xml 정보를 다시 JointCorrectionSliderData 로 업데이트 해야 한다.
+    理쒖냼 ?붽뎄 湲곕뒫:
+        1) onGUI ?댁뿉 ?꾨옒 UI瑜?援ъ꽦?댁빞 ?쒕떎.
+            1.1) n媛쒖쓽 誘몃━ ?뺤쓽??bone ?뺣낫瑜?slider ?뺥깭濡??쒓났             
+        2) sceneWrite, sceneRead媛 媛?ν븳?? ?꾩옱 ?ъ쓣 ??????ㅼ떆 蹂듭썝?섎뒗 湲곕뒫?대떎.            
+            2.1) sceneWrite ?⑥닔???щ궡 媛?罹먮┃?곗쓽 媛?JointCorrectionSliderData 媛 蹂댁쑀??bone ?대쫫怨?bone ???띿꽦(position, scale) ?뺣낫瑜?xml????ν븳??
+            2.2) sceneRead???⑥닔??scenewrite ?먯꽌 ??ν븳 xml ?뺣낫瑜??ㅼ떆 JointCorrectionSliderData 濡??낅뜲?댄듃 ?댁빞 ?쒕떎.
 
-    추가 요구 기능:
-            아래 5개 에 대해, 추가적으로 rotation속성이 필요해(기존에는 position, scale 속성만 존재함)
+    異붽? ?붽뎄 湲곕뒫:
+            ?꾨옒 5媛?????? 異붽??곸쑝濡?rotation?띿꽦???꾩슂??湲곗〈?먮뒗 position, scale ?띿꽦留?議댁옱??
             correctionData._dan_root
             correctionData._dan_top1
             correctionData._dan_top2
@@ -76,10 +76,10 @@ using static CharaUtils.Expression;
             correctionData._dan_top4
 
 
-    현 버전 문제점:
+    ??踰꾩쟾 臾몄젣??
         N/A
 
-    참고 사항
+    李멸퀬 ?ы빆
         category = 0  armup L
         category = 1  armup R
         category = 2  Knee L
@@ -155,6 +155,14 @@ namespace JointCorrectionSlider
             SiriPosY,
             SiriScale,
 #endif
+#if FEATURE_CROTCH_CORRECTION
+            CrotchCorrection,
+#endif
+#if FEATURE_CHEST_CORRECTION
+            MunePosX,
+            MunePosY,
+            MuneScale,
+#endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
             BlendFullLeg,
             BlendButtCreek,
@@ -221,6 +229,14 @@ namespace JointCorrectionSlider
         private static readonly int[] CorrectionCategoryIds = new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
         private static readonly CorrectionCategoryUi[] CorrectionUiCategories = new CorrectionCategoryUi[]
         {
+#if FEATURE_CHEST_CORRECTION
+            new CorrectionCategoryUi("Chest", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.MunePosX, "XPos", "Chest position X", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.MunePosY, "YPos", "Chest position Y", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.MuneScale, "Scale", "Chest scale", -1.0f, 1.0f),
+            }),
+#endif            
             new CorrectionCategoryUi("Shoulder", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.LeftShoulder, "Sholdr(L)", "Left", -1.0f, 1.0f),
@@ -248,6 +264,27 @@ namespace JointCorrectionSlider
                 new CorrectionFieldUi(CorrectionFieldId.LeftKnee, "Knee(L)", "Back", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightKnee, "Knee(R)", "Back", -1.0f, 1.0f)
             }),
+#if FEATURE_BUTT_CORRECTION
+            new CorrectionCategoryUi("Butt", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.SiriPosX, "XPos", "Butt position X", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.SiriPosY, "YPos", "Butt position Y", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.SiriScale, "Scale", "Butt scale", -1.0f, 1.0f),
+            }),
+#endif
+#if FEATURE_CROTCH_CORRECTION
+            new CorrectionCategoryUi("Crotch", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.CrotchCorrection, "Correction", "Crotch X rotation", -1.0f, 1.0f),
+            }),
+#endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+            new CorrectionCategoryUi("Creek", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.BlendFullLeg, "Thigh", "Creek", 0f, 100f),
+                new CorrectionFieldUi(CorrectionFieldId.BlendButtCreek, "Butt", "Creek", 0f, 100f),
+            }),
+#endif
 #if FEATURE_DAN_CORRECTION
             new CorrectionCategoryUi("Penis", new[]
             {
@@ -257,21 +294,6 @@ namespace JointCorrectionSlider
                 new CorrectionFieldUi(CorrectionFieldId.DanRootLength, "Length", "Penis Length", -1.0f, 0.0f),
                 new CorrectionFieldUi(CorrectionFieldId.DanRootScale, "Scale", "Penis Scale", -0.5f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.DanRootBent, "Bent", "Penis Bent", -1.0f, 1.0f)
-            }),
-#endif
-#if FEATURE_BUTT_CORRECTION
-            new CorrectionCategoryUi("Butt", new[]
-            {
-                new CorrectionFieldUi(CorrectionFieldId.SiriPosX, "XPos", "Butt position X", -1.0f, 1.0f),
-                new CorrectionFieldUi(CorrectionFieldId.SiriPosY, "YPos", "Butt position Y", -1.0f, 1.0f),
-                new CorrectionFieldUi(CorrectionFieldId.SiriScale, "Scale", "Butt scale", -1.0f, 1.0f),
-            }),
-#endif
-#if FEATURE_BODY_BLENDSHAPE_SUPPORT
-            new CorrectionCategoryUi("Body BlendShape", new[]
-            {
-                new CorrectionFieldUi(CorrectionFieldId.BlendFullLeg, "Thigh", "Creek", 0f, 100f),
-                new CorrectionFieldUi(CorrectionFieldId.BlendButtCreek, "Butt", "Creek", 0f, 100f),
             }),
 #endif
         };
@@ -515,6 +537,30 @@ namespace JointCorrectionSlider
                     data.SiriScaleLValue = siriScale;
                     data.SiriScaleRValue = siriScale;
 #endif
+#if FEATURE_CROTCH_CORRECTION
+                    data.KosiCorrectionValue = ReadFloat(
+                        boneNode,
+                        "kosiCorrection",
+                        ReadFloat(boneNode, "kosiPosX", data.KosiCorrectionValue));
+#endif
+#if FEATURE_CHEST_CORRECTION
+                    float munePosX = ReadFloat(
+                        boneNode,
+                        "munePosX",
+                        ReadFloat(boneNode, "munePos", data.MunePosLValue));
+                    float munePosY = ReadFloat(
+                        boneNode,
+                        "munePosY",
+                        ReadFloat(boneNode, "munePos", data.MunePosRValue));
+                    float muneScale = ReadFloat(
+                        boneNode,
+                        "muneScale",
+                        ReadFloat(boneNode, "muneScaleL", data.MuneScaleLValue));
+                    data.MunePosLValue = munePosX;
+                    data.MunePosRValue = munePosY;
+                    data.MuneScaleLValue = muneScale;
+                    data.MuneScaleRValue = muneScale;
+#endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                     data.fullLegValue = Mathf.Clamp(ReadInt(boneNode, "fullLeg", data.fullLegValue), 0, 100);
                     XmlNode buttchecks1Node = boneNode.SelectSingleNode("buttchecks1");
@@ -588,6 +634,14 @@ namespace JointCorrectionSlider
                     WriteValueNode(writer, "siriPosX", data.SiriPosLValue);
                     WriteValueNode(writer, "siriPosY", data.SiriPosRValue);
                     WriteValueNode(writer, "siriScale", data.SiriScaleLValue);
+#endif
+#if FEATURE_CROTCH_CORRECTION
+                    WriteValueNode(writer, "kosiCorrection", data.KosiCorrectionValue);
+#endif
+#if FEATURE_CHEST_CORRECTION
+                    WriteValueNode(writer, "munePosX", data.MunePosLValue);
+                    WriteValueNode(writer, "munePosY", data.MunePosRValue);
+                    WriteValueNode(writer, "muneScale", data.MuneScaleLValue);
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                     WriteIntNode(writer, "fullLeg", data.fullLegValue);
@@ -951,6 +1005,13 @@ namespace JointCorrectionSlider
                 ApplySiriTransform(data._siri_L, data.SiriPosLValue, data.SiriPosRValue, data.SiriScaleLValue, ref data._siriBaseSetL, ref data._siriBasePosL, ref data._siriBaseScaleL, 1f);
                 ApplySiriTransform(data._siri_R, data.SiriPosLValue, data.SiriPosRValue, data.SiriScaleRValue, ref data._siriBaseSetR, ref data._siriBasePosR, ref data._siriBaseScaleR, -1f);
 #endif
+#if FEATURE_CROTCH_CORRECTION
+                ApplyKosiCorrection(data._kosi_s, data.KosiCorrectionValue, ref data._kosiBaseSet, ref data._kosiBaseRotEuler);
+#endif
+#if FEATURE_CHEST_CORRECTION
+                ApplyMuneTransform(data._mune_s_L, data.MunePosLValue, data.MunePosRValue, data.MuneScaleLValue, ref data._muneBaseSetL, ref data._muneBasePosL, ref data._muneBaseScaleL, 1f);
+                ApplyMuneTransform(data._mune_s_R, data.MunePosLValue, data.MunePosRValue, data.MuneScaleRValue, ref data._muneBaseSetR, ref data._muneBasePosR, ref data._muneBaseScaleR, -1f);
+#endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                 ApplyFullLegPosition(data._legup01_L, data.fullLegValue, ref data._legup01BaseSetL, ref data._legup01BasePosL, ref data._legup01BaseScaleL, 1f);
                 ApplyFullLegPosition(data._legup01_R, data.fullLegValue, ref data._legup01BaseSetR, ref data._legup01BasePosR, ref data._legup01BaseScaleR, -1f);
@@ -1265,6 +1326,16 @@ namespace JointCorrectionSlider
                 case CorrectionFieldId.SiriScale:
                     return data._siri_L != null && data._siri_R != null;
 #endif
+#if FEATURE_CROTCH_CORRECTION
+                case CorrectionFieldId.CrotchCorrection:
+                    return data._kosi_s != null;
+#endif
+#if FEATURE_CHEST_CORRECTION
+                case CorrectionFieldId.MunePosX:
+                case CorrectionFieldId.MunePosY:
+                case CorrectionFieldId.MuneScale:
+                    return data._mune_s_L != null && data._mune_s_R != null;
+#endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                 case CorrectionFieldId.BlendFullLeg:
                     return data.charControl != null && data.charControl.sex == 1;
@@ -1364,6 +1435,14 @@ namespace JointCorrectionSlider
                 case CorrectionFieldId.SiriPosY: return data.SiriPosRValue;
                 case CorrectionFieldId.SiriScale: return data.SiriScaleLValue;
 #endif
+#if FEATURE_CROTCH_CORRECTION
+                case CorrectionFieldId.CrotchCorrection: return data.KosiCorrectionValue;
+#endif
+#if FEATURE_CHEST_CORRECTION
+                case CorrectionFieldId.MunePosX: return data.MunePosLValue;
+                case CorrectionFieldId.MunePosY: return data.MunePosRValue;
+                case CorrectionFieldId.MuneScale: return data.MuneScaleLValue;
+#endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                 case CorrectionFieldId.BlendFullLeg: return data.fullLegValue;
                 case CorrectionFieldId.BlendButtCreek: return data.buttchecks1Value;
@@ -1403,6 +1482,17 @@ namespace JointCorrectionSlider
                 case CorrectionFieldId.SiriScale:
                     data.SiriScaleLValue = value;
                     data.SiriScaleRValue = value;
+                    break;
+#endif
+#if FEATURE_CROTCH_CORRECTION
+                case CorrectionFieldId.CrotchCorrection: data.KosiCorrectionValue = value; break;
+#endif
+#if FEATURE_CHEST_CORRECTION
+                case CorrectionFieldId.MunePosX: data.MunePosLValue = value; break;
+                case CorrectionFieldId.MunePosY: data.MunePosRValue = value; break;
+                case CorrectionFieldId.MuneScale:
+                    data.MuneScaleLValue = value;
+                    data.MuneScaleRValue = value;
                     break;
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
@@ -1492,6 +1582,14 @@ namespace JointCorrectionSlider
         private const float SiriPosRange = 0.5f;
         private const float SiriScaleMin = 0.5f;
         private const float SiriScaleMax = 1.5f;
+#endif
+#if FEATURE_CROTCH_CORRECTION
+        private const float KosiRotateMaxDegrees = 45f;
+#endif
+#if FEATURE_CHEST_CORRECTION
+        private const float MunePosRange = 0.5f;
+        private const float MuneScaleMin = 0.5f;
+        private const float MuneScaleMax = 1.5f;
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
         private const float FullLegPosXRange = 0.1f;
@@ -1593,6 +1691,69 @@ namespace JointCorrectionSlider
 
             tr.localPosition = newPos;
             tr.localScale = baseScale * scaleFactor;
+        }
+#endif
+
+#if FEATURE_CHEST_CORRECTION
+        private void ApplyMuneTransform(
+            Transform tr,
+            float posXValue,
+            float posYValue,
+            float scaleValue,
+            ref bool baseSet,
+            ref Vector3 basePos,
+            ref Vector3 baseScale,
+            float xSign)
+        {
+            if (tr == null)
+                return;
+
+            if (!baseSet)
+            {
+                basePos = tr.localPosition;
+                baseScale = tr.localScale;
+                baseSet = true;
+            }
+
+            posXValue = Mathf.Clamp(posXValue, -1f, 1f);
+            posYValue = Mathf.Clamp(posYValue, -1f, 1f);
+            scaleValue = Mathf.Clamp(scaleValue, -1f, 1f);
+
+            float posOffsetX = posXValue * MunePosRange;
+            float posOffsetY = posYValue * MunePosRange;
+            Vector3 newPos = basePos;
+            newPos.x += posOffsetX * xSign;
+            newPos.y += posOffsetY;
+
+            float scaleFactor = (scaleValue >= 0f)
+                ? Mathf.Lerp(1f, MuneScaleMax, scaleValue)
+                : Mathf.Lerp(1f, MuneScaleMin, -scaleValue);
+
+            tr.localPosition = newPos;
+            tr.localScale = baseScale * scaleFactor;
+        }
+#endif
+
+#if FEATURE_CROTCH_CORRECTION
+        private void ApplyKosiCorrection(
+            Transform tr,
+            float correctionValue,
+            ref bool baseSet,
+            ref Vector3 baseRotEuler)
+        {
+            if (tr == null)
+                return;
+
+            if (!baseSet)
+            {
+                baseRotEuler = tr.localEulerAngles;
+                baseSet = true;
+            }
+
+            correctionValue = Mathf.Clamp(correctionValue, -1f, 1f);
+            Vector3 newEuler = baseRotEuler;
+            newEuler.x += correctionValue * KosiRotateMaxDegrees;
+            tr.localRotation = Quaternion.Euler(newEuler);
         }
 #endif
 
@@ -1985,3 +2146,5 @@ namespace JointCorrectionSlider
     }    
 #endregion
 }
+
+

@@ -380,12 +380,14 @@ namespace ClothCollideBinder
         }
 
 
-        private float SliderRow(string label, float value, float min, float max)
+        private float SliderRow(string label, float value, float min, float max, float resetValue)
         {
             GUILayout.BeginHorizontal();
             GUILayout.Label(label, GUILayout.Width(60));
             value = GUILayout.HorizontalSlider(value, min, max);
             GUILayout.Label(value.ToString("0.00"), GUILayout.Width(40));
+            if (GUILayout.Button("Reset", GUILayout.Width(52)))
+                value = Mathf.Clamp(resetValue, min, max);
             GUILayout.EndHorizontal();
             return value;
         }
@@ -627,12 +629,12 @@ namespace ClothCollideBinder
             Vector3 prevCenter = _pendingColliderCenter;
             float prevRadius = _pendingColliderRadius;
             float prevHeight = _pendingColliderHeight;
-            _pendingColliderCenter.x = SliderRow("Center X", _pendingColliderCenter.x, -2.0f, 2.0f);
-            _pendingColliderCenter.y = SliderRow("Center Y", _pendingColliderCenter.y, -2.0f, 2.0f);
-            _pendingColliderCenter.z = SliderRow("Center Z", _pendingColliderCenter.z, -2.0f, 2.0f);
-            _pendingColliderRadius = SliderRow("Radius", _pendingColliderRadius, 0.05f, 1.5f);
+            _pendingColliderCenter.x = SliderRow("Center X", _pendingColliderCenter.x, -2.0f, 2.0f, 0.0f);
+            _pendingColliderCenter.y = SliderRow("Center Y", _pendingColliderCenter.y, -2.0f, 2.0f, 0.0f);
+            _pendingColliderCenter.z = SliderRow("Center Z", _pendingColliderCenter.z, -2.0f, 2.0f, 0.0f);
+            _pendingColliderRadius = SliderRow("Radius", _pendingColliderRadius, 0.05f, 1.5f, _pendingColliderType == ExternalColliderType.Capsule ? 0.2f : 0.22f);
             if (_pendingColliderType == ExternalColliderType.Capsule)
-                _pendingColliderHeight = SliderRow("Height", _pendingColliderHeight, 0.1f, 3.0f);
+                _pendingColliderHeight = SliderRow("Height", _pendingColliderHeight, 0.1f, 3.0f, 0.6f);
 
             if (binding != null && binding.colliderType == _pendingColliderType)
             {

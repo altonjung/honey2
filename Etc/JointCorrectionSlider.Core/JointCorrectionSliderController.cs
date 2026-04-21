@@ -76,6 +76,13 @@ namespace JointCorrectionSlider
 
             correctionData._shoulder02BaseSetL = false;
             correctionData._shoulder02BaseSetR = false;
+#if FEATURE_CHEST_CORRECTION
+            correctionData._mune_s_L = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Mune00_s_L");
+            correctionData._mune_s_R = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Mune00_s_R");
+
+            correctionData._muneBaseSetL = false;
+            correctionData._muneBaseSetR = false;
+#endif
 
 #if FEATURE_BUTT_CORRECTION
             correctionData._siri_L = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Siri_s_L");
@@ -83,6 +90,11 @@ namespace JointCorrectionSlider
 
             correctionData._siriBaseSetL = false;
             correctionData._siriBaseSetR = false;
+#endif
+#if FEATURE_CROTCH_CORRECTION
+            correctionData._kosi_s = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Kosi02_s");
+
+            correctionData._kosiBaseSet = false;
 #endif
 
 #if FEATURE_DAN_CORRECTION
@@ -324,6 +336,28 @@ namespace JointCorrectionSlider
         public bool _shoulder02BaseSetL;
         public bool _shoulder02BaseSetR;
 
+
+#if FEATURE_CHEST_CORRECTION
+        public Transform _mune_s_L;
+        public Transform _mune_s_R;
+
+        public float MunePosLValue = 0.0f;
+        public float MunePosRValue = 0.0f;
+        public float MuneRotLValue = 0.0f;
+        public float MuneRotRValue = 0.0f;
+        public float MuneScaleLValue = 0.0f;
+        public float MuneScaleRValue = 0.0f;
+
+        public UnityEngine.Vector3 _muneBasePosL;
+        public UnityEngine.Vector3 _muneBasePosR;
+        public UnityEngine.Vector3 _muneBaseScaleL;
+        public UnityEngine.Vector3 _muneBaseScaleR;
+        public UnityEngine.Vector3 _muneBaseRotEulerL;
+        public UnityEngine.Vector3 _muneBaseRotEulerR;
+        public bool _muneBaseSetL;
+        public bool _muneBaseSetR;
+#endif
+
 #if FEATURE_BUTT_CORRECTION
         public Transform _siri_L;
         public Transform _siri_R;
@@ -343,6 +377,14 @@ namespace JointCorrectionSlider
         public UnityEngine.Vector3 _siriBaseRotEulerR;
         public bool _siriBaseSetL;
         public bool _siriBaseSetR;
+#endif
+
+#if FEATURE_CROTCH_CORRECTION
+        public Transform _kosi_s;
+
+        public float KosiCorrectionValue = 0.0f;
+        public UnityEngine.Vector3 _kosiBaseRotEuler;
+        public bool _kosiBaseSet;
 #endif
 
 #if FEATURE_DAN_CORRECTION
@@ -459,6 +501,17 @@ namespace JointCorrectionSlider
             SiriRotRValue = 0.0f;
             SiriScaleLValue = 0.0f;
             SiriScaleRValue = 0.0f;
+#endif
+#if FEATURE_CHEST_CORRECTION
+            MunePosLValue = 0.0f;
+            MunePosRValue = 0.0f;
+            MuneRotLValue = 0.0f;
+            MuneRotRValue = 0.0f;
+            MuneScaleLValue = 0.0f;
+            MuneScaleRValue = 0.0f;
+#endif
+#if FEATURE_CROTCH_CORRECTION
+            KosiCorrectionValue = 0.0f;
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
             fullLegValue = 0;

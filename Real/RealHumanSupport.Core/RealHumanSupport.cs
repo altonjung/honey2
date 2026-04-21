@@ -541,17 +541,27 @@ namespace RealHumanSupport
 
             Vector3 posBefore = tr.localPosition;
             Vector3 scaleBefore = tr.localScale;
+            float[] originalSnapshot = null;
+            if (controller != null)
+                controller.TryGetExtraColliderOriginalSnapshot(_selectedExtraBodyCollider, out originalSnapshot);
+
+            float resetPosX = originalSnapshot != null && originalSnapshot.Length >= 6 ? originalSnapshot[0] : 0.0f;
+            float resetPosY = originalSnapshot != null && originalSnapshot.Length >= 6 ? originalSnapshot[1] : 0.0f;
+            float resetPosZ = originalSnapshot != null && originalSnapshot.Length >= 6 ? originalSnapshot[2] : 0.0f;
+            float resetSclX = originalSnapshot != null && originalSnapshot.Length >= 6 ? originalSnapshot[3] : 1.0f;
+            float resetSclY = originalSnapshot != null && originalSnapshot.Length >= 6 ? originalSnapshot[4] : 1.0f;
+            float resetSclZ = originalSnapshot != null && originalSnapshot.Length >= 6 ? originalSnapshot[5] : 1.0f;
 
             Vector3 pos = posBefore;
-            pos.x = SliderRow("Pos X", pos.x, -2.0f, 2.0f, step);
-            pos.y = SliderRow("Pos Y", pos.y, -2.0f, 2.0f, step);
-            pos.z = SliderRow("Pos Z", pos.z, -2.0f, 2.0f, step);
+            pos.x = SliderRow("Pos X", pos.x, -2.0f, 2.0f, resetPosX, step);
+            pos.y = SliderRow("Pos Y", pos.y, -2.0f, 2.0f, resetPosY, step);
+            pos.z = SliderRow("Pos Z", pos.z, -2.0f, 2.0f, resetPosZ, step);
             tr.localPosition = pos;
 
             Vector3 scale = scaleBefore;
-            scale.x = SliderRow("Scl X", scale.x, 0.05f, 3.0f, step);
-            scale.y = SliderRow("Scl Y", scale.y, 0.05f, 3.0f, step);
-            scale.z = SliderRow("Scl Z", scale.z, 0.05f, 3.0f, step);
+            scale.x = SliderRow("Scl X", scale.x, 0.05f, 3.0f, resetSclX, step);
+            scale.y = SliderRow("Scl Y", scale.y, 0.05f, 3.0f, resetSclY, step);
+            scale.z = SliderRow("Scl Z", scale.z, 0.05f, 3.0f, resetSclZ, step);
             tr.localScale = scale;
 
             if (controller != null && (!NearlyEqual(posBefore, pos) || !NearlyEqual(scaleBefore, scale)))
@@ -602,7 +612,7 @@ namespace RealHumanSupport
             return clampedIndex;
         }
 
-        private static float SliderRow(string label, float value, float min, float max, float step)
+        private static float SliderRow(string label, float value, float min, float max, float resetValue, float step)
         {
             GUILayout.BeginHorizontal();
             GUILayout.Label(label, GUILayout.Width(60));
@@ -613,6 +623,8 @@ namespace RealHumanSupport
                 value += step;
             value = Mathf.Clamp(value, min, max);
             GUILayout.Label(value.ToString("0.000"), GUILayout.Width(45));
+            if (GUILayout.Button("Reset", GUILayout.Width(52)))
+                value = Mathf.Clamp(resetValue, min, max);
             GUILayout.EndHorizontal();
             return value;
         }
@@ -877,7 +889,7 @@ namespace RealHumanSupport
                                             RotChanged(RealHumanSupportController.GetBoneRotationFromFK(realHumanData.fk_right_shoulder_bone)._q, realHumanData.prev_fk_right_shoulder_rot, ROT_EPS)
                                         )
                                         {
-                                            RealHumanSupportController.SupportBodyBumpEffect(ociChar.charInfo, realHumanData);
+                                            RealHumanSupportController.DoBodyBumpEffect(ociChar.charInfo, realHumanData);
                                         }
                                     }
                                 }
