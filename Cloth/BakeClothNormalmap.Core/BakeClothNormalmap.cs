@@ -83,6 +83,12 @@ namespace BakeClothNormalmap
 #endif
 
         #region Private Types
+        private sealed class MergeUvCacheEntry
+        {
+            public Vector2[,] worldToUvA;
+            public bool[,] worldToUvAValid;
+            public int lastAccessFrame;
+        }
         #endregion
 
         #region Private Variables
@@ -96,6 +102,8 @@ namespace BakeClothNormalmap
         private OCIChar _selectedOciChar;
         // end
         private ComputeShader _mergeShader;
+        private static readonly Dictionary<string, MergeUvCacheEntry> _worldToUvCacheByKey = new Dictionary<string, MergeUvCacheEntry>();
+        private const int MaxWorldToUvCacheEntries = 4;
 
         internal static ConfigEntry<KeyboardShortcut> ConfigShortcut { get; private set; }
 
@@ -275,6 +283,7 @@ namespace BakeClothNormalmap
 
             Vector2[] uv = mesh.uv;
             int[] triangles = mesh.triangles;
+            HashSet<int> backIndexSet = new HashSet<int>(backIndices);
 
             for (int i = 0; i < triangles.Length; i += 3)
             {
@@ -282,7 +291,7 @@ namespace BakeClothNormalmap
                 int v1 = triangles[i + 1];
                 int v2 = triangles[i + 2];
 
-                if (backIndices.Contains(v0) && backIndices.Contains(v1) && backIndices.Contains(v2))
+                if (backIndexSet.Contains(v0) && backIndexSet.Contains(v1) && backIndexSet.Contains(v2))
                 {
                     FillTriangleBasic(mask, uv[v0], uv[v1], uv[v2], textureWidth, textureHeight);
                 }
@@ -434,12 +443,14 @@ namespace BakeClothNormalmap
             SkinnedMeshRenderer smr,
             List<TriangleData> flat,
             Texture2D mask,
+            out bool[,] validCache,
             float baryMargin = -1e-5f)  // margin 추가
         {
             int width = mask.width;
             int height = mask.height;
             Color[] maskPixels = mask.GetPixels();
             Vector3[,] cache = new Vector3[width, height];
+            validCache = new bool[width, height];
 
             float invWidth = 1f / width;
             float invHeight = 1f / height;
@@ -474,6 +485,7 @@ namespace BakeClothNormalmap
 
                         Vector3 localPos = tri.pos0 * bary.x + tri.pos1 * bary.y + tri.pos2 * bary.z;
                         cache[x, y] = smr.transform.TransformPoint(localPos);
+                        validCache[x, y] = true;
                     }
                 }
             }
@@ -485,13 +497,16 @@ namespace BakeClothNormalmap
             SkinnedMeshRenderer smrA,
             List<TriangleData> flatA,
             Vector3[,] uvToWorldB,
+            bool[,] uvToWorldBValid,
             Texture2D mask,
+            out bool[,] validCache,
             int nx = 40, int ny = 40, int nz = 40,
             float baryMargin = -1e-5f)
         {
             int width = uvToWorldB.GetLength(0);
             int height = uvToWorldB.GetLength(1);
             Vector2[,] cache = new Vector2[width, height];
+            validCache = new bool[width, height];
 
             Color[] maskPixels = mask != null ? mask.GetPixels() : null;
 
@@ -529,9 +544,9 @@ namespace BakeClothNormalmap
                     if (maskPixels != null && maskPixels[y * width + x].a <= 0f)
                         continue;
 
-                    Vector3 worldPos = uvToWorldB[x, y];
-                    if (worldPos == Vector3.zero)
+                    if (!uvToWorldBValid[x, y])
                         continue;
+                    Vector3 worldPos = uvToWorldB[x, y];
 
                     Vector3 localPos = smrA.transform.InverseTransformPoint(worldPos);
 
@@ -549,6 +564,7 @@ namespace BakeClothNormalmap
                             if (TryBary(localPos, flatA[triIndex], baryMargin, out uvA))
                             {
                                 cache[x, y] = uvA;
+                                validCache[x, y] = true;
                                 found = true;
                                 break;
                             }
@@ -588,7 +604,11 @@ namespace BakeClothNormalmap
                             }
                         }
 
-                        cache[x, y] = bestUV;
+                        if (minDist < float.MaxValue)
+                        {
+                            cache[x, y] = bestUV;
+                            validCache[x, y] = true;
+                        }
                     }
                 }
             }
@@ -686,69 +706,141 @@ namespace BakeClothNormalmap
         private static Texture2D ProjectBumpBontoA(
             Texture2D bumpB,
             Vector2[,] worldToUvA,
-            int widthA, int heightA,
-            int mode = 1   // 1 = 2x2, 2 = 3x3
+            bool[,] worldToUvAValid,
+            int widthA, int heightA
         )
         {
             Texture2D resultA = new Texture2D(widthA, heightA, TextureFormat.RGBA32, false);
             Color[] pixelsA = new Color[widthA * heightA];
             for (int i = 0; i < pixelsA.Length; i++)
                 pixelsA[i] = new Color(0, 0, 0, 0);
+            float[] weightsA = new float[widthA * heightA];
 
             int widthB = bumpB.width;
             int heightB = bumpB.height;
             Color[] pixelsB = bumpB.GetPixels();
 
-            // --- mode → splatting range 변환 ---
-            int start, end;
-
-            if (mode == 1)
-            {
-                // 2x2: (0,1)
-                start = 0;
-                end = 1;
-            }
-            else
-            {
-                // 3x3: (-1,0,+1)
-                start = -1;
-                end = 1;
-            }
-
             for (int yB = 0; yB < heightB; yB++)
             {
                 for (int xB = 0; xB < widthB; xB++)
                 {
-                    Vector2 uvA = worldToUvA[xB, yB];
-                    if (uvA == Vector2.zero) continue;
+                    if (!worldToUvAValid[xB, yB])
+                        continue;
 
-                    int xBase = Mathf.FloorToInt(uvA.x * widthA);
-                    int yBase = Mathf.FloorToInt(uvA.y * heightA);
+                    Vector2 uvA = worldToUvA[xB, yB];
+                    if (uvA.x < 0f || uvA.x > 1f || uvA.y < 0f || uvA.y > 1f)
+                        continue;
 
                     int idxB = yB * widthB + xB;
                     Color cB = pixelsB[idxB];
+                    float px = uvA.x * (widthA - 1);
+                    float py = uvA.y * (heightA - 1);
+                    int x0 = Mathf.FloorToInt(px);
+                    int y0 = Mathf.FloorToInt(py);
+                    int x1 = Mathf.Min(x0 + 1, widthA - 1);
+                    int y1 = Mathf.Min(y0 + 1, heightA - 1);
+                    float tx = px - x0;
+                    float ty = py - y0;
 
-                    // ---------------- SPLATTING ----------------
-                    for (int dy = start; dy <= end; dy++)
-                    {
-                        for (int dx = start; dx <= end; dx++)
-                        {
-                            int xA = xBase + dx;
-                            int yA = yBase + dy;
-
-                            if (xA < 0 || xA >= widthA || yA < 0 || yA >= heightA)
-                                continue;
-
-                            int idxA = yA * widthA + xA;
-                            pixelsA[idxA] = cB;
-                        }
-                    }
+                    // bilinear splat (순서 의존 overwrite 제거)
+                    AddWeightedPixel(pixelsA, weightsA, widthA, heightA, x0, y0, cB, (1f - tx) * (1f - ty));
+                    AddWeightedPixel(pixelsA, weightsA, widthA, heightA, x1, y0, cB, tx * (1f - ty));
+                    AddWeightedPixel(pixelsA, weightsA, widthA, heightA, x0, y1, cB, (1f - tx) * ty);
+                    AddWeightedPixel(pixelsA, weightsA, widthA, heightA, x1, y1, cB, tx * ty);
                 }
+            }
+
+            for (int i = 0; i < pixelsA.Length; i++)
+            {
+                float w = weightsA[i];
+                if (w > 1e-6f)
+                    pixelsA[i] = pixelsA[i] * (1f / w);
             }
 
             resultA.SetPixels(pixelsA);
             resultA.Apply();
             return resultA;
+        }
+
+        private static void AddWeightedPixel(Color[] pixels, float[] weights, int width, int height, int x, int y, Color value, float weight)
+        {
+            if (weight <= 0f || x < 0 || y < 0 || x >= width || y >= height)
+                return;
+
+            int idx = y * width + x;
+            pixels[idx] += value * weight;
+            weights[idx] += weight;
+        }
+
+        private static string BuildWorldToUvCacheKey(SkinnedMeshRenderer smrA, SkinnedMeshRenderer smrB, Mesh meshA, Mesh meshB, int widthA, int heightA, int widthB, int heightB)
+        {
+            int hashA = ComputeMeshPoseHash(meshA);
+            int hashB = ComputeMeshPoseHash(meshB);
+            return $"{smrA.GetInstanceID()}:{smrB.GetInstanceID()}:{widthA}x{heightA}:{widthB}x{heightB}:{hashA}:{hashB}";
+        }
+
+        private static int ComputeMeshPoseHash(Mesh mesh)
+        {
+            if (mesh == null || mesh.vertexCount == 0)
+                return 0;
+
+            Vector3[] vertices = mesh.vertices;
+            int sampleCount = Mathf.Min(64, vertices.Length);
+            int step = Mathf.Max(1, vertices.Length / sampleCount);
+            int hash = 17;
+
+            for (int i = 0; i < vertices.Length; i += step)
+            {
+                Vector3 v = vertices[i];
+                hash = unchecked(hash * 31 + Mathf.RoundToInt(v.x * 1000f));
+                hash = unchecked(hash * 31 + Mathf.RoundToInt(v.y * 1000f));
+                hash = unchecked(hash * 31 + Mathf.RoundToInt(v.z * 1000f));
+            }
+
+            hash = unchecked(hash * 31 + mesh.triangles.Length);
+            return hash;
+        }
+
+        private static bool TryGetWorldToUvCache(string key, out Vector2[,] worldToUvA, out bool[,] worldToUvAValid)
+        {
+            if (_worldToUvCacheByKey.TryGetValue(key, out MergeUvCacheEntry entry))
+            {
+                entry.lastAccessFrame = Time.frameCount;
+                worldToUvA = entry.worldToUvA;
+                worldToUvAValid = entry.worldToUvAValid;
+                return true;
+            }
+
+            worldToUvA = null;
+            worldToUvAValid = null;
+            return false;
+        }
+
+        private static void StoreWorldToUvCache(string key, Vector2[,] worldToUvA, bool[,] worldToUvAValid)
+        {
+            _worldToUvCacheByKey[key] = new MergeUvCacheEntry
+            {
+                worldToUvA = worldToUvA,
+                worldToUvAValid = worldToUvAValid,
+                lastAccessFrame = Time.frameCount
+            };
+
+            if (_worldToUvCacheByKey.Count <= MaxWorldToUvCacheEntries)
+                return;
+
+            string oldestKey = null;
+            int oldestFrame = int.MaxValue;
+            foreach (var kv in _worldToUvCacheByKey)
+            {
+                if (kv.Value.lastAccessFrame < oldestFrame)
+                {
+                    oldestFrame = kv.Value.lastAccessFrame;
+                    oldestKey = kv.Key;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(oldestKey))
+                _worldToUvCacheByKey.Remove(oldestKey);
         }
 
 
@@ -848,6 +940,15 @@ namespace BakeClothNormalmap
         
 
 
+        private static IEnumerator ExecuteAfterFrame(RealHumanData realHumanData)
+        {
+            int frameCount = 30;
+            for (int i = 0; i < frameCount; i++)
+                yield return null;
+
+            ApplyShowUnderwear(realHumanData);
+        }
+
         private static void ApplyShowUnderwear(RealHumanData realHumanData)
         {
 
@@ -911,7 +1012,6 @@ namespace BakeClothNormalmap
             if ((clothBottomRender != null) && clothUnderwearRender != null)
             {
                  // ComputeShader mergeShader = _self._mergeShader; // AssetBundle에서 로드한 Shader
-
                 Texture2D bottomBump = EnsureSize(clothBottomRender.material.GetTexture("_BumpMap") as Texture2D, width_A, height_A);
                 Texture2D bumpMapA = MakeReadableTexture(bottomBump);
 
@@ -936,10 +1036,27 @@ namespace BakeClothNormalmap
                 var trianglesA = CreateTriangleDataList(meshA, transformA, aBackTriangles, bumpMapA.width, bumpMapA.height);
                 var trianglesB = CreateTriangleDataList(meshB, transformB, bBackTriangles, bumpMapB.width, bumpMapB.height);
 
-                var bToWorldCache = BuildUVToWorldCache2D(clothUnderwearRender, trianglesB, bumpMapB);
-                var worldToA = BuildWorldToUVCache2D_FullOptimized(clothBottomRender, trianglesA, bToWorldCache, maskB);
+                string cacheKey = BuildWorldToUvCacheKey(
+                    clothBottomRender,
+                    clothUnderwearRender,
+                    meshA,
+                    meshB,
+                    bumpMapA.width,
+                    bumpMapA.height,
+                    bumpMapB.width,
+                    bumpMapB.height);
 
-                Texture2D mergedB = ProjectBumpBontoA(bumpMapB, worldToA, bumpMapA.width, bumpMapA.height);
+                Vector2[,] worldToA;
+                bool[,] worldToAValid;
+                if (!TryGetWorldToUvCache(cacheKey, out worldToA, out worldToAValid))
+                {
+                    bool[,] bToWorldValid;
+                    var bToWorldCache = BuildUVToWorldCache2D(clothUnderwearRender, trianglesB, bumpMapB, out bToWorldValid);
+                    worldToA = BuildWorldToUVCache2D_FullOptimized(clothBottomRender, trianglesA, bToWorldCache, bToWorldValid, maskB, out worldToAValid);
+                    StoreWorldToUvCache(cacheKey, worldToA, worldToAValid);
+                }
+
+                Texture2D mergedB = ProjectBumpBontoA(bumpMapB, worldToA, worldToAValid, bumpMapA.width, bumpMapA.height);
                 SaveAsPNG(mergedB, "mergedB.png");
 
                 Texture2D blended = BlendBumpmap(bumpMapA, mergedB, 0.5f);
