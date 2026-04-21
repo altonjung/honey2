@@ -70,6 +70,9 @@
     <Reference Include="HS2_PregnancyPlus">
       <HintPath>.\HS2_PregnancyPlus.dll</HintPath>
     </Reference>
+    <Reference Include="JointCorrection">
+      <HintPath>.\JointCorrectionSlider.dll</HintPath>
+    </Reference>
     <Reference Include="IL, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\IllusionLibs.HoneySelect2.IL.2020.5.29.5\lib\net46\IL.dll</HintPath>
       <Private>False</Private>

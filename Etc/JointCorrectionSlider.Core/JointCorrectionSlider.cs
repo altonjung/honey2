@@ -48,6 +48,7 @@ using KKAPI.Studio.UI.Toolbars;
 using KKAPI.Utilities;
 using KKAPI.Chara;
 using static CharaUtils.Expression;
+
 /*
         category = 0  armup L
         category = 1  armup R

@@ -13,6 +13,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using System.Threading.Tasks;
 using KK_PregnancyPlus;
+using JointCorrectionSlider;
 
 #if AISHOUJO || HONEYSELECT2
 using CharaUtils;
@@ -30,6 +31,10 @@ using KKAPI.Chara;
 #if AISHOUJO || HONEYSELECT2
 using AIChara;
 #endif
+
+/*  
+    - seperate features in main-game or studio
+*/
 
 namespace RealHumanSupport
 {
@@ -101,6 +106,8 @@ namespace RealHumanSupport
                     realHumanData = GetMaterials(realHumanData.chaCtrl, realHumanData);
 
                     realHumanData.pregnancyController = realHumanData.chaCtrl.GetComponent<KK_PregnancyPlus.PregnancyPlusCharaController>();
+                    realHumanData.jointCorrectionSlider = realHumanData.chaCtrl.GetComponent<JointCorrectionSlider.JointCorrectionSliderController>();
+
 
                     if (realHumanData.m_skin_body != null && realHumanData.m_skin_body.GetTexture("_BumpMap2") != null)
                     {
@@ -224,8 +231,13 @@ namespace RealHumanSupport
                         }
                     }   
 
+                    realHumanData.leftBoob = realHumanData.chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastL);
+                    realHumanData.rightBoob = realHumanData.chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastR);
+                    realHumanData.leftButtCheek = realHumanData.chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipL);
+                    realHumanData.rightButtCheek = realHumanData.chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipR);
+
+                    SupportDynamicGravity(realHumanData.chaCtrl, realHumanData);
                     SupportExtraDynamicBones(realHumanData.chaCtrl, realHumanData);
-                    SyncExtraColliderSnapshotsAfterBuild();
                     SupportBlendShapes(realHumanData.chaCtrl, realHumanData);
     #if FEATURE_TEARDROP_SUPPORT
                     SupportTearDrop(realHumanData.chaCtrl, realHumanData);
@@ -275,21 +287,8 @@ namespace RealHumanSupport
             }            
         }
 
-        internal void SupportExtraDynamicBones(ChaControl chaCtrl, RealHumanData realHumanData)
+        internal void SupportDynamicGravity(ChaControl chaCtrl, RealHumanData realHumanData)
         {
-            if (chaCtrl.sex == 0)
-                return;
-
-            string bone_prefix_str = "cf_";
-            // if(chaCtrl.sex == 0)
-            //     bone_prefix_str = "cm_";
-
-            // Tune core dynamic-bone parameters for chest and hip simulation.
-            realHumanData.leftBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastL);
-            realHumanData.rightBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastR);
-            realHumanData.leftButtCheek = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipL);
-            realHumanData.rightButtCheek = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipR);
-
             realHumanData.leftBoob.ReflectSpeed = 0.5f;
             realHumanData.leftBoob.Gravity = new Vector3(0, -0.005f, 0);
             realHumanData.leftBoob.Force = new Vector3(0, -0.01f, 0);
@@ -306,16 +305,22 @@ namespace RealHumanSupport
 
             realHumanData.rightButtCheek.Gravity = new Vector3(0, -0.005f, 0);
             realHumanData.rightButtCheek.Force = new Vector3(0, -0.01f, 0);
-            realHumanData.rightButtCheek.HeavyLoopMaxCount = 4;
-            
-            DynamicBoneCollider[] existingDynamicBoneColliders = chaCtrl.transform.FindLoop(bone_prefix_str+"J_Root").GetComponentsInChildren<DynamicBoneCollider>(true);
+            realHumanData.rightButtCheek.HeavyLoopMaxCount = 4;            
+        }
+
+        internal void SupportExtraDynamicBones(ChaControl chaCtrl, RealHumanData realHumanData)
+        {
+            if (chaCtrl.sex == 0)
+                return;
+      
+            DynamicBoneCollider[] existingDynamicBoneColliders = chaCtrl.transform.FindLoop("cf_J_Root").GetComponentsInChildren<DynamicBoneCollider>(true);
             List<DynamicBoneCollider> extraBoobColliders = new List<DynamicBoneCollider>();
 
-            Transform handLObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_L");
-            Transform handRObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_R");
+            Transform handLObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Hand_L");
+            Transform handRObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Hand_R");
             
-            Transform fingerIdx2LObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_L");
-            Transform fingerIdx2RObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Hand_Index02_R");
+            Transform fingerIdx2LObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Hand_Index02_L");
+            Transform fingerIdx2RObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Hand_Index02_R");
             
             List<DynamicBoneCollider> extraHandsColliders = new List<DynamicBoneCollider>();
   
@@ -365,12 +370,12 @@ namespace RealHumanSupport
 
             extraBodyColliders.AddRange(extraHandsColliders); // Merge hand colliders into body collider set.
 
-            Transform faceObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_FaceLow_s");
+            Transform faceObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_FaceLow_s");
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(faceObject, DynamicBoneColliderBase.Direction.Y, 0.65f, 2.5f, new Vector3(0.0f, 0.0f, 0.3f)));
 
             // Add chest colliders used by hair/body interactions.
-            Transform leftBoobObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune01_L");
-            Transform rightBoobObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune01_R");
+            Transform leftBoobObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Mune01_L");
+            Transform rightBoobObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Mune01_R");
             
             float boob_radius = 0.4f;
 
@@ -378,8 +383,8 @@ namespace RealHumanSupport
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
             // Add shoulder colliders to improve upper-body collision response.
-            Transform leftShoulderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
-            Transform rightShoulderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
+            Transform leftShoulderObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_ArmUp00_L");
+            Transform rightShoulderObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_ArmUp00_R");
 
             float shoulder_radius = 0.4f;
 
@@ -387,9 +392,9 @@ namespace RealHumanSupport
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightShoulderObject, DynamicBoneColliderBase.Direction.Y, shoulder_radius, shoulder_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
             // Add torso colliders along spine bones.
-            Transform spine1Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine01");
-            Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
-            Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine03");
+            Transform spine1Object = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Spine01");
+            Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Spine02");
+            Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Spine03");
    
             float spine1_radius = 0.8f;
             float spine2_radius = 0.9f;
@@ -400,14 +405,14 @@ namespace RealHumanSupport
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 4.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
             // Add pelvis/hip colliders for lower-body collision support.
-            Transform kosi2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Kosi02");
+            Transform kosi2Object = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Kosi02");
            
-            float kosi2_radius = 1.0f;
+            float kosi2_radius = 0.8f;
 
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(kosi2Object, DynamicBoneColliderBase.Direction.X, kosi2_radius, kosi2_radius * 4.0f, new Vector3(0.0f, -0.15f, -0.05f)));
 
-            Transform siriLObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Siri_L");
-            Transform siriRObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Siri_R");
+            Transform siriLObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Siri_L");
+            Transform siriRObject = chaCtrl.objBodyBone.transform.FindLoop("cf_J_Siri_R");
 
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(siriLObject, DynamicBoneColliderBase.Direction.X, 0.5f, 1.8f, new Vector3(0.0f, -0.25f, 0.0f)));
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(siriRObject, DynamicBoneColliderBase.Direction.X, 0.5f, 1.8f, new Vector3(0.0f, -0.25f, 0.0f)));
@@ -435,7 +440,8 @@ namespace RealHumanSupport
                 }
             }
 
-            SetHairDown();
+            SyncExtraColliderSnapshotsAfterBuild();
+            SetHairDown();            
         }
 
 
@@ -1236,8 +1242,8 @@ namespace RealHumanSupport
         internal void SupportRealPlay(ChaControl chaCtrl, RealHumanData realHumanData) 
         {
             if (chaCtrl.sex == 0) {
-                SetRigidBodyOnObject("cm_J_Hand_Index02_L", 0.05f, 0.15f);
-                SetRigidBodyOnObject("cm_J_Hand_Index02_R", 0.05f, 0.15f); 
+                // SetRigidBodyOnObject("cm_J_Hand_Index02_L", 0.05f, 0.15f);
+                // SetRigidBodyOnObject("cm_J_Hand_Index02_R", 0.05f, 0.15f); 
                 // SetRigidBodyOnObject("cm_J_Hand_Index01_L", 0.05f, 0.15f);
                 // SetRigidBodyOnObject("cm_J_Hand_Index01_R", 0.05f, 0.15f); 
 
@@ -1246,18 +1252,18 @@ namespace RealHumanSupport
                 SetRigidBodyOnObject("cm_J_Hand_Middle01_L", 0.1f, 0.22f);
                 SetRigidBodyOnObject("cm_J_Hand_Middle01_R", 0.1f, 0.22f);
 
-                SetRigidBodyOnObject("cm_J_Hand_L", 0.20f, 0.45f);
-                SetRigidBodyOnObject("cm_J_Hand_R", 0.20f, 0.45f);
+                // SetRigidBodyOnObject("cm_J_Hand_L", 0.20f, 0.45f);
+                // SetRigidBodyOnObject("cm_J_Hand_R", 0.20f, 0.45f);
 
                 // SetRigidBodyOnObject("cm_J_Kosi02", 0.5f, 1.25f);
 
-                SetRigidBodyOnObject("cm_J_dan119_00", 0.3f, 0.7f);          
+                SetRigidBodyOnObject("cm_J_dan119_00", 0.20f, 0.5f);          
                 SetRigidBodyOnObject("cm_J_dan108_00", 0.15f, 0.4f); 
                 SetRigidBodyOnObject("cm_J_dan105_00", 0.15f, 0.4f); 
                 // SetRigidBodyOnObject("cm_J_dan100_00", 0.15f, 0.4f);               
             } else {
-                SetRigidBodyOnObject("cf_J_Hand_Index02_L", 0.1f, 0.25f);
-                SetRigidBodyOnObject("cf_J_Hand_Index02_R", 0.1f, 0.25f);  
+                // SetRigidBodyOnObject("cf_J_Hand_Index02_L", 0.1f, 0.25f);
+                // SetRigidBodyOnObject("cf_J_Hand_Index02_R", 0.1f, 0.25f);  
                 // SetRigidBodyOnObject("cf_J_Hand_Index01_L", 0.1f, 0.22f);
                 // SetRigidBodyOnObject("cf_J_Hand_Index01_R", 0.1f, 0.22f);  
                 
@@ -1268,8 +1274,8 @@ namespace RealHumanSupport
                 SetRigidBodyOnObject("cf_J_Hand_Middle01_L", 0.1f, 0.22f);
                 SetRigidBodyOnObject("cf_J_Hand_Middle01_R", 0.1f, 0.22f);
 
-                SetRigidBodyOnObject("cf_J_Hand_L", 0.20f, 0.45f);
-                SetRigidBodyOnObject("cf_J_Hand_R", 0.20f, 0.45f);
+                // SetRigidBodyOnObject("cf_J_Hand_L", 0.20f, 0.45f);
+                // SetRigidBodyOnObject("cf_J_Hand_R", 0.20f, 0.45f);
 
                 SetCollisionOnOnObject("cf_J_Vagina_root");
             }
@@ -1384,6 +1390,7 @@ namespace RealHumanSupport
 
         // Optional integration hook for pregnancy controller.
         public PregnancyPlusCharaController pregnancyController;
+        public JointCorrectionSliderController jointCorrectionSlider;
 
         // Eye materials affected by face/tear effects.
         public List<Material> c_m_eye = new List<Material>();
