@@ -113,159 +113,172 @@ namespace RealHumanSupport
                            UnityEngine.Debug.Log($"[HeadRaycast] Trigger detected: collider={hitCollider.name}, rigidbody={(hitRigidbody != null ? hitRigidbody.name : "null")}");
                            break;
                        }
-                   }
-
-                   float time = Time.time;
-                   if (RealHumanSupport.EyeShakeActive.Value)
-                   {
-                       foreach (Material mat in realHumanData.c_m_eye)
-                       {
-                           if (mat == null)
-                               continue;
-                           // Comment normalized to English.
-                           float easedBump = (Mathf.Sin(time * Mathf.PI * 3.5f * 2f) + 1f) * 0.5f;
-
-                           float eyeScale = Mathf.Lerp(0.18f, 0.21f, easedBump);
-                           mat.SetFloat("_Texture4Rotator", eyeScale);
-
-                           eyeScale = Mathf.Lerp(0.1f, 0.2f, easedBump);
-                           mat.SetFloat("_Parallax", eyeScale);
-                       }
-                   }
-
-                   float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
-
-                   if (realHumanData.ActiveRealPlay)
-                    {
-                       float playStrong = Mathf.Max(0.1f, realHumanData.realPlayStrong);
-                       float anusPullWeight = sinValue * 15f * playStrong;
-                       float vaginaFrontWeight = sinValue * 30f * playStrong;
-                       float vaginaSqueezeWeight = sinValue * 60f * playStrong;
-                       float vaginaOutsideWeight = sinValue * 40f * playStrong;
-#if FEATURE_BODY_BLENDSHAPE_SUPPORT
-                       SetBlendShape(anusPullWeight, realHumanData.anus_pullout_idx_in_body);
-                       SetBlendShape(vaginaFrontWeight, realHumanData.vagina_up_idx_in_body);
-                       SetBlendShape(vaginaSqueezeWeight, realHumanData.vagina_open_squeeze_idx_in_body);
-                       SetBlendShape(vaginaOutsideWeight, realHumanData.vagina_open_all_outside_idx_in_body);
-#endif
                     }
-                    else
-                    {
-                       float vaginaSqueezeWeight = sinValue * 10f;
-#if FEATURE_BODY_BLENDSHAPE_SUPPORT
-                       SetBlendShape(0f, realHumanData.anus_pullout_idx_in_body);
-                       SetBlendShape(0f, realHumanData.vagina_up_idx_in_body);
-                       SetBlendShape(vaginaSqueezeWeight, realHumanData.vagina_open_squeeze_idx_in_body);
-                       SetBlendShape(0f, realHumanData.vagina_open_all_outside_idx_in_body);
-#endif
-                    }
+            
+                    float time = Time.time;
+                    float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
                     
-                   if (RealHumanSupport.BreathActive.Value)
-                   {
-                       if (realHumanData.pregnancyController != null)
-                       {   
-                           if(previosBellySize != realHumanData.pregnancyController.infConfig.inflationSize)
-                           {
-                               initBellySize = previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
+                    if (realHumanData.chaCtrl.sex == 1) {
+                    
+                        if (RealHumanSupport.EyeShakeActive.Value)
+                        {
+                            foreach (Material mat in realHumanData.c_m_eye)
+                            {
+                                if (mat == null)
+                                    continue;
+                                // Comment normalized to English.
+                                float easedBump = (Mathf.Sin(time * Mathf.PI * 3.5f * 2f) + 1f) * 0.5f;
 
-                               if (initBellySize > 30.0f)
-                               {
-                                   initBellySize = 30.0f;
-                               }
-                           } else
-                           {
-                               realHumanData.pregnancyController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * realHumanData.BreathStrong;
-                               realHumanData.pregnancyController.MeshInflate(new MeshInflateFlags(realHumanData.pregnancyController), "StudioSlider");
-                               previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
-                           }
-                       }
-                   }
+                                float eyeScale = Mathf.Lerp(0.18f, 0.21f, easedBump);
+                                mat.SetFloat("_Texture4Rotator", eyeScale);
 
-#if FEATURE_TEARDROP_SUPPORT
-                   if (RealHumanSupport.TearDropActive.Value)
-                   {
-                       float deltaTear = Time.deltaTime / 10f; // Comment normalized to English.
+                                eyeScale = Mathf.Lerp(0.1f, 0.2f, easedBump);
+                                mat.SetFloat("_Parallax", eyeScale);
+                            }
+                        }
 
-                       if (tearIncreasing)
-                       {
-                           tearValue += deltaTear;
-                           if (tearValue >= 1f)
-                           {
-                               tearValue = 1f;
-                               tearIncreasing = false;
-                           }
-                       }
-                       else
-                       {
-                           tearValue -= deltaTear;
-                           if (tearValue <= 0.3f)
-                           {
-                               tearValue = 0.3f;
-                               tearIncreasing = true;
-                           }
-                       }
-                        
-                       float tearSin = Mathf.Sin(tearValue * Mathf.PI);
+                        if (realHumanData.ActiveRealPlay)
+                            {
+                                float playStrong = Mathf.Max(0.1f, realHumanData.realPlayStrong);
+                                float anusPullWeight = sinValue * 15f * playStrong;
+                                float vaginaFrontWeight = sinValue * 30f * playStrong;
+                                float vaginaSqueezeWeight = sinValue * 60f * playStrong;
+                                float vaginaOutsideWeight = sinValue * 40f * playStrong;
+            #if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                                SetBlendShape(anusPullWeight, realHumanData.anus_pullout_idx_in_body);
+                                SetBlendShape(vaginaFrontWeight, realHumanData.vagina_up_idx_in_body);
+                                SetBlendShape(vaginaSqueezeWeight, realHumanData.vagina_open_squeeze_idx_in_body);
+                                SetBlendShape(vaginaOutsideWeight, realHumanData.vagina_open_all_outside_idx_in_body);
+            #endif
+                            }
+                            else
+                            {
+                                float vaginaSqueezeWeight = sinValue * 10f;
+            #if FEATURE_BODY_BLENDSHAPE_SUPPORT
+                                SetBlendShape(0f, realHumanData.anus_pullout_idx_in_body);
+                                SetBlendShape(0f, realHumanData.vagina_up_idx_in_body);
+                                SetBlendShape(vaginaSqueezeWeight, realHumanData.vagina_open_squeeze_idx_in_body);
+                                SetBlendShape(0f, realHumanData.vagina_open_all_outside_idx_in_body);
+            #endif
+                            }
+                            
+                        if (RealHumanSupport.BreathActive.Value)
+                        {
+                            if (realHumanData.pregnancyController != null)
+                            {   
+                                if(previosBellySize != realHumanData.pregnancyController.infConfig.inflationSize)
+                                {
+                                    initBellySize = previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
 
-                       // Comment normalized to English.
-                       if (realHumanData.m_tear_eye != null) {
-                           realHumanData.m_tear_eye.SetFloat("_NamidaScale", realHumanData.tearDropRate);
-                           realHumanData.m_tear_eye.SetFloat("_RefractionScale", tearSin); 
-                       }
+                                    if (initBellySize > 30.0f)
+                                    {
+                                        initBellySize = 30.0f;
+                                    }
+                                } else
+                                {
+                                    realHumanData.pregnancyController.infConfig.inflationSize = initBellySize + (1f - sinValue) * 10f * realHumanData.BreathStrong;
+                                    realHumanData.pregnancyController.MeshInflate(new MeshInflateFlags(realHumanData.pregnancyController), "StudioSlider");
+                                    previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;
+                                }
+                            }
+                        }
 
-                       float deltaNose = Time.deltaTime / 1.5f; // Comment normalized to English.
+        #if FEATURE_TEARDROP_SUPPORT
+                        if (RealHumanSupport.TearDropActive.Value)
+                        {
+                            float deltaTear = Time.deltaTime / 10f; // Comment normalized to English.
 
-                       if (noseIncreasing)
-                       {
-                           noseValue += deltaNose;
-                           if (noseValue >= 1f)
-                           {
-                               noseValue = 1f;
-                               noseIncreasing = false;
-                           }
-                       }
-                       else
-                       {
-                           noseValue -= deltaNose;
-                           if (noseValue <= 0.1f)
-                           {
-                               noseValue = 0.1f;
-                               noseIncreasing = true;
-                           }
-                       }
-                        
-                       float noseSin = Mathf.Sin(noseValue * Mathf.PI);
-                       // Comment normalized to English.
-                       if (realHumanData.nose_wing_l_tr != null) {
+                            if (tearIncreasing)
+                            {
+                                tearValue += deltaTear;
+                                if (tearValue >= 1f)
+                                {
+                                    tearValue = 1f;
+                                    tearIncreasing = false;
+                                }
+                            }
+                            else
+                            {
+                                tearValue -= deltaTear;
+                                if (tearValue <= 0.3f)
+                                {
+                                    tearValue = 0.3f;
+                                    tearIncreasing = true;
+                                }
+                            }
+                                
+                            float tearSin = Mathf.Sin(tearValue * Mathf.PI);
 
-                           float noseScaleFactor = 1f + (noseSin * 0.3f);
-                           Vector3 scalel = realHumanData.noseBaseScale;
-                           Vector3 scaler = realHumanData.noseBaseScale;
+                            // Comment normalized to English.
+                            if (realHumanData.m_tear_eye != null) {
+                                realHumanData.m_tear_eye.SetFloat("_NamidaScale", realHumanData.tearDropRate);
+                                realHumanData.m_tear_eye.SetFloat("_RefractionScale", tearSin); 
+                            }
 
-                           scalel.x = realHumanData.noseBaseScale.x * noseScaleFactor;
-                           scaler.x = realHumanData.noseBaseScale.x * noseScaleFactor;
+                            float deltaNose = Time.deltaTime / 1.5f; // Comment normalized to English.
 
-                           realHumanData.nose_wing_l_tr.localScale = scalel;
-                           realHumanData.nose_wing_r_tr.localScale = scaler;
-                       }
+                            if (noseIncreasing)
+                            {
+                                noseValue += deltaNose;
+                                if (noseValue >= 1f)
+                                {
+                                    noseValue = 1f;
+                                    noseIncreasing = false;
+                                }
+                            }
+                            else
+                            {
+                                noseValue -= deltaNose;
+                                if (noseValue <= 0.1f)
+                                {
+                                    noseValue = 0.1f;
+                                    noseIncreasing = true;
+                                }
+                            }
+                                
+                            float noseSin = Mathf.Sin(noseValue * Mathf.PI);
+                            // Comment normalized to English.
+                            if (realHumanData.nose_wing_l_tr != null) {
+
+                                float noseScaleFactor = 1f + (noseSin * 0.3f);
+                                Vector3 scalel = realHumanData.noseBaseScale;
+                                Vector3 scaler = realHumanData.noseBaseScale;
+
+                                scalel.x = realHumanData.noseBaseScale.x * noseScaleFactor;
+                                scaler.x = realHumanData.noseBaseScale.x * noseScaleFactor;
+
+                                realHumanData.nose_wing_l_tr.localScale = scalel;
+                                realHumanData.nose_wing_r_tr.localScale = scaler;
+                            }
+                        } 
+                        else
+                        {
+                            if (realHumanData.m_tear_eye != null) {
+                                realHumanData.m_tear_eye.SetFloat("_NamidaScale", 0f);
+                                realHumanData.m_tear_eye.SetFloat("_RefractionScale", 0f);
+                            }
+
+                            if (realHumanData.noseScaleInitialized)
+                            {
+                                if (realHumanData.nose_wing_l_tr != null)
+                                    realHumanData.nose_wing_l_tr.localScale = realHumanData.noseBaseScale;
+
+                                if (realHumanData.nose_wing_r_tr != null)
+                                    realHumanData.nose_wing_r_tr.localScale = realHumanData.noseBaseScale;
+                            }
+                        }
+#endif
                    } 
                    else
                    {
-                       if (realHumanData.m_tear_eye != null) {
-                           realHumanData.m_tear_eye.SetFloat("_NamidaScale", 0f);
-                           realHumanData.m_tear_eye.SetFloat("_RefractionScale", 0f);
-                       }
-
-                       if (realHumanData.noseScaleInitialized)
-                       {
-                           if (realHumanData.nose_wing_l_tr != null)
-                               realHumanData.nose_wing_l_tr.localScale = realHumanData.noseBaseScale;
-
-                           if (realHumanData.nose_wing_r_tr != null)
-                               realHumanData.nose_wing_r_tr.localScale = realHumanData.noseBaseScale;
-                       }
+                        if (realHumanData.dan_bone != null)
+                        {
+                            // dan periodic scale value
+                            float danScale = Mathf.Lerp(0.95f, 1.05f, sinValue);
+                            realHumanData.dan_bone.localScale = new Vector3(danScale, danScale, danScale);
+                        }                        
                    }
-#endif
+                   
                    yield return null;
                }
                else

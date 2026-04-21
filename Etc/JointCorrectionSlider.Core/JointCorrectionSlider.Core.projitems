@@ -11,6 +11,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)JointCorrectionSlider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)JointCorrectionSliderScene.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)JointCorrectionSliderController.cs" />
   </ItemGroup>
   <ItemGroup>

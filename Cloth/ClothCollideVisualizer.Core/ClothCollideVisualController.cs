@@ -31,20 +31,20 @@ using AIChara;
 
 namespace ClothCollideVisualizer
 {
-    // 캐릭터별 물리 콜라이더 시각화 데이터의 생성/정리를 담당한다.
+    // Manages per-character collider visualization data.
     public class ClothCollideVisualizerController: CharaCustomFunctionController
     {
-        // 현재 캐릭터의 콜라이더 시각화 상태 저장소
+        // Cached runtime data for the current character.
         PhysicCollider physicCollider;
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
-        // 현재 물리 콜라이더 데이터를 반환한다.
+        // Returns current collider visualization data.
         internal PhysicCollider GetData()
         {
             return physicCollider;
         }
 
-        // 캐릭터 기준으로 물리 콜라이더 데이터 컨테이너를 초기화한다.
+        // Creates and initializes collider visualization data.
         internal PhysicCollider CreateData(OCIChar _ociChar)
         {
             physicCollider = new PhysicCollider();
@@ -80,7 +80,7 @@ namespace ClothCollideVisualizer
             }            
         }        
 
-        // 생성했던 디버그 오브젝트와 캐시를 모두 정리한다.
+        // Removes generated debug objects and clears caches.
         internal void RemovePhysicCollier()
         {
             if (physicCollider == null)
@@ -120,15 +120,15 @@ namespace ClothCollideVisualizer
         }
     }
 
-    // 캐릭터 단위의 물리 콜라이더/디버그 시각화 데이터 묶음
+    // Per-character runtime container for collider and debug state.
     class PhysicCollider
     {
         public OCIChar ociChar;
         public ChaControl chaCtrl;
         public bool visualColliderAdded;
-        // 의상 변경 등으로 인해 수동 Force Refresh가 필요한 상태
+        // Force Refresh
         public bool requireForceRefresh;
-        // 옷이 바뀐 슬롯은 Force Refresh 시 기본값으로 초기화해야 한다.
+        // Force Refresh .
         public bool pendingResetTop;
         public bool pendingResetBottom;
         public ClothInfo[] clothInfos;
@@ -143,12 +143,12 @@ namespace ClothCollideVisualizer
 
         public List<DebugColliderEntry> debugEntries = new List<DebugColliderEntry>();
         public Dictionary<Collider, DebugColliderEntry> debugEntryBySource = new Dictionary<Collider, DebugColliderEntry>();
-        // 슬롯(상의/하의)별 collider transform 저장소
+        // ( / ) collider transform
         public Dictionary<string, ColliderTransformInfo> topColliderTransformInfos = new Dictionary<string, ColliderTransformInfo>(StringComparer.Ordinal);
         public Dictionary<string, ColliderTransformInfo> bottomColliderTransformInfos = new Dictionary<string, ColliderTransformInfo>(StringComparer.Ordinal);
-        // 현재 옷 기준으로 collider가 어느 슬롯(top/bottom)에 속하는지 빠르게 찾기 위한 캐시
+        // collider (top/bottom)
         public Dictionary<int, int> colliderInstanceIdToSlot = new Dictionary<int, int>();
-        // 콜라이더 "생성 직후 기본값"을 저장한다(최초 관측 시점의 local transform).
+        // " local transform).
         public Dictionary<int, ColliderTransformInfo> colliderDefaultTransforms = new Dictionary<int, ColliderTransformInfo>();
 
 
@@ -173,30 +173,30 @@ namespace ClothCollideVisualizer
 
     class ClothInfo
     {
-        // 의상 슬롯 원본 오브젝트
+        // Original outfit slot object reference.
         public GameObject clothObj;
-        // Cloth 컴포넌트 보유 여부
+        // Cloth
         public bool hasCloth;
     }
 
-    // 원본 콜라이더와 디버그 트랜스폼의 매핑 정보
+    // Mapping between source collider and debug transform objects.
     class DebugColliderEntry
     {
         public string name;
         public Collider source;
-        // 콜라이더의 Transform을 그대로 복제해 보여주기 위한 Debug Root
+        // Transform Debug Root
         public Transform debugTransform;
-        // 콜라이더 center(=Sphere/Capsule/Box의 center)를 편집하기 위한 Offset Root
+        // center(=Sphere/Capsule/Boxcenter) Offset Root
         public Transform debugCenterTransform;
 
-        // baseline(최초 관측 시점의 값)
+        // baseline(
         public Vector3 baselineLocalPosition;
         public Vector3 baselineLocalEuler;
         public Vector3 baselineLocalScale;
         public Vector3 baselineCenter;
     }
 
-    // 콜라이더 이름 기준으로 저장되는 로컬 transform 정보
+    // transform
     class ColliderTransformInfo
     {
         public Vector3 localPosition;

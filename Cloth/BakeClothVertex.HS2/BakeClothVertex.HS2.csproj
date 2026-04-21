@@ -56,16 +56,13 @@
       <HintPath>..\packages\IllusionLibs.HoneySelect2.Cinemachine.2018.4.11.4\lib\net46\Cinemachine.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="HS2API, Version=1.39.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\IllusionModdingAPI.HS2API.1.39.0\lib\net46\HS2API.dll</HintPath>
+    <Reference Include="HS2API, Version=1.43.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\IllusionModdingAPI.HS2API.1.43.0\lib\net46\HS2API.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="HS2_ExtensibleSaveFormat, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\ExtensibleSaveFormat.HoneySelect2.18.2.0\lib\net46\HS2_ExtensibleSaveFormat.dll</HintPath>
       <Private>False</Private>
-    </Reference>
-    <Reference Include="HS2_PregnancyPlus">
-      <HintPath>.\HS2_PregnancyPlus.dll</HintPath>
     </Reference>
     <Reference Include="IL, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\IllusionLibs.HoneySelect2.IL.2020.5.29.5\lib\net46\IL.dll</HintPath>
@@ -151,6 +148,9 @@
       <HintPath>C:\games\HoneySelect 2 DX BetterRepack R15\StudioNEOV2_Data\Managed\UnityEngine.ClothModule.dll</HintPath>
       <Private>False</Private>
     </Reference>    
+    <Reference Include="HS2PE">
+      <HintPath>.\HS2PE.dll</HintPath>
+    </Reference>    
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />
@@ -164,7 +164,6 @@
     <Analyzer Include="..\packages\Microsoft.Unity.Analyzers.1.19.0\analyzers\dotnet\cs\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
   <Import Project="..\BakeClothVertex.Core\BakeClothVertex.Core.projitems" Label="Shared" />
-  <Import Project="..\UIUtility\UIUtility.projitems" Label="Shared" />
   <Import Project="..\ToolBox\ToolBox.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

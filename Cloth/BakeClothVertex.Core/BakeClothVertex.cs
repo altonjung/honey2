@@ -1,16 +1,22 @@
 using Studio;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using BepInEx.Logging;
 using ToolBox;
 using ToolBox.Extensions;
 
-using UILib;
-using UILib.EventHandlers;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.Rendering;
+using System.Threading.Tasks;
+using System.Numerics;
+using System.Xml;
+using System.Globalization;
 
 #if IPA
 using Harmony;
@@ -21,9 +27,24 @@ using BepInEx.Configuration;
 using HarmonyLib;
 #endif
 #if AISHOUJO || HONEYSELECT2
+using CharaUtils;
+using ExtensibleSaveFormat;
 using AIChara;
-using KKAPI.Studio;
+using System.Security.Cryptography;
+using ADV.Commands.Camera;
+using IllusionUtility.GetUtility;
+using ADV.Commands.Object;
 #endif
+
+#if AISHOUJO || HONEYSELECT2
+using AIChara;
+using static Illusion.Utils;
+using System.Runtime.Remoting.Messaging;
+#endif
+using KKAPI.Studio;
+using KKAPI.Studio.UI.Toolbars;
+using KKAPI.Utilities;
+using KKAPI.Chara;
 
 namespace BakeClothVertex
 {
@@ -42,7 +63,7 @@ namespace BakeClothVertex
     {
         #region Constants
         public const string Name = "BakeClothVertex";
-        public const string Version = "0.1.0";
+        public const string Version = "0.9.0.0";
         public const string GUID = "com.alton.illusionplugins.bakeclothvertex";
         internal const string _ownerId = "Alton";
 
@@ -54,6 +75,8 @@ namespace BakeClothVertex
         {
             "Top", "Bottom", "Bra", "Pants", "Gloves", "Stockings", "Shoes"
         };
+        private static readonly int[] AllowedOuterSlots = { TopClothIndex, BottomClothIndex };
+        private static readonly int[] AllowedInnerSlots = { BraClothIndex, UnderwearClothIndex };
         #endregion
 
 #if IPA
@@ -71,16 +94,14 @@ namespace BakeClothVertex
             public SkinnedMeshRenderer outerSmr;
             public SkinnedMeshRenderer innerSmr;
 
-            public GameObject previewObject;
-            public MeshFilter previewFilter;
-            public MeshRenderer previewRenderer;
-            public Mesh previewMesh;
+            public UnityEngine.Mesh originalOuterSharedMesh;
+            public UnityEngine.Mesh runtimeOuterMesh;
 
-            public Mesh bakedOuter = new Mesh();
-            public Mesh bakedInner = new Mesh();
+            public UnityEngine.Mesh bakedOuter = new UnityEngine.Mesh();
+            public UnityEngine.Mesh bakedInner = new UnityEngine.Mesh();
 
             public Vector3[] smoothedWorldVertices;
-            public int[] cachedTriangles;
+            public int[][] cachedSubMeshTriangles;
             public Vector2[] cachedUv;
         }
 
@@ -96,9 +117,12 @@ namespace BakeClothVertex
         internal static BakeClothVertex _self;
 
         private bool _loaded;
+        private static bool _showUI;
+        private static SimpleToolbarToggle _toolbarButton;
         private readonly List<VertexBulgeSession> _sessions = new List<VertexBulgeSession>();
         private OCIChar _activeCharacter;
         private readonly List<ClothPairOption> _pairOptions = new List<ClothPairOption>();
+        private const int _uniqueId = ('B' << 24) | ('C' << 16) | ('V' << 8) | 'X';
         private Rect _windowRect = new Rect(120, 40, 460, 310);
         private Vector2 _pairScroll = Vector2.zero;
         private int _pendingOuter = BottomClothIndex;
@@ -125,7 +149,18 @@ namespace BakeClothVertex
             ConfigBackfaceOnly = Config.Bind("Bulge", "BackfaceOnly", true, "Process only back-facing normals (z<0)");
             EnsureDefaultPairs();
 
-            HarmonyExtensions.CreateInstance(GUID).PatchAll(GetType().Assembly);
+            _toolbarButton = new SimpleToolbarToggle(
+                "Open window",
+                "Open ClothVertex window",
+                () => LoadToolbarIconSafe(),
+                false, this, val =>
+                {
+                    _showUI = val;                    
+                });
+            ToolbarManager.AddLeftToolbarControl(_toolbarButton);
+
+            var harmony = HarmonyExtensions.CreateInstance(GUID);
+            harmony.PatchAll(Assembly.GetExecutingAssembly());            
         }
 
 #if HONEYSELECT
@@ -164,10 +199,13 @@ namespace BakeClothVertex
 
         protected override void OnGUI()
         {
-            if (!_loaded || Studio.Studio.Instance == null)
+            if (!_loaded || Studio.Studio.Instance == null || !_showUI)
                 return;
 
-            _windowRect = GUILayout.Window(146231, _windowRect, DrawWindow, "BakeClothVertex Pair UI");
+            if (!StudioAPI.InsideStudio)
+                return;
+
+            _windowRect = GUILayout.Window(_uniqueId + 1, _windowRect, DrawWindow, "BakeClothVertex Pair UI");
         }
 
         private void LateUpdate()
@@ -194,6 +232,9 @@ namespace BakeClothVertex
 
         protected void OnDestroy()
         {
+            if (Studio.Studio.Instance != null && Studio.Studio.Instance.cameraCtrl != null)
+                Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+
             StopAllSessions();
         }
         #endregion
@@ -202,13 +243,18 @@ namespace BakeClothVertex
         private void Init()
         {
             _loaded = true;
-            UIUtility.Init();
             EnsureDefaultPairs();
+        }
+
+        private static Texture2D LoadToolbarIconSafe()
+        {
+            return ResourceUtils
+                .GetEmbeddedResource("toolbar_icon.png", typeof(BakeClothVertex).Assembly)
+                .LoadTexture();
         }
 
         private void ToggleBulgeForCurrentSelection()
         {
-            // 선택된 캐릭터의 런타임 벌지 미리보기를 토글한다.
             OCIChar current = GetCurrentOCI();
             if (current == null)
             {
@@ -257,7 +303,13 @@ namespace BakeClothVertex
                     continue;
 
                 if (TryCreateSession(ociChar, option.outerClothIndex, option.innerClothIndex, out VertexBulgeSession created))
+                {
                     sessions.Add(created);
+                }
+                else
+                {
+                    Logger.LogMessage($"Pair skipped: {GetClothSlotLabel(option.outerClothIndex)} -> {GetClothSlotLabel(option.innerClothIndex)} ({GetSessionFailureReason(ociChar, option.outerClothIndex, option.innerClothIndex)})");
+                }
             }
 
             return sessions;
@@ -265,14 +317,35 @@ namespace BakeClothVertex
 
         private void DrawWindow(int id)
         {
+            var studio = Studio.Studio.Instance;
+
+            bool guiUsingMouse = GUIUtility.hotControl != 0;
+            bool mouseInWindow = _windowRect.Contains(Event.current.mousePosition);
+
+            if (guiUsingMouse || mouseInWindow)
+                studio.cameraCtrl.noCtrlCondition = () => true;
+            else
+                studio.cameraCtrl.noCtrlCondition = null;
+
+            OCIChar current = GetCurrentOCI();
+            bool hasCurrent = current != null;
+            if (!AllowedOuterSlots.Contains(_pendingOuter))
+                _pendingOuter = TopClothIndex;
+            if (!AllowedInnerSlots.Contains(_pendingInner))
+                _pendingInner = UnderwearClothIndex;
+
+            bool canAddPairForCurrent = hasCurrent
+                && _pendingOuter != _pendingInner
+                && HasValidClothObjects(current, _pendingOuter, _pendingInner);
+
             GUILayout.Label("Pair Options (Outer -> Inner)");
-            DrawPairSelectorRow("Outer", ref _pendingOuter);
-            DrawPairSelectorRow("Inner", ref _pendingInner);
+            DrawPairSelectorRow("Outer", ref _pendingOuter, AllowedOuterSlots);
+            DrawPairSelectorRow("Inner", ref _pendingInner, AllowedInnerSlots);
 
             GUILayout.BeginHorizontal();
-            GUI.enabled = _pendingOuter != _pendingInner;
+            GUI.enabled = canAddPairForCurrent;
             if (GUILayout.Button("Add Pair"))
-                AddPairOption(_pendingOuter, _pendingInner);
+                AddPairOptionForCurrentCharacter(_pendingOuter, _pendingInner);
             GUI.enabled = true;
 
             if (GUILayout.Button("Add Default Pairs"))
@@ -298,10 +371,25 @@ namespace BakeClothVertex
 
             GUILayout.Space(4f);
             GUILayout.BeginHorizontal();
+            GUI.enabled = hasCurrent;
             if (GUILayout.Button("Start/Restart Preview"))
                 StartOrRestartPreview();
             if (GUILayout.Button("Stop Preview"))
                 StopAllSessions();
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+
+            if (!hasCurrent)
+                GUILayout.Label("Select a character to add pair bindings and start preview.");
+            else if (!canAddPairForCurrent && _pendingOuter != _pendingInner)
+                GUILayout.Label("Selected slots must both have valid cloth objects.");
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Close"))
+            {
+                studio.cameraCtrl.noCtrlCondition = null;
+                _showUI = false;
+            }
             GUILayout.EndHorizontal();
 
             GUI.DragWindow();
@@ -315,6 +403,19 @@ namespace BakeClothVertex
             {
                 if (GUILayout.Toggle(slotIndex == i, ClothSlotLabels[i], GUI.skin.button, GUILayout.Width(58)))
                     slotIndex = i;
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        private static void DrawPairSelectorRow(string label, ref int slotIndex, int[] allowedSlots)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(50));
+            for (int i = 0; i < allowedSlots.Length; i++)
+            {
+                int allowedSlot = allowedSlots[i];
+                if (GUILayout.Toggle(slotIndex == allowedSlot, ClothSlotLabels[allowedSlot], GUI.skin.button, GUILayout.Width(58)))
+                    slotIndex = allowedSlot;
             }
             GUILayout.EndHorizontal();
         }
@@ -341,8 +442,29 @@ namespace BakeClothVertex
             Logger.LogMessage($"BakeClothVertex preview started. (pairs: {created.Count})");
         }
 
+        private void AddPairOptionForCurrentCharacter(int outerClothIndex, int innerClothIndex)
+        {
+            OCIChar current = GetCurrentOCI();
+            if (current == null)
+            {
+                Logger.LogMessage("No selected character.");
+                return;
+            }
+
+            if (!HasValidClothObjects(current, outerClothIndex, innerClothIndex))
+            {
+                Logger.LogMessage("Binding skipped: selected outer/inner cloth objects are not both valid.");
+                return;
+            }
+
+            AddPairOption(outerClothIndex, innerClothIndex);
+        }
+
         private void AddPairOption(int outerClothIndex, int innerClothIndex)
         {
+            if (!AllowedOuterSlots.Contains(outerClothIndex) || !AllowedInnerSlots.Contains(innerClothIndex))
+                return;
+
             if (outerClothIndex == innerClothIndex)
                 return;
 
@@ -375,7 +497,9 @@ namespace BakeClothVertex
         private static bool TryCreateSession(OCIChar ociChar, int outerClothIndex, int innerClothIndex, out VertexBulgeSession session)
         {
             session = null;
-            if (ociChar == null || ociChar.charInfo == null || ociChar.charInfo.objClothes == null)
+            if (ociChar == null || GetClothesArray(ociChar) == null)
+                return false;
+            if (!HasValidClothObjects(ociChar, outerClothIndex, innerClothIndex))
                 return false;
 
             SkinnedMeshRenderer outerSmr = FindPrimaryClothRenderer(ociChar, outerClothIndex);
@@ -387,25 +511,14 @@ namespace BakeClothVertex
             if (innerSmr == null)
                 return false;
 
-            GameObject previewObject = new GameObject($"BCV_RuntimePreview_{outerClothIndex}_{innerClothIndex}");
-            // 원본 SkinnedMeshRenderer는 숨기고, 런타임으로 갱신되는 preview mesh를 렌더링한다.
-            previewObject.transform.SetParent(outerSmr.transform, false);
-            previewObject.transform.localPosition = Vector3.zero;
-            previewObject.transform.localRotation = Quaternion.identity;
-            previewObject.transform.localScale = Vector3.one;
+            UnityEngine.Mesh originalShared = outerSmr.sharedMesh;
+            if (originalShared == null)
+                return false;
 
-            MeshFilter mf = previewObject.AddComponent<MeshFilter>();
-            MeshRenderer mr = previewObject.AddComponent<MeshRenderer>();
-            mr.sharedMaterials = outerSmr.sharedMaterials;
-            mr.shadowCastingMode = outerSmr.shadowCastingMode;
-            mr.receiveShadows = outerSmr.receiveShadows;
-
-            Mesh previewMesh = new Mesh();
-            previewMesh.name = "BCV_RuntimeMesh";
-            previewMesh.MarkDynamic();
-            mf.sharedMesh = previewMesh;
-
-            outerSmr.enabled = false;
+            UnityEngine.Mesh runtimeMesh = UnityEngine.Object.Instantiate(originalShared);
+            runtimeMesh.name = $"{originalShared.name}_BCV_Runtime";
+            runtimeMesh.MarkDynamic();
+            outerSmr.sharedMesh = runtimeMesh;
 
             session = new VertexBulgeSession
             {
@@ -414,13 +527,30 @@ namespace BakeClothVertex
                 innerClothIndex = innerClothIndex,
                 outerSmr = outerSmr,
                 innerSmr = innerSmr,
-                previewObject = previewObject,
-                previewFilter = mf,
-                previewRenderer = mr,
-                previewMesh = previewMesh
+                originalOuterSharedMesh = originalShared,
+                runtimeOuterMesh = runtimeMesh
             };
 
             return true;
+        }
+
+        private static bool HasValidClothObjects(OCIChar ociChar, int outerClothIndex, int innerClothIndex)
+        {
+            return TryGetClothObject(ociChar, outerClothIndex, out _)
+                && TryGetClothObject(ociChar, innerClothIndex, out _);
+        }
+
+        private static bool TryGetClothObject(OCIChar ociChar, int clothIndex, out GameObject clothObj)
+        {
+            clothObj = null;
+            GameObject[] clothes = GetClothesArray(ociChar);
+            if (clothes == null)
+                return false;
+            if (clothIndex < 0 || clothIndex >= clothes.Length)
+                return false;
+
+            clothObj = clothes[clothIndex];
+            return clothObj != null;
         }
 
         private void StopAllSessions()
@@ -436,14 +566,11 @@ namespace BakeClothVertex
             if (session == null)
                 return;
 
-            if (session.outerSmr != null)
-                session.outerSmr.enabled = true;
+            if (session.outerSmr != null && session.originalOuterSharedMesh != null)
+                session.outerSmr.sharedMesh = session.originalOuterSharedMesh;
 
-            if (session.previewObject != null)
-                Destroy(session.previewObject);
-
-            if (session.previewMesh != null)
-                Destroy(session.previewMesh);
+            if (session.runtimeOuterMesh != null)
+                Destroy(session.runtimeOuterMesh);
 
             if (session.bakedOuter != null)
                 Destroy(session.bakedOuter);
@@ -458,18 +585,18 @@ namespace BakeClothVertex
                 && session.ociChar != null
                 && session.outerSmr != null
                 && session.innerSmr != null
-                && session.previewMesh != null
-                && session.previewFilter != null;
+                && session.runtimeOuterMesh != null;
         }
 
         private static SkinnedMeshRenderer FindPrimaryClothRenderer(OCIChar ociChar, int clothIndex)
         {
-            if (ociChar == null || ociChar.charInfo == null || ociChar.charInfo.objClothes == null)
+            GameObject[] clothes = GetClothesArray(ociChar);
+            if (clothes == null)
                 return null;
-            if (clothIndex < 0 || clothIndex >= ociChar.charInfo.objClothes.Length)
+            if (clothIndex < 0 || clothIndex >= clothes.Length)
                 return null;
 
-            GameObject clothObj = ociChar.charInfo.objClothes[clothIndex];
+            GameObject clothObj = clothes[clothIndex];
             if (clothObj == null)
                 return null;
 
@@ -483,9 +610,50 @@ namespace BakeClothVertex
             return null;
         }
 
+        private static GameObject[] GetClothesArray(OCIChar ociChar)
+        {
+            if (ociChar == null)
+                return null;
+
+            ChaControl chaControl = ociChar.GetChaControl();
+            if (chaControl != null && chaControl.objClothes != null)
+                return chaControl.objClothes;
+
+            if (ociChar.charInfo != null && ociChar.charInfo.objClothes != null)
+                return ociChar.charInfo.objClothes;
+
+            return null;
+        }
+
+        private static string GetSessionFailureReason(OCIChar ociChar, int outerClothIndex, int innerClothIndex)
+        {
+            if (ociChar == null)
+                return "character is null";
+
+            GameObject[] clothes = GetClothesArray(ociChar);
+            if (clothes == null)
+                return "clothes array is null";
+
+            if (outerClothIndex < 0 || outerClothIndex >= clothes.Length)
+                return $"outer slot out of range ({outerClothIndex})";
+            if (innerClothIndex < 0 || innerClothIndex >= clothes.Length)
+                return $"inner slot out of range ({innerClothIndex})";
+
+            if (clothes[outerClothIndex] == null)
+                return "outer cloth object is null";
+            if (clothes[innerClothIndex] == null)
+                return "inner cloth object is null";
+
+            if (FindPrimaryClothRenderer(ociChar, outerClothIndex) == null)
+                return "outer renderer not found";
+            if (FindPrimaryClothRenderer(ociChar, innerClothIndex) == null)
+                return "inner renderer not found";
+
+            return "unknown";
+        }
+
         private void UpdateBulgePreview(VertexBulgeSession session)
         {
-            // MVP: 매 프레임 outer/inner를 BakeMesh하고, inner 근접 거리 기반으로 outer를 normal 방향으로 밀어낸다.
             float influenceDist = Mathf.Max(0.001f, ConfigInfluenceDistance.Value);
             float pushStrength = Mathf.Max(0.0001f, ConfigPushStrength.Value);
             float smoothing = Mathf.Clamp01(ConfigSmoothing.Value);
@@ -504,7 +672,7 @@ namespace BakeClothVertex
             Vector3[] innerWorldVerts = BuildWorldVertices(session.innerSmr.transform, session.bakedInner.vertices);
             Dictionary<Vector3Int, List<int>> innerGrid = BuildInnerVertexGrid(innerWorldVerts, influenceDist);
 
-            Transform previewTransform = session.previewFilter.transform;
+            Transform previewTransform = session.outerSmr.transform;
             Vector3[] previewLocalVerts = new Vector3[outerCount];
             Vector3[] previewLocalNormals = new Vector3[outerCount];
 
@@ -542,20 +710,37 @@ namespace BakeClothVertex
                 previewLocalNormals[i] = previewTransform.InverseTransformDirection(worldNormal).normalized;
             }
 
-            if (session.cachedTriangles == null || session.cachedTriangles.Length != session.bakedOuter.triangles.Length)
-                session.cachedTriangles = session.bakedOuter.triangles;
+            int subMeshCount = session.bakedOuter.subMeshCount;
+            if (session.cachedSubMeshTriangles == null || session.cachedSubMeshTriangles.Length != subMeshCount)
+            {
+                session.cachedSubMeshTriangles = new int[subMeshCount][];
+                for (int sub = 0; sub < subMeshCount; sub++)
+                    session.cachedSubMeshTriangles[sub] = session.bakedOuter.GetTriangles(sub);
+            }
 
             if (session.cachedUv == null || session.cachedUv.Length != session.bakedOuter.uv.Length)
                 session.cachedUv = session.bakedOuter.uv;
 
-            Mesh m = session.previewMesh;
+            UnityEngine.Mesh m = session.runtimeOuterMesh;
             m.Clear();
             m.vertices = previewLocalVerts;
             m.normals = previewLocalNormals;
-            m.triangles = session.cachedTriangles;
+            m.subMeshCount = subMeshCount;
+            for (int sub = 0; sub < subMeshCount; sub++)
+                m.SetTriangles(session.cachedSubMeshTriangles[sub], sub, true);
 
             if (session.cachedUv != null && session.cachedUv.Length == previewLocalVerts.Length)
                 m.uv = session.cachedUv;
+            if (session.bakedOuter.tangents != null && session.bakedOuter.tangents.Length == previewLocalVerts.Length)
+                m.tangents = session.bakedOuter.tangents;
+            if (session.bakedOuter.colors32 != null && session.bakedOuter.colors32.Length == previewLocalVerts.Length)
+                m.colors32 = session.bakedOuter.colors32;
+            if (session.bakedOuter.uv2 != null && session.bakedOuter.uv2.Length == previewLocalVerts.Length)
+                m.uv2 = session.bakedOuter.uv2;
+            if (session.bakedOuter.uv3 != null && session.bakedOuter.uv3.Length == previewLocalVerts.Length)
+                m.uv3 = session.bakedOuter.uv3;
+            if (session.bakedOuter.uv4 != null && session.bakedOuter.uv4.Length == previewLocalVerts.Length)
+                m.uv4 = session.bakedOuter.uv4;
 
             m.RecalculateBounds();
         }

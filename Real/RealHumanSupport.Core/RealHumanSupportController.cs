@@ -1,4 +1,4 @@
-// Comment normalized to English.
+// Runtime controller logic for real-human effects, collider setup, and FK-driven updates.
 using Studio;
 using System;
 using System.Collections;
@@ -67,7 +67,7 @@ namespace RealHumanSupport
 
                 realHumanData.root_bone = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Root");
                 realHumanData.head_bone = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Head");
-                realHumanData.neck_bone = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Neck");
+                realHumanData.neck_bone = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str+"J_Neck");                
                 realHumanData.dan_bone = realHumanData.chaCtrl.objAnim.transform.FindLoop("cm_J_dan119_00");
 
                 if (realHumanData.chaCtrl.sex == 1) {
@@ -153,15 +153,15 @@ namespace RealHumanSupport
 
                                     if (bone.guideObject.transformTarget.name.Contains("_J_Hips"))
                                     {
-                                        realHumanData.fk_hip_bone = bone; // Comment normalized to English.
+                                        realHumanData.fk_hip_bone = bone; // Cache FK hip bone reference.
                                     }
                                     else if (bone.guideObject.transformTarget.name.Contains("_J_Spine01"))
                                     {
-                                        realHumanData.fk_spine01_bone = bone; // Comment normalized to English.
+                                        realHumanData.fk_spine01_bone = bone; // Cache FK spine01 bone reference.
                                     }
                                     else if(bone.guideObject.transformTarget.name.Contains("_J_Spine02"))
                                     {
-                                        realHumanData.fk_spine02_bone = bone; // Comment normalized to English.
+                                        realHumanData.fk_spine02_bone = bone; // Cache FK spine02 bone reference.
                                     }
                                     else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_L"))
                                     {
@@ -241,6 +241,13 @@ namespace RealHumanSupport
                     if (realHumanData.coroutine == null) {
                         realHumanData.coroutine = realHumanData.chaCtrl.StartCoroutine(CoroutineProcess(realHumanData));
                     }
+                } else
+                {
+                    status = Status.RUN;
+                    if (realHumanData.coroutine == null) {
+                        realHumanData.coroutine = realHumanData.chaCtrl.StartCoroutine(CoroutineProcess(realHumanData));
+                    }
+
                 }
                 
     #if FEATURE_REALPLAY_SUPPORT
@@ -277,7 +284,7 @@ namespace RealHumanSupport
             // if(chaCtrl.sex == 0)
             //     bone_prefix_str = "cm_";
 
-            // Comment normalized to English.
+            // Tune core dynamic-bone parameters for chest and hip simulation.
             realHumanData.leftBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastL);
             realHumanData.rightBoob = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastR);
             realHumanData.leftButtCheek = chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.HipL);
@@ -300,8 +307,7 @@ namespace RealHumanSupport
             realHumanData.rightButtCheek.Gravity = new Vector3(0, -0.005f, 0);
             realHumanData.rightButtCheek.Force = new Vector3(0, -0.01f, 0);
             realHumanData.rightButtCheek.HeavyLoopMaxCount = 4;
-
-            // Comment normalized to English.
+            
             DynamicBoneCollider[] existingDynamicBoneColliders = chaCtrl.transform.FindLoop(bone_prefix_str+"J_Root").GetComponentsInChildren<DynamicBoneCollider>(true);
             List<DynamicBoneCollider> extraBoobColliders = new List<DynamicBoneCollider>();
 
@@ -328,7 +334,7 @@ namespace RealHumanSupport
                     extraBoobColliders.Add(collider);                    
                 }
             }
-            // Comment normalized to English.
+            // Register reusable colliders on chest and hip dynamic bones.
             foreach (var collider in extraBoobColliders)
             {
                 if (collider == null)
@@ -357,12 +363,12 @@ namespace RealHumanSupport
 
             List<DynamicBoneCollider> extraBodyColliders = new List<DynamicBoneCollider>();       
 
-            extraBodyColliders.AddRange(extraHandsColliders); // Comment normalized to English.
+            extraBodyColliders.AddRange(extraHandsColliders); // Merge hand colliders into body collider set.
 
             Transform faceObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_FaceLow_s");
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(faceObject, DynamicBoneColliderBase.Direction.Y, 0.65f, 2.5f, new Vector3(0.0f, 0.0f, 0.3f)));
 
-            // Comment normalized to English.
+            // Add chest colliders used by hair/body interactions.
             Transform leftBoobObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune01_L");
             Transform rightBoobObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Mune01_R");
             
@@ -371,7 +377,7 @@ namespace RealHumanSupport
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(leftBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 3.0f , new Vector3(0.0f, 0.0f, 0.0f)));
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightBoobObject, DynamicBoneColliderBase.Direction.Y, boob_radius, boob_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
-            // Comment normalized to English.
+            // Add shoulder colliders to improve upper-body collision response.
             Transform leftShoulderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_L");
             Transform rightShoulderObject = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_ArmUp00_R");
 
@@ -380,7 +386,7 @@ namespace RealHumanSupport
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(leftShoulderObject, DynamicBoneColliderBase.Direction.Y, shoulder_radius, shoulder_radius * 3.0f , new Vector3(0.0f, 0.0f, 0.0f)));
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(rightShoulderObject, DynamicBoneColliderBase.Direction.Y, shoulder_radius, shoulder_radius * 3.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
-            // Comment normalized to English.
+            // Add torso colliders along spine bones.
             Transform spine1Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine01");
             Transform spine2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine02");
             Transform spine3Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Spine03");
@@ -393,7 +399,7 @@ namespace RealHumanSupport
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(spine2Object, DynamicBoneColliderBase.Direction.Y, spine2_radius, spine2_radius * 3.5f, new Vector3(0.0f, 0.0f, 0.2f)));
             extraBodyColliders.Add(AddExtraDynamicBoneCollider(spine3Object, DynamicBoneColliderBase.Direction.X, spine3_radius, spine3_radius * 4.0f, new Vector3(0.0f, 0.0f, 0.0f)));
 
-            // Comment normalized to English.
+            // Add pelvis/hip colliders for lower-body collision support.
             Transform kosi2Object = chaCtrl.objBodyBone.transform.FindLoop(bone_prefix_str+"J_Kosi02");
            
             float kosi2_radius = 1.0f;
@@ -411,7 +417,7 @@ namespace RealHumanSupport
                 .Distinct()
                 .ToList();
 
-            // Comment normalized to English.
+            // Attach extra body colliders to all active hair dynamic bones.
             foreach (var bone in realHumanData.hairDynamicBones)
             {
                 if (bone == null)
@@ -437,20 +443,20 @@ namespace RealHumanSupport
         // {
         //     if (rt == null) return null;
 
-        //     // Comment normalized to English.
+        //     // Backup active render target.
         //     RenderTexture prev = RenderTexture.active;
 
-        //     // Comment normalized to English.
+        //     // Bind source render texture for pixel readback.
         //     RenderTexture.active = rt;
 
-        //     // Comment normalized to English.
+        //     // Allocate CPU texture buffer.
         //     Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
 
-        //     // Comment normalized to English.
+        //     // Copy pixels from render texture and finalize.
         //     tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
         //     tex.Apply();
 
-        //     // Comment normalized to English.
+        //     // Restore previous render target.
         //     RenderTexture.active = prev;
 
         //     return tex;
@@ -503,7 +509,7 @@ namespace RealHumanSupport
             RenderTexture prev = RenderTexture.active;
             RenderTexture.active = rt;
 
-            // Comment normalized to English.
+            // Blit source texture into a writable render target.
             Graphics.Blit(texture, rt);
 
             Texture2D tex = new Texture2D(width, height, TextureFormat.ARGB32, false);
@@ -547,11 +553,11 @@ namespace RealHumanSupport
 
             if (rexture.width == targetWidth && rexture.height == targetHeight)
             {
-                // Comment normalized to English.
+                // No resize needed; return original texture.
                 return rexture;
             }
 
-            // Comment normalized to English.
+            // Resize through temporary render texture and read back to Texture2D.
             RenderTexture rt = RenderTexture.GetTemporary(targetWidth, targetHeight, 24, RenderTextureFormat.ARGB32);
             Graphics.Blit(rexture, rt);
 
@@ -581,7 +587,7 @@ namespace RealHumanSupport
             string colliderName = target.name + "_ExtDBoneCollider";
 
             // ===============================
-            // Comment normalized to English.
+            // Helper: remove any non-dynamic collider components on debug objects.
             // ===============================
             void RemoveCollider(GameObject go)
             {
@@ -603,7 +609,7 @@ namespace RealHumanSupport
             }
 
             // ===============================
-            // Comment normalized to English.
+            // Ensure pivot object exists under target bone.
             // ===============================
             Transform pivotTf = target.Find(pivotName);
             if (pivotTf == null)
@@ -617,7 +623,7 @@ namespace RealHumanSupport
             }
 
             // ===============================
-            // Comment normalized to English.
+            // Ensure collider child exists under pivot and has DynamicBoneCollider.
             // ===============================
             Transform colliderTf = pivotTf.Find(colliderName);
             DynamicBoneCollider dbc;
@@ -639,7 +645,7 @@ namespace RealHumanSupport
             }
 
             // ===============================
-            // Comment normalized to English.
+            // Apply collider shape settings.
             // ===============================
             dbc.m_Radius = radius;
             dbc.m_Height = height;
@@ -664,15 +670,15 @@ namespace RealHumanSupport
         {
             if (parent == null) return;
 
-            // Comment normalized to English.
+            // Enumerate all descendants under the root transform.
             Transform[] allChildren = parent.GetComponentsInChildren<Transform>(true);
 
             foreach (Transform tr in allChildren)
             {
-                // Comment normalized to English.
+                // Process only generated extra dynamic-bone collider transforms.
                 if (!tr.name.EndsWith("_ExtDBoneCollider")) continue;
 
-                // Comment normalized to English.
+                // Apply requested local scale override.
                 tr.localScale = targetScale;
             }
         }
@@ -845,21 +851,21 @@ namespace RealHumanSupport
                         {
                             realHumanData.anus_pullout_idx_in_body = idx;
                         }
-                        else if (name.Contains("Vagina Up")) // 50 까�?
+                        else if (name.Contains("Vagina Up"))
                         {
-                            realHumanData.vagina_up_idx_in_body = idx; // collider ?�형???�라 깊이 조정
+                            realHumanData.vagina_up_idx_in_body = idx;
                         }                                                
                         else if (name.Contains("Vagina Open Front"))
                         {
-                            realHumanData.vagina_open_front_idx_in_body = idx; // 100 까�?
+                            realHumanData.vagina_open_front_idx_in_body = idx;
                         }                                                
                         else if (name.Contains("Vagina Open All Outside"))
                         {
-                            realHumanData.vagina_open_all_outside_idx_in_body = idx; // 30 까�? 
+                            realHumanData.vagina_open_all_outside_idx_in_body = idx;
                         }
                         else if (name.Contains("Vagina Open Squeeze"))
                         {
-                            realHumanData.vagina_open_squeeze_idx_in_body = idx; // 주기??처리 0  ~ 100 
+                            realHumanData.vagina_open_squeeze_idx_in_body = idx;
                         }
                         // UnityEngine.Debug.Log($">> blendShape {name}, {idx} in body"); 
                     }
@@ -907,17 +913,13 @@ namespace RealHumanSupport
 #endif
 
 #if FEATURE_REALPLAY_SUPPORT
-        // Comment normalized to English.
+        // Create or refresh kinematic rigidbody + capsule collider on a target bone.
         internal void SetRigidBodyOnObject(string boneName, float radius = 0.2f, float height = 0.5f)
         {
             // UnityEngine.Debug.Log($">> SetRigidBodyOnObject {boneName}");
 
             if (realHumanData != null)
             {
-                // string bone_prefix_str = "cf_";
-                // if (realHumanData.chaCtrl.sex == 0)
-                //     bone_prefix_str = "cm_";
-
                 Transform danObject = realHumanData.chaCtrl.objBodyBone.transform.FindLoop(boneName);
 
                 if (danObject != null)
@@ -947,16 +949,16 @@ namespace RealHumanSupport
                         rb.useGravity = false;
                     }
 
-                    // Comment normalized to English.
+                    // Ensure capsule collider exists on generated rigidbody object.
                     CapsuleCollider capsule = childObj.GetComponent<CapsuleCollider>();
                     if (capsule == null)
                     {
                         capsule = childObj.AddComponent<CapsuleCollider>();
-                        capsule.radius = radius;      // Comment normalized to English.
+                        capsule.radius = radius;      // Apply configured capsule radius.
                         capsule.height = height;
                         capsule.direction = 0;
                         capsule.center = Vector3.zero;
-                        capsule.isTrigger = false;  // Comment normalized to English.
+                        capsule.isTrigger = false;  // Keep as physical collider (non-trigger).
                     }
 
                     UnityEngine.Debug.Log($">> created rigidBody + collider on {boneName}");
@@ -968,7 +970,7 @@ namespace RealHumanSupport
             }
         }
 
-        // Comment normalized to English.
+        // Create/refresh trigger sphere object and bind CapsuleTrigger handler.
         internal void SetCollisionOnOnObject(string bone_name)
         {
             UnityEngine.Debug.Log($">> SetCollisionOnOnObject {realHumanData}");
@@ -1026,12 +1028,12 @@ namespace RealHumanSupport
 
         internal static PositionData GetBoneRotationFromTF(Transform t)
         {
-            // Comment normalized to English.
+            // Read current local rotation for FK angle extraction.
             Quaternion localRot = t.localRotation;
 
             Vector3 localEuler = localRot.eulerAngles;
 
-            // Comment normalized to English.
+            // Normalize Euler angle to [-180, 180] range.
             float Normalize(float angle)
             {
                 if (angle > 180f)
@@ -1039,11 +1041,11 @@ namespace RealHumanSupport
                 return angle;
             }
 
-            float frontback = Normalize(localEuler.x);  // Comment normalized to English.
-            float leftright = Normalize(localEuler.z);  // Comment normalized to English.
+            float frontback = Normalize(localEuler.x);  // Pitch-like forward/back component.
+            float leftright = Normalize(localEuler.z);  // Roll-like left/right component.
 
             PositionData data = new PositionData(
-                t.rotation,     // Comment normalized to English.
+                t.rotation,     // World-space rotation snapshot.
                 frontback,
                 leftright
             );
@@ -1187,9 +1189,9 @@ namespace RealHumanSupport
             bool sameSign = (a >= 0 && b >= 0) || (a < 0 && b < 0);
 
             if (sameSign)
-                return Math.Abs(Math.Abs(a) - Math.Abs(b)); // Comment normalized to English.
+                return Math.Abs(Math.Abs(a) - Math.Abs(b)); // Same sign: use absolute distance.
             else
-                return Math.Abs(Math.Abs(a) + Math.Abs(b)); // Comment normalized to English.
+                return Math.Abs(Math.Abs(a) + Math.Abs(b)); // Opposite sign: use absolute sum.
         }
 
         internal static bool IsFront(float a, float b)
@@ -1236,29 +1238,39 @@ namespace RealHumanSupport
             if (chaCtrl.sex == 0) {
                 SetRigidBodyOnObject("cm_J_Hand_Index02_L", 0.05f, 0.15f);
                 SetRigidBodyOnObject("cm_J_Hand_Index02_R", 0.05f, 0.15f); 
-                SetRigidBodyOnObject("cm_J_Hand_Index01_L", 0.05f, 0.15f);
-                SetRigidBodyOnObject("cm_J_Hand_Index01_R", 0.05f, 0.15f); 
+                // SetRigidBodyOnObject("cm_J_Hand_Index01_L", 0.05f, 0.15f);
+                // SetRigidBodyOnObject("cm_J_Hand_Index01_R", 0.05f, 0.15f); 
 
-                SetRigidBodyOnObject("cm_J_Hand_Middle02_L", 0.1f, 0.25f);
-                SetRigidBodyOnObject("cm_J_Hand_Middle02_R", 0.1f, 0.25f); 
-                SetRigidBodyOnObject("cm_J_Hand_Middle01_L", 0.1f, 0.25f);
-                SetRigidBodyOnObject("cm_J_Hand_Middle01_R", 0.1f, 0.25f); 
+                SetRigidBodyOnObject("cm_J_Hand_Middle02_L", 0.1f, 0.22f);
+                SetRigidBodyOnObject("cm_J_Hand_Middle02_R", 0.1f, 0.22f); 
+                SetRigidBodyOnObject("cm_J_Hand_Middle01_L", 0.1f, 0.22f);
+                SetRigidBodyOnObject("cm_J_Hand_Middle01_R", 0.1f, 0.22f);
 
-                SetRigidBodyOnObject("cm_J_dan119_00", 0.15f, 0.4f);                
+                SetRigidBodyOnObject("cm_J_Hand_L", 0.20f, 0.45f);
+                SetRigidBodyOnObject("cm_J_Hand_R", 0.20f, 0.45f);
+
+                // SetRigidBodyOnObject("cm_J_Kosi02", 0.5f, 1.25f);
+
+                SetRigidBodyOnObject("cm_J_dan119_00", 0.3f, 0.7f);          
                 SetRigidBodyOnObject("cm_J_dan108_00", 0.15f, 0.4f); 
                 SetRigidBodyOnObject("cm_J_dan105_00", 0.15f, 0.4f); 
-                SetRigidBodyOnObject("cm_J_dan100_00", 0.15f, 0.4f);               
+                // SetRigidBodyOnObject("cm_J_dan100_00", 0.15f, 0.4f);               
             } else {
                 SetRigidBodyOnObject("cf_J_Hand_Index02_L", 0.1f, 0.25f);
                 SetRigidBodyOnObject("cf_J_Hand_Index02_R", 0.1f, 0.25f);  
-                SetRigidBodyOnObject("cf_J_Hand_Index01_L", 0.1f, 0.25f);
-                SetRigidBodyOnObject("cf_J_Hand_Index01_R", 0.1f, 0.25f);  
+                // SetRigidBodyOnObject("cf_J_Hand_Index01_L", 0.1f, 0.22f);
+                // SetRigidBodyOnObject("cf_J_Hand_Index01_R", 0.1f, 0.22f);  
+                
+                // SetRigidBodyOnObject("cm_J_Kosi02", 0.5f, 1.25f);
 
-                SetRigidBodyOnObject("cf_J_Hand_Middle02_L", 0.1f, 0.25f);
-                SetRigidBodyOnObject("cf_J_Hand_Middle02_R", 0.1f, 0.25f);
-                SetRigidBodyOnObject("cf_J_Hand_Middle01_L", 0.1f, 0.25f);
-                SetRigidBodyOnObject("cf_J_Hand_Middle01_R", 0.1f, 0.25f);
-                                
+                SetRigidBodyOnObject("cf_J_Hand_Middle02_L", 0.1f, 0.22f);
+                SetRigidBodyOnObject("cf_J_Hand_Middle02_R", 0.1f, 0.22f);
+                SetRigidBodyOnObject("cf_J_Hand_Middle01_L", 0.1f, 0.22f);
+                SetRigidBodyOnObject("cf_J_Hand_Middle01_R", 0.1f, 0.22f);
+
+                SetRigidBodyOnObject("cf_J_Hand_L", 0.20f, 0.45f);
+                SetRigidBodyOnObject("cf_J_Hand_R", 0.20f, 0.45f);
+
                 SetCollisionOnOnObject("cf_J_Vagina_root");
             }
         }
@@ -1267,73 +1279,9 @@ namespace RealHumanSupport
         internal static void SupportEyeFastBlinkEffect(ChaControl chaCtrl, RealHumanData realHumanData) 
         {
             if (chaCtrl.fbsCtrl != null)
-                chaCtrl.fbsCtrl.BlinkCtrl.BaseSpeed = 0.05f; // Comment normalized to English.
+                chaCtrl.fbsCtrl.BlinkCtrl.BaseSpeed = 0.05f; // Increase blink cadence.
         }
 #endregion
-    }
-
-    class RealFaceData
-    {
-        public List<BAreaData> areas = new List<BAreaData>();
-
-        public RealFaceData()
-        {
-        }
-        public RealFaceData(BAreaData barea)
-        {
-           this.areas.Add(barea);
-        }
-
-        public RealFaceData(BAreaData barea1, BAreaData barea2)
-        {
-            this.areas.Add(barea1);
-            this.areas.Add(barea2);
-        }
-
-        public RealFaceData(BAreaData barea1, BAreaData barea2, BAreaData barea3)
-        {
-            this.areas.Add(barea1);
-            this.areas.Add(barea2);
-            this.areas.Add(barea3);
-        }
-
-        public RealFaceData(BAreaData barea1, BAreaData barea2, BAreaData barea3, BAreaData barea4)
-        {
-            this.areas.Add(barea1);
-            this.areas.Add(barea2);
-            this.areas.Add(barea3);
-            this.areas.Add(barea4);
-        }
-
-        public void Add(BAreaData area)
-        {
-            this.areas.Add(area);
-        }
-    }
-
-    // Comment normalized to English.
-    struct BAreaData
-    {  
-        public float X { get; set; }
-        public float Y { get; set; }
-        public float RadiusX; // Comment normalized to English.
-        public float RadiusY; // Comment normalized to English.
-        public float BumpBooster; // Comment normalized to English.
-        public float Padding;   // Comment normalized to English.
-    }    
-    
-    class PositionData
-    {
-        public Quaternion _q;
-        public  float   _frontback;
-        public  float   _leftright;
-
-        public PositionData(Quaternion q, float frontback, float leftright)
-        {   
-            _q = q;
-            _frontback = frontback;
-            _leftright = leftright;
-        }        
     }
 
     class RealHumanData
@@ -1341,7 +1289,7 @@ namespace RealHumanSupport
         public ChaControl chaCtrl;
         public Coroutine coroutine;
 
-        // Comment normalized to English.
+        // Coroutine control flag used by runtime update loops.
         public bool coroutine_pause;
 
         public List<BAreaData> areas = new List<BAreaData>();
@@ -1366,20 +1314,21 @@ namespace RealHumanSupport
         // Collider that produced the last rigidbody detection hit.
         public Collider headLastRigidbodyCollider = null;
         public Transform neck_bone;
-        public Transform root_bone;  // Comment normalized to English.
+        public Transform root_bone;  // Cached root transform.
         public Transform dan_bone;
-        public List<DynamicBone> hairDynamicBones = new List<DynamicBone>(); // Comment normalized to English.
+
+        public List<DynamicBone> hairDynamicBones = new List<DynamicBone>(); // Cached hair dynamic bone list.
         public List<DynamicBoneCollider> extraBodyColliders = new List<DynamicBoneCollider>();
         public Dictionary<string, float[]> extraColliderOriginalSnapshots = new Dictionary<string, float[]>();
         public Dictionary<string, float[]> extraColliderCurrentSnapshots = new Dictionary<string, float[]>();
 
-        // Comment normalized to English.
+        // DynamicBone references for chest and hip soft-body simulation.
         public DynamicBone_Ver02 rightBoob;
         public DynamicBone_Ver02 leftBoob;
         public DynamicBone_Ver02 rightButtCheek;
         public DynamicBone_Ver02 leftButtCheek;
 
-        // Comment normalized to English.
+        // Core skin/tear materials used for effect updates.
         public Material m_tear_eye;
         public Material m_skin_head;
         public Material m_skin_body;
@@ -1393,11 +1342,11 @@ namespace RealHumanSupport
         public RenderTexture _body_rt;
         public ComputeBuffer body_areaBuffer;
 
-        // Comment normalized to English.
+        // Selected bump-map property names per material.
         public string head_bumpmap_type;
         public string body_bumpmap_type;
 
-        // Comment normalized to English.
+        // Previous FK rotations used for delta-based calculations.
         public Quaternion  prev_fk_spine01_rot;
         public Quaternion  prev_fk_spine02_rot;
         public Quaternion  prev_fk_head_rot;
@@ -1433,10 +1382,10 @@ namespace RealHumanSupport
         public OCIChar.BoneInfo  fk_right_foot_bone;
         public OCIChar.BoneInfo  fk_left_foot_bone;
 
-        // Comment normalized to English.
+        // Optional integration hook for pregnancy controller.
         public PregnancyPlusCharaController pregnancyController;
 
-        // Comment normalized to English.
+        // Eye materials affected by face/tear effects.
         public List<Material> c_m_eye = new List<Material>();
 #if FEATURE_TEARDROP_SUPPORT
         public Transform nose_wing_l_tr;
@@ -1496,6 +1445,71 @@ namespace RealHumanSupport
 #endif
         }     
     }
+
+    class RealFaceData
+    {
+        public List<BAreaData> areas = new List<BAreaData>();
+
+        public RealFaceData()
+        {
+        }
+        public RealFaceData(BAreaData barea)
+        {
+           this.areas.Add(barea);
+        }
+
+        public RealFaceData(BAreaData barea1, BAreaData barea2)
+        {
+            this.areas.Add(barea1);
+            this.areas.Add(barea2);
+        }
+
+        public RealFaceData(BAreaData barea1, BAreaData barea2, BAreaData barea3)
+        {
+            this.areas.Add(barea1);
+            this.areas.Add(barea2);
+            this.areas.Add(barea3);
+        }
+
+        public RealFaceData(BAreaData barea1, BAreaData barea2, BAreaData barea3, BAreaData barea4)
+        {
+            this.areas.Add(barea1);
+            this.areas.Add(barea2);
+            this.areas.Add(barea3);
+            this.areas.Add(barea4);
+        }
+
+        public void Add(BAreaData area)
+        {
+            this.areas.Add(area);
+        }
+    }
+
+    // Packed area data used by compute-shader bump influence passes.
+    struct BAreaData
+    {  
+        public float X { get; set; }
+        public float Y { get; set; }
+        public float RadiusX; // Horizontal area radius.
+        public float RadiusY; // Vertical area radius.
+        public float BumpBooster; // Intensity multiplier for bump contribution.
+        public float Padding;   // Extra margin for area blending.
+    }    
+    
+    class PositionData
+    {
+        public Quaternion _q;
+        public  float   _frontback;
+        public  float   _leftright;
+
+        public PositionData(Quaternion q, float frontback, float leftright)
+        {   
+            _q = q;
+            _frontback = frontback;
+            _leftright = leftright;
+        }        
+    }
+
     enum Status
     {
         INIT,

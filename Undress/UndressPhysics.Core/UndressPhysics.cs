@@ -242,6 +242,23 @@ namespace UndressPhysics
                 studio.cameraCtrl.noCtrlCondition = null;
             }
 
+            OCIChar ociChar = GetCurrentOCI();
+            if (ociChar == null)
+            {
+                GUILayout.Label("<color=white>Nothing to select</color>", RichLabel);
+
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Close"))
+                {
+                    Studio.Studio.Instance.cameraCtrl.noCtrlCondition = null;
+                    _ShowUI = false;
+                }
+                GUILayout.EndHorizontal();
+
+                GUI.DragWindow();
+                return;
+            }
+
             // ================= UI =================
 // Global
             GUILayout.Label("<color=orange>Option</color>", RichLabel);
@@ -323,6 +340,19 @@ namespace UndressPhysics
         #endregion
 
         #region Private Methods
+        private OCIChar GetCurrentOCI()
+        {
+            if (Studio.Studio.Instance == null || Studio.Studio.Instance.treeNodeCtrl == null)
+                return null;
+
+            TreeNodeObject[] selectedNodes = Studio.Studio.Instance.treeNodeCtrl.selectNodes;
+            if (selectedNodes == null || selectedNodes.Length == 0)
+                return null;
+
+            TreeNodeObject lastNode = selectedNodes[selectedNodes.Length - 1];
+            return Studio.Studio.GetCtrlInfo(lastNode) as OCIChar;
+        }
+
         private void Init()
         {
             UIUtility.Init();
@@ -523,6 +553,16 @@ namespace UndressPhysics
 
                 // Back up cloth coefficients.
                 ClothSkinningCoefficient[] coeffs = cloth.coefficients;
+                undressData.originalRuntimeStates[cloth] = new ClothRuntimeState
+                {
+                    useGravity = cloth.useGravity,
+                    externalAcceleration = cloth.externalAcceleration,
+                    worldAccelerationScale = cloth.worldAccelerationScale,
+                    worldVelocityScale = cloth.worldVelocityScale,
+                    damping = cloth.damping,
+                    stiffnessFrequency = cloth.stiffnessFrequency
+                };
+
                 float[] maxDistances = new float[coeffs.Length];
                 for (int i = 0; i < coeffs.Length; i++)
                 {

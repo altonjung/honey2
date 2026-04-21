@@ -8,9 +8,7 @@ using System.Reflection;
 using BepInEx.Logging;
 using ToolBox;
 using ToolBox.Extensions;
-using UILib;
 
-using UILib.EventHandlers;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -51,31 +49,17 @@ using KKAPI.Utilities;
 using KKAPI.Chara;
 
 /*
-    Agent 코드 수행
+    Agent task execution
 
-    목적:
-    - 의상 스키닝 본을 빠르게 매핑하고 위치/스케일을 조정하는 플러그인
+    Purpose
+    - Quickly map clothing skinning bones and edit transform values.
 
-    용어:
-    - OCIChar: 캐릭터 
-        > GetCurrentOCI 함수를 통해 현재 씬내 활성화된 캐리터를 획득
+    Requirements
+    - Build OnGUI for slot selection, collider listing, and transform editing.
+    - Support scene save/load for per-character mapped transform data.
 
-    최소 요구 기능:
-        1) onGUI 내에 아래 UI를 구성해야 한다.
-            1.1) 각 옷 파트 정보 버튼으로 구성
-            1.2) 선택된 옷 파트에 대한 collider 리스트 조회 제공
-            1.3) collider 선택 시 시각적으로  collider 제공(녹색 실선)
-            1.4) collider 에 대한 postioon, scale editing UI 제공
-        2) sceneWrite, sceneRead가 가능한데, 현재 씬을 저장 후 다시 복원하는 기능이다.
-            >  캐릭터 별 ClothQuickTransformMapData 는 GetCurrentData() 를 통해, 현재 활성화된 캐릭터 데이터를 획득할 수 있다.
-            2.1) sceneWrite 함수는 씬내 각 캐릭터의 각 ClothQuickTransformMapData 가 보유한 bone 이름과 bone 의 속성(position, scale) 정보를 xml에 저장한다.
-            2.2) sceneRead는 함수는 sceneWrite 에서 저장한 xml 정보를 다시 ClothQuickTransformMapData 로 업데이트 해야 한다.
-
-    추가 요구 기능:
-        N/A
-
-    현 버전 문제점:
-        N/A
+    Known issues
+    - N/A
 */
 namespace ClothQuickTransform
 {
@@ -88,7 +72,7 @@ namespace ClothQuickTransform
 #endif
     [BepInDependency("com.bepis.bepinex.extendedsave")]
 #endif
-    public class ClothQuickTransform : GenericPlugin
+    public partial class ClothQuickTransform : GenericPlugin
 #if IPA
                             , IEnhancedPlugin
 #endif
@@ -196,7 +180,7 @@ namespace ClothQuickTransform
 
             _assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-            // Harmony 패치 적용 및 씬 저장/로드 이벤트 연결
+            // Harmony
             var harmonyInstance = HarmonyExtensions.CreateInstance(GUID);
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
             
@@ -280,277 +264,7 @@ namespace ClothQuickTransform
             ClearSelectedBoneHighlight();
         }        
 
-#if FEATURE_SCENE_SAVE
-        // 씬 저장시 현재 조정값을 기록한다.
-        private void OnSceneSave(string path)
-        {
-            using (StringWriter stringWriter = new StringWriter())
-            using (XmlTextWriter xmlWriter = new XmlTextWriter(stringWriter))
-            {
-                xmlWriter.WriteStartElement("root");
-                SceneWrite(path, xmlWriter);
-                xmlWriter.WriteEndElement();
-
-                PluginData data = new PluginData();
-                data.version = _saveVersion;
-                data.data.Add("sceneInfo", stringWriter.ToString());
-                // UnityEngine.Debug.Log($">> CTS SceneSave xml:\n{stringWriter}");
-                ExtendedSave.SetSceneExtendedDataById(_extSaveKey, data);
-            }
-        }
-
-        // 씬 로드시 저장된 조정값을 복원한다.
-        private void OnSceneLoad(string path)
-        {
-            PluginData data = ExtendedSave.GetSceneExtendedDataById(_extSaveKey);
-            if (data == null)
-                return;
-            //if (data.data != null && data.data.ContainsKey("sceneInfo"))
-            //     UnityEngine.Debug.Log($">> CTS SceneLoad xml:\n{data.data["sceneInfo"]}");
-
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml((string)data.data["sceneInfo"]);
-            XmlNode node = doc.FirstChild;
-            if (node == null)
-                return;
-            SceneLoad(path, node);
-        }
-
-        // 씬 임포트시 저장된 조정값을 복원한다.
-        private void OnSceneImport(string path)
-        {
-            Logger.LogMessage($"Import not support");
-        }
-
-        private void SceneLoad(string path, XmlNode node)
-        {
-            if (node == null)
-                return;
-            this.ExecuteDelayed2(() =>
-            {
-                List<KeyValuePair<int, ObjectCtrlInfo>> dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl).ToList();
-
-                List<OCIChar> ociChars = dic
-                    .Select(kv => kv.Value as OCIChar)
-                    .Where(c => c != null)
-                    .ToList();
-
-                SceneRead(node, ociChars);
-            }, 20);
-        }
-
-        // 씬 데이터에서 캐릭터별 조정값을 읽어 적용한다.
-        private void SceneRead(XmlNode node, List<OCIChar> ociChars)
-        {
-            var ociCharByDicKey = new Dictionary<int, OCIChar>();
-            foreach (var kvp in Studio.Studio.Instance.dicObjectCtrl)
-            {
-                var oci = kvp.Value as OCIChar;
-                if (oci != null)
-                    ociCharByDicKey[kvp.Key] = oci;
-            }
-
-            var ociCharByHash = new Dictionary<int, OCIChar>();
-            foreach (var oci in ociChars)
-            {
-                if (oci == null)
-                    continue;
-                int hash = oci.GetChaControl().GetHashCode();
-                if (!ociCharByHash.ContainsKey(hash))
-                    ociCharByHash.Add(hash, oci);
-            }
-            var ociCharByName = new Dictionary<string, OCIChar>(StringComparer.Ordinal);
-            foreach (var oci in ociChars)
-            {
-                if (oci == null || oci.charInfo == null)
-                    continue;
-                string name = oci.charInfo.name;
-                if (string.IsNullOrEmpty(name))
-                    continue;
-                if (!ociCharByName.ContainsKey(name))
-                    ociCharByName.Add(name, oci);
-            }
-
-            int restoredChars = 0;
-            int restoredTransfers = 0;
-
-            foreach (XmlNode charNode in node.SelectNodes("character"))
-            {
-                OCIChar ociChar = null;
-
-                string dicKeyText = charNode.Attributes["dicKey"]?.Value;
-                if (!string.IsNullOrEmpty(dicKeyText) && int.TryParse(dicKeyText, out int dicKeyValue))
-                    ociChar = FindOciCharByDicKey(ociCharByDicKey, dicKeyValue);
-
-                if (ociChar == null)
-                {
-                    string hash = charNode.Attributes["hash"]?.Value;
-                    if (!string.IsNullOrEmpty(hash) && int.TryParse(hash, out int hashValue))
-                        ociCharByHash.TryGetValue(hashValue, out ociChar);
-                }
-                if (ociChar == null)
-                {
-                    string name = charNode.Attributes["name"]?.Value;
-                    if (!string.IsNullOrEmpty(name))
-                        ociCharByName.TryGetValue(name, out ociChar);
-                }
-
-                if (ociChar == null)
-                    continue;
-
-                var savedBySlot = new Dictionary<int, Dictionary<string, SavedAdjustment>>();
-                foreach (XmlNode transferNode in charNode.SelectNodes("transfer"))
-                {
-                    string boneName = NormalizeBoneName(transferNode.Attributes["name"]?.Value);
-                    if (string.IsNullOrEmpty(boneName))
-                        continue;
-
-                    int slotIndex = 0;
-                    var slotAttr = transferNode.Attributes["slot"];
-                    if (slotAttr != null && int.TryParse(slotAttr.Value, out int slotValue))
-                        slotIndex = slotValue;
-
-                    var adj = new SavedAdjustment
-                    {
-                        position = new Vector3(
-                            ReadFloat(transferNode, "posX"),
-                            ReadFloat(transferNode, "posY"),
-                            ReadFloat(transferNode, "posZ")),
-                        rotation = new Vector3(
-                            ReadFloat(transferNode, "rotX"),
-                            ReadFloat(transferNode, "rotY"),
-                            ReadFloat(transferNode, "rotZ")),
-                        scale = new Vector3(
-                            ReadFloat(transferNode, "scaleX", 1f),
-                            ReadFloat(transferNode, "scaleY", 1f),
-                            ReadFloat(transferNode, "scaleZ", 1f))
-                    };
-
-                    if (!savedBySlot.TryGetValue(slotIndex, out var slotMap))
-                    {
-                        slotMap = new Dictionary<string, SavedAdjustment>();
-                        savedBySlot[slotIndex] = slotMap;
-                    }
-                    slotMap[boneName] = adj;
-                }
-
-                int dicKey;
-                bool hasDicKey = TryGetDicKey(ociChar.GetChaControl(), out dicKey);
-                int savedCount = savedBySlot.Values.Sum(v => v != null ? v.Count : 0);
-                // UnityEngine.Debug.Log($">> SceneRead char dicKey={(hasDicKey ? dicKey.ToString() : "not-found")} savedTransfers={savedCount}");
-
-                var mapData = GetDataAndCreate(ociChar);
-                if (mapData != null)
-                {
-                    mapData.savedAdjustmentsBySlot = savedBySlot;
-                    mapData.transferEntriesBySlot = new Dictionary<int, List<TransferEntry>>();
-                    mapData.selectedTransferIndexBySlot = new Dictionary<int, int>();
-
-                    // SceneRead 직후 실제 본 매핑/조정값 적용까지 수행한다.
-                    // 슬롯별로 저장된 값이 있는 경우에만 리맵 시도.
-                    var chaCtrl = ociChar.GetChaControl();
-                    if (chaCtrl != null && savedBySlot != null)
-                    {
-                        foreach (var kv in savedBySlot)
-                        {
-                            int slotIndex = kv.Key;
-                            var slotMap = kv.Value;
-                            if (slotMap == null || slotMap.Count == 0)
-                                continue;
-
-                            if (TryMarkPendingAutoRemap(chaCtrl, slotIndex))
-                                StartCoroutine(AutoMapDelayedForSlot(chaCtrl, slotIndex, false));
-                        }
-                    }
-                }
-
-                restoredChars++;
-                restoredTransfers += savedCount;
-            }
-
-            if (_currentOCIChar != null)
-                RefreshMappingsForSelection(_currentOCIChar);
-        }
-
-        // 현재 캐릭터의 조정값을 씬 데이터로 기록한다.
-        private void SceneWrite(string path, XmlTextWriter writer)
-        {
-            var dic = new SortedDictionary<int, ObjectCtrlInfo>(Studio.Studio.Instance.dicObjectCtrl);
-            var ociCharByDicKey = dic
-                .Where(kv => kv.Value is OCIChar)
-                .ToDictionary(kv => kv.Key, kv => kv.Value as OCIChar);
-            int activeChars = ociCharByDicKey.Count;
-            int adjustmentChars = 0;
-
-            foreach (var kv in ociCharByDicKey)
-            {
-                int dicKey = kv.Key;
-                OCIChar ociChar = kv.Value;
-                if (ociChar == null)
-                    continue;
-
-                var mapData = GetDataAndCreate(ociChar);
-                if (mapData == null)
-                    continue;
-
-                if (mapData.savedAdjustmentsBySlot == null)
-                    mapData.savedAdjustmentsBySlot = new Dictionary<int, Dictionary<string, SavedAdjustment>>();
-
-                if (mapData.transferEntriesBySlot != null)
-                {
-                    foreach (var kvp in mapData.transferEntriesBySlot)
-                    {
-                        var list = kvp.Value;
-                        if (list == null || list.Count == 0)
-                            continue;
-                        mapData.savedAdjustmentsBySlot[kvp.Key] = CaptureAdjustments(list);
-                    }
-                }
-
-                var mapBySlot = mapData.savedAdjustmentsBySlot;
-                if (mapBySlot == null || mapBySlot.Count == 0)
-                    continue;
-
-                adjustmentChars++;
-                // UnityEngine.Debug.Log($">> SceneWrite char dicKey={dicKey} transfers={map.Count}");
-
-                writer.WriteStartElement("character");
-                writer.WriteAttributeString("dicKey", dicKey.ToString(CultureInfo.InvariantCulture));
-                writer.WriteAttributeString("hash", ociChar.GetChaControl().GetHashCode().ToString(CultureInfo.InvariantCulture));
-                writer.WriteAttributeString("name", ociChar.charInfo != null ? ociChar.charInfo.name : string.Empty);
-
-                foreach (var slotEntry in mapBySlot)
-                {
-                    int slotIndex = slotEntry.Key;
-                    var map = slotEntry.Value;
-                    if (map == null || map.Count == 0)
-                        continue;
-
-                    foreach (var entry in map)
-                    {
-                        writer.WriteStartElement("transfer");
-                        writer.WriteAttributeString("slot", slotIndex.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteAttributeString("name", entry.Key);
-                        writer.WriteAttributeString("posX", entry.Value.position.x.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteAttributeString("posY", entry.Value.position.y.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteAttributeString("posZ", entry.Value.position.z.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteAttributeString("rotX", entry.Value.rotation.x.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteAttributeString("rotY", entry.Value.rotation.y.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteAttributeString("rotZ", entry.Value.rotation.z.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteAttributeString("scaleX", entry.Value.scale.x.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteAttributeString("scaleY", entry.Value.scale.y.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteAttributeString("scaleZ", entry.Value.scale.z.ToString(CultureInfo.InvariantCulture));
-                        writer.WriteEndElement();
-                    }
-                }
-
-                writer.WriteEndElement();
-            }
-            // UnityEngine.Debug.Log($">> SceneWrite adjustments chars={adjustmentChars} activeChars={activeChars}");
-        }
-#endif
-
-        // 현재 씬에서 선택된 OCIChar를 가져온다.
+        // OCIChar
         private OCIChar GetCurrentOCI()
         {
             if (Studio.Studio.Instance == null || Studio.Studio.Instance.treeNodeCtrl == null)
@@ -572,7 +286,7 @@ namespace ClothQuickTransform
             return null;
         }        
 
-        // 현재 선택된 OCIChar 에서 MapData 를 가져온다.
+        // OCIChar MapData
         private ClothQuickTransformMapData GetDataAndCreate(OCIChar ociChar)
         {
             if (ociChar == null || ociChar.GetChaControl() == null)
@@ -609,7 +323,7 @@ namespace ClothQuickTransform
             return _currentMapData;
         }
 
-        // 메인 UI 렌더링 및 선택 처리
+        // UI
         private void WindowFunc(int id)
         {
             var studio = Studio.Studio.Instance;
@@ -810,7 +524,7 @@ namespace ClothQuickTransform
                 _ShowUI = false;
             }
 
-            // 툴팁 표시
+            // Show tooltip near the mouse pointer.
             if (!string.IsNullOrEmpty(GUI.tooltip))
             {
                 Vector2 mousePos = Event.current.mousePosition;
@@ -956,8 +670,7 @@ namespace ClothQuickTransform
 
             try
             {
-                // 의상이 비동기로 로딩되는 구간이 있어 추가 대기
-                int maxWaitFrames = 120;
+                 int maxWaitFrames = 120;
                 for (int i = 0; i < maxWaitFrames; i++)
                 {
                     if (CanAutoMap(chaCtrl, slotIndex) && GetPotentialBoneCount(chaCtrl, slotIndex) > 0)
@@ -1073,7 +786,7 @@ namespace ClothQuickTransform
             UpdateSelectedBoneHighlight();
         }
 
-        // 선택된 캐릭터 기준으로 매핑을 다시 구성한다.
+        // Rebuilds mapping for the currently selected character.
         internal void RefreshMappingsForSelection(OCIChar ociChar)
         {
             if (ociChar == null)
@@ -1101,13 +814,12 @@ namespace ClothQuickTransform
             AutoMapWithSaved(chaCtrl, _slotIndex, saved, entries, true);
         }
 
-        // 외부 호출용 자동 매핑 진입점
-        internal bool TryMarkPendingAutoRemap(ChaControl chaCtrl)
+         internal bool TryMarkPendingAutoRemap(ChaControl chaCtrl)
         {
             return TryMarkPendingAutoRemap(chaCtrl, _slotIndex);
         }
 
-        // 슬롯별 자동 리맵 중복 수행 방지
+        // Guards duplicate auto-remap requests per slot.
         internal bool TryMarkPendingAutoRemap(ChaControl chaCtrl, int slotIndex)
         {
             if (!TryGetMapData(chaCtrl, out ClothQuickTransformMapData mapData, out _))
@@ -1155,15 +867,15 @@ namespace ClothQuickTransform
             AutoMapWithSaved(chaCtrl, _slotIndex, saved, entries, isCurrent);
         }
 
-        // 저장된 조정값을 반영하면서 본을 매핑한다.
-        // ChangeClothesAsync(kind) -> objClothes 슬롯 인덱스로 해석한다.
-        // HS2/AI 기준으로 kind가 0~6(상의/하의/장갑/신발/악세류 등) 범위로 들어오는 케이스가 많다.
+        // Resolves ChangeClothes kind to top/bottom slot index.
+        // ChangeClothesAsync(kind) -> objClothes .
+        // HS2/AI kind 0~6( / / / / .
         private bool TryResolveClothSlotIndex(int kind, out int slotIndex)
         {
             slotIndex = -1;
             if (kind < 0)
                 return false;
-            // UI의 슬롯 필터(0~6)와 동일하게 사용
+            // UI (0~6)
             if (kind >= 0 && kind < ClothSlotLabels.Length)
             {
                 slotIndex = kind;
@@ -1172,7 +884,7 @@ namespace ClothQuickTransform
             return false;
         }
 
-        // 의상 슬롯이 새로 로딩되면 해당 슬롯의 조정값/매핑은 "무조건 초기화"한다.
+        // Clears cached entries for a slot when clothes are replaced.
         private void ResetSlotForClothesChange(ChaControl chaCtrl, int slotIndex)
         {
             if (chaCtrl == null)
@@ -1180,17 +892,17 @@ namespace ClothQuickTransform
             if (!TryGetMapData(chaCtrl, out var mapData, out _))
                 return;
 
-            // 1) 저장된 조정값 제거 (A -> B -> A 로 돌아와도 복원하지 않음)
+            // 1) (A -> B -> A )
             if (mapData.savedAdjustmentsBySlot != null)
                 mapData.savedAdjustmentsBySlot.Remove(slotIndex);
 
-            // 2) UI 상태 초기화(선택/스크롤)
+            // 2) UI /
             if (mapData.selectedTransferIndexBySlot != null)
                 mapData.selectedTransferIndexBySlot.Remove(slotIndex);
             if (mapData.transferScrollBySlot != null)
                 mapData.transferScrollBySlot.Remove(slotIndex);
 
-            // 3) 기존 transfer 오브젝트/렌더러 본 매핑 제거
+            // 3) transfer /
             if (mapData.transferEntriesBySlot != null
                 && mapData.transferEntriesBySlot.TryGetValue(slotIndex, out var entries)
                 && entries != null)
@@ -1389,7 +1101,7 @@ namespace ClothQuickTransform
             }
         }
 
-        // 기존 렌더러 본 연결을 원래대로 되돌리고 생성 오브젝트를 정리한다.
+        // Clears transfer mappings and renderer-bone links for a slot.
         private void ClearMappings(List<TransferEntry> entries, bool clearSelection, ClothQuickTransformMapData mapData, int slotIndex)
         {
             if (entries == null)
@@ -1428,7 +1140,7 @@ namespace ClothQuickTransform
             }
         }
 
-        // dicKey가 있으면 dicKey로, 없으면 해시로 저장한다.
+        // dicKey dicKey
         private void StoreAdjustmentsFor(ChaControl chaCtrl, Dictionary<string, SavedAdjustment> map, int slotIndex)
         {
             if (chaCtrl == null || map == null)
@@ -1671,12 +1383,12 @@ namespace ClothQuickTransform
             return fallback;
         }
 
-        // 저장/비교를 위해 본 이름을 정규화한다.
+        // Normalizes bone names for stable save/load key matching.
         private string NormalizeBoneName(string name)
         {
             if (string.IsNullOrEmpty(name))
                 return name;
-            // 제어문자 제거 및 트림
+            // Remove invalid characters before key normalization.
             // Remove control characters and trim whitespace.
             char[] buffer = new char[name.Length];
             int idx = 0;
@@ -1701,7 +1413,7 @@ namespace ClothQuickTransform
             return cleaned;
         }
 
-        // 선택된 본 위치에 디버그 마커를 배치한다.
+        // Updates highlight marker for the currently selected transfer bone.
         private void UpdateSelectedBoneHighlight()
         {
             var mapData = EnsureCurrentMapData();
@@ -1760,7 +1472,7 @@ namespace ClothQuickTransform
             return mat;
         }
 
-        // 축별 원을 조합해 구형 와이어프레임을 만든다.
+        // Creates a wireframe sphere for selected-bone visualization.
         private void CreateWireSphere(Transform parent)
         {
             CreateWireCircle(parent, "Wire_XY", Vector3.forward);
@@ -1768,7 +1480,7 @@ namespace ClothQuickTransform
             CreateWireCircle(parent, "Wire_YZ", Vector3.right);
         }
 
-        // LineRenderer로 원을 그린다.
+        // LineRenderer
         private void CreateWireCircle(Transform parent, string name, Vector3 normal)
         {
             var go = new GameObject(name);
@@ -1913,7 +1625,7 @@ namespace ClothQuickTransform
             }
         }        
 
-        #endregion        
+        #endregion
     }
-#endregion
+    #endregion
 }

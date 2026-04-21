@@ -27,12 +27,12 @@ namespace ClothCollideVisualizer
             <AI_ClothColliders>
                 <cloth>
                     <SphereColliderPair>
-                        <first boneName='cf_J_Kosi02' radius='1.2' center='0.00, 0.00, 0.00' />
-                        <second boneName='cf_J_LegUp00_L' radius='0.9' center='0.04, 0.02, 0.00' />
+                        <first boneName='cf_J_Kosi02' radius='0.8' center='0.00, 0.00, 0.00' />
+                        <second boneName='cf_J_LegUp00_L' radius='0.7' center='0.04, 0.02, 0.00' />
                     </SphereColliderPair>
                         <SphereColliderPair>
-                            <first boneName='cf_J_Kosi02' radius='1.2' center='0.00, 0.00, 0.00' />
-                            <second boneName='cf_J_LegUp00_R' radius='0.9' center='-0.04, 0.02, 0.00' />
+                            <first boneName='cf_J_Kosi02' radius='0.8' center='0.00, 0.00, 0.00' />
+                            <second boneName='cf_J_LegUp00_R' radius='0.7' center='-0.04, 0.02, 0.00' />
                         </SphereColliderPair>
                 </cloth>
             </AI_ClothColliders>";

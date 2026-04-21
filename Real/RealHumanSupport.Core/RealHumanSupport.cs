@@ -9,9 +9,7 @@ using System.Reflection;
 using BepInEx.Logging;
 using ToolBox;
 using ToolBox.Extensions;
-using UILib;
 
-using UILib.EventHandlers;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;

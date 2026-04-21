@@ -36,13 +36,13 @@ namespace ClothQuickTransform
         ClothQuickTransformMapData clothQuickTransformMapData;
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
-        // 현재 맵 데이터를 반환한다.
+        // Returns current map data for this character.
         internal ClothQuickTransformMapData GetData()
         {
             return clothQuickTransformMapData;
         }
 
-        // 캐릭터 별 맵 데이터를 생성하고 반환한다.
+        // Creates map data for this character if missing.
         internal ClothQuickTransformMapData CreateData(OCIChar _ociChar)
         {
             if (_ociChar != null) {
@@ -64,7 +64,7 @@ namespace ClothQuickTransform
             new Dictionary<int, int>();
         public Dictionary<int, Dictionary<string, ClothQuickTransform.SavedAdjustment>> savedAdjustmentsBySlot =
             new Dictionary<int, Dictionary<string, ClothQuickTransform.SavedAdjustment>>();
-        // 의상 슬롯별 리맵 대기 상태(동시에 여러 슬롯 변경 가능)
+        // Slots waiting for deferred auto-remap.
         public HashSet<int> pendingAutoRemapSlots = new HashSet<int>();
         public Dictionary<int, Vector2> transferScrollBySlot =
             new Dictionary<int, Vector2>();

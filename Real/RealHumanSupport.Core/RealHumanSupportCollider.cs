@@ -1,4 +1,4 @@
-﻿// Comment normalized to English.
+﻿// Extra collider snapshot/trigger logic used by RealHumanSupport runtime.
 using Studio;
 using System;
 using System.Collections;
@@ -329,7 +329,7 @@ namespace RealHumanSupport
                 if (_data != null)
                     _data.ActiveRealPlay = true;                
             }
-                 
+
             UnityEngine.Debug.Log("Trigger Enter: " + other.name);
         }
 
@@ -372,7 +372,6 @@ namespace RealHumanSupport
             if (!TryGetRealPlayStrongByColliderName(other.attachedRigidbody.name, out float strong))
                 return false;
 
-            _data.ActiveRealPlay = isActive;
             _data.realPlayStrong = isActive ? strong : 1.0f;
             return true;
         }
@@ -391,25 +390,38 @@ namespace RealHumanSupport
 
             if (colliderName.Contains("cm_J_dan108_00"))
             {
-                strong = 0.9f;
+                strong = 0.8f;
                 return true;
             }
 
             if (colliderName.Contains("cm_J_dan105_00"))
             {
+                strong = 1.1f;
+                return true;
+            }
+
+            if (colliderName.Contains("cm_J_Hand") || colliderName.Contains("cf_J_Hand")) {
+
                 strong = 1.2f;
-                return true;
-            }
+                if (colliderName.Contains("cm_J_Hand_Index") || colliderName.Contains("cf_J_Hand_Index"))
+                {
+                    strong = 0.3f;
+                    return true;
+                }
 
-            if (colliderName.Contains("cm_J_Hand_Index") || colliderName.Contains("cf_J_Hand_Index"))
-            {
-                strong = 0.3f;
-                return true;
-            }
+                if (colliderName.Contains("cm_J_Hand_Middle01") || colliderName.Contains("cf_J_Hand_Middle01"))
+                {
+                    strong = 0.5f;
+                    return true;
+                }
 
-            if (colliderName.Contains("cm_J_Hand_Middle") || colliderName.Contains("cf_J_Hand_Middle"))
-            {
-                strong = 0.8f;
+                if (colliderName.Contains("cm_J_Hand_Middle02") || colliderName.Contains("cf_J_Hand_Middle02"))
+                {
+                    strong = 0.8f;
+                    return true;
+                }
+
+
                 return true;
             }
 
@@ -458,7 +470,7 @@ namespace RealHumanSupport
             if (rbName.Contains("cm_J_dan108_00"))
                 return 80f;
 
-            if (rbName.Contains("cm_J_dan105_00") || rbName.Contains("cm_J_dan100_00"))
+            if (rbName.Contains("cm_J_dan105_00"))
                 return 100f;
 
             return 0f;
@@ -538,8 +550,8 @@ namespace RealHumanSupport
                 case ContactResponseProfile.Natural:
                 default:
                     return isEntering
-                        ? EaseOutCubic(t) // Comment normalized to English.
-                        : EaseInCubic(t); // Comment normalized to English.
+                        ? EaseOutCubic(t) // Enter transition: fast response with eased settling.
+                        : EaseInCubic(t); // Exit transition: smooth ramp-down to idle.
             }
         }
 

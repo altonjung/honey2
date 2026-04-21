@@ -14,5 +14,6 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\toolbar_icon.png" />    
   </ItemGroup>  
 </Project>
