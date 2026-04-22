@@ -100,6 +100,7 @@ namespace JointCorrectionSlider
 
         private enum CorrectionFieldId
         {
+            Shoulder,
             LeftShoulder,
             RightShoulder,
             LeftArmUpper,
@@ -108,6 +109,7 @@ namespace JointCorrectionSlider
             RightArmLower,
             LeftElbow,
             RightElbow,
+            Thigh,
             LeftLeg,
             RightLeg,
             LeftKnee,
@@ -209,6 +211,7 @@ namespace JointCorrectionSlider
 #endif            
             new CorrectionCategoryUi("Shoulder", new[]
             {
+                new CorrectionFieldUi(CorrectionFieldId.Shoulder, "Both", "Both shoulders", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.LeftShoulder, "Sholdr(L)", "Left", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightShoulder, "Sholdr(R)", "Right", -1.0f, 1.0f)
             }),
@@ -226,6 +229,7 @@ namespace JointCorrectionSlider
             }),
             new CorrectionCategoryUi("Thigh", new[]
             {
+                new CorrectionFieldUi(CorrectionFieldId.Thigh, "Both", "Both thighs", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.LeftLeg, "Thigh(L)", "Left", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightLeg, "Thigh(R)", "Right", -1.0f, 1.0f)
             }),
@@ -245,7 +249,7 @@ namespace JointCorrectionSlider
 #if FEATURE_CROTCH_CORRECTION
             new CorrectionCategoryUi("Crotch", new[]
             {
-                new CorrectionFieldUi(CorrectionFieldId.CrotchCorrection, "Correction", "Crotch X rotation", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.CrotchCorrection, "vertical", "Crotch X rotation", -1.0f, 1.0f),
             }),
 #endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
@@ -860,10 +864,14 @@ namespace JointCorrectionSlider
 #endif
             switch (fieldId)
             {
+                case CorrectionFieldId.Shoulder:
+                    return data._shoulder02_s_L != null && data._shoulder02_s_R != null;
                 case CorrectionFieldId.LeftShoulder:
                     return data._shoulder02_s_L != null;
                 case CorrectionFieldId.RightShoulder:
                     return data._shoulder02_s_R != null;
+                case CorrectionFieldId.Thigh:
+                    return true;
 #if FEATURE_DAN_CORRECTION
                 case CorrectionFieldId.DanTop1Scale:
                     return isMale && data._dan_top1 != null;
@@ -967,6 +975,7 @@ namespace JointCorrectionSlider
         {
             switch (fieldId)
             {
+                case CorrectionFieldId.Shoulder: return data.ShoulderValue;
                 case CorrectionFieldId.LeftShoulder: return data.LeftShoulderValue;
                 case CorrectionFieldId.RightShoulder: return data.RightShoulderValue;
                 case CorrectionFieldId.LeftArmUpper: return data.LeftArmUpperValue;
@@ -975,6 +984,7 @@ namespace JointCorrectionSlider
                 case CorrectionFieldId.RightArmLower: return data.RightArmLowerValue;
                 case CorrectionFieldId.LeftElbow: return data.LeftElbowValue;
                 case CorrectionFieldId.RightElbow: return data.RightElbowValue;
+                case CorrectionFieldId.Thigh: return data.ThighValue;
                 case CorrectionFieldId.LeftLeg: return data.LeftLegValue;
                 case CorrectionFieldId.RightLeg: return data.RightLegValue;
                 case CorrectionFieldId.LeftKnee: return data.LeftKneeValue;
@@ -1013,16 +1023,43 @@ namespace JointCorrectionSlider
         {
             switch (fieldId)
             {
-                case CorrectionFieldId.LeftShoulder: data.LeftShoulderValue = value; break;
-                case CorrectionFieldId.RightShoulder: data.RightShoulderValue = value; break;
+                case CorrectionFieldId.Shoulder:
+                    data.ShoulderValue = value;
+                    data.LeftShoulderValue = value;
+                    data.RightShoulderValue = -value;
+                    break;
+                case CorrectionFieldId.LeftShoulder:
+                    data.LeftShoulderValue = value;
+                    data.ShoulderValue = (data.LeftShoulderValue + data.RightShoulderValue) * 0.5f;
+                    break;
+                case CorrectionFieldId.RightShoulder:
+                    data.RightShoulderValue = value;
+                    data.ShoulderValue = (data.LeftShoulderValue + data.RightShoulderValue) * 0.5f;
+                    break;
                 case CorrectionFieldId.LeftArmUpper: data.LeftArmUpperValue = value; break;
                 case CorrectionFieldId.RightArmUpper: data.RightArmUpperValue = value; break;
                 case CorrectionFieldId.LeftArmLower: data.LeftArmLowerValue = value; break;
                 case CorrectionFieldId.RightArmLower: data.RightArmLowerValue = value; break;
                 case CorrectionFieldId.LeftElbow: data.LeftElbowValue = value; break;
                 case CorrectionFieldId.RightElbow: data.RightElbowValue = value; break;
-                case CorrectionFieldId.LeftLeg: data.LeftLegValue = value; break;
-                case CorrectionFieldId.RightLeg: data.RightLegValue = value; break;
+                case CorrectionFieldId.Thigh:
+                    JointCorrectionSliderController thighController = data.charControl != null
+                        ? data.charControl.GetComponent<JointCorrectionSliderController>()
+                        : null;
+                    if (thighController != null && thighController.SetThigh(value))
+                        break;
+                    data.ThighValue = Mathf.Clamp(value, -1.0f, 1.0f);
+                    data.LeftLegValue = data.ThighValue;
+                    data.RightLegValue = -data.ThighValue;
+                    break;
+                case CorrectionFieldId.LeftLeg:
+                    data.LeftLegValue = value;
+                    data.ThighValue = (data.LeftLegValue + data.RightLegValue) * 0.5f;
+                    break;
+                case CorrectionFieldId.RightLeg:
+                    data.RightLegValue = value;
+                    data.ThighValue = (data.LeftLegValue + data.RightLegValue) * 0.5f;
+                    break;
                 case CorrectionFieldId.LeftKnee: data.LeftKneeValue = value; break;
                 case CorrectionFieldId.RightKnee: data.RightKneeValue = value; break;
 #if FEATURE_DAN_CORRECTION
@@ -1042,7 +1079,14 @@ namespace JointCorrectionSlider
                     break;
 #endif
 #if FEATURE_CROTCH_CORRECTION
-                case CorrectionFieldId.CrotchCorrection: data.KosiCorrectionValue = value; break;
+                case CorrectionFieldId.CrotchCorrection:
+                    JointCorrectionSliderController crotchController = data.charControl != null
+                        ? data.charControl.GetComponent<JointCorrectionSliderController>()
+                        : null;
+                    if (crotchController != null && crotchController.SetCrotch(value))
+                        break;
+                    data.KosiCorrectionValue = Mathf.Clamp(value, -1.0f, 1.0f);
+                    break;
 #endif
 #if FEATURE_CHEST_CORRECTION
                 case CorrectionFieldId.MunePosX: data.MunePosLValue = value; break;
@@ -1703,4 +1747,3 @@ namespace JointCorrectionSlider
     }    
 #endregion
 }
-

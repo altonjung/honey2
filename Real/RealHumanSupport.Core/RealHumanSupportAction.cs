@@ -51,7 +51,7 @@ namespace RealHumanSupport
             if (chaCtrl.sex == 0)
                 return;
 
-            if (!RealHumanSupport.BodyBlendingActive.Value)
+            if (!RealHumanSupport.BodyBumpMapActive.Value)
                 return;
 
             if (realHumanData.m_skin_body == null)
@@ -59,7 +59,7 @@ namespace RealHumanSupport
 
             OCIChar ociChar = chaCtrl.GetOCIChar();
 
-            Texture2D origin_texture = realHumanData.bodyOriginTexture;
+            Texture origin_texture = realHumanData.bodyOriginTexture;
 
             realHumanData.areas.Clear();
 
@@ -532,10 +532,10 @@ namespace RealHumanSupport
             if (realHumanData.m_skin_head == null)
                 return;
 
-            if (RealHumanSupport.BodyBlendingActive.Value)
+            if (RealHumanSupport.BodyBumpMapActive.Value)
             {
-                Texture2D origin_texture = realHumanData.headOriginTexture;
-                Texture2D express_texture = null;
+                Texture origin_texture = realHumanData.headOriginTexture;
+                Texture express_texture = null;
 
                 if (chaCtrl.sex == 1) // female
                 {

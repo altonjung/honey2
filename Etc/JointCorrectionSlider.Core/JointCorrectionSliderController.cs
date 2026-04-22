@@ -192,6 +192,36 @@ namespace JointCorrectionSlider
             return correctionData;
         }
 
+        private float ClampSliderValue(float sliderValue)
+        {
+            return Mathf.Clamp(sliderValue, -1.0f, 1.0f);
+        }
+
+        public bool SetThigh(float sliderValue)
+        {
+            if (correctionData == null)
+                return false;
+
+            float clampedValue = ClampSliderValue(sliderValue);
+            correctionData.ThighValue = clampedValue;
+            correctionData.LeftLegValue = clampedValue;
+            correctionData.RightLegValue = clampedValue;
+            return true;
+        }
+
+        public bool SetCrotch(float sliderValue)
+        {
+            if (correctionData == null)
+                return false;
+
+#if FEATURE_CROTCH_CORRECTION
+            correctionData.KosiCorrectionValue = ClampSliderValue(sliderValue);
+            return true;
+#else
+            return false;
+#endif
+        }
+
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
         internal void SetBodyBlendShapes()
         {
@@ -223,7 +253,7 @@ namespace JointCorrectionSlider
             }                       
         }
 
-        internal void SetBlendShape(float weight, int targetIdx)
+        public void SetBlendShape(float weight, int targetIdx)
         {
             if (correctionData == null || correctionData.charControl == null || correctionData.charControl.objBody == null)
                 return;
@@ -270,6 +300,7 @@ namespace JointCorrectionSlider
         public Dictionary<int, ScriptMinMax> ScriptInfoBaseByCategory = new Dictionary<int, ScriptMinMax>();
         public bool ScriptInfoBaseInitialized = false;
 
+        public float ShoulderValue = 0.0f;
         public float LeftShoulderValue = 0.0f;
         public float RightShoulderValue = 0.0f;
         public float LeftArmUpperValue = 0.0f;
@@ -280,6 +311,7 @@ namespace JointCorrectionSlider
         public float RightElbowValue = 0.0f;
         public float LeftKneeValue = 0.0f;
         public float RightKneeValue = 0.0f;
+        public float ThighValue = 0.0f;
         public float LeftLegValue = 0.0f;
         public float RightLegValue = 0.0f;
 
@@ -459,6 +491,7 @@ namespace JointCorrectionSlider
 
         internal void Reset()
         {
+            ShoulderValue = 0.0f;
             LeftShoulderValue = 0.0f;
             RightShoulderValue = 0.0f;
 
@@ -470,6 +503,7 @@ namespace JointCorrectionSlider
             RightArmLowerValue = 0.0f;
             LeftKneeValue = 0.0f;
             RightKneeValue = 0.0f;
+            ThighValue = 0.0f;
             LeftLegValue = 0.0f;
             RightLegValue = 0.0f;            
 

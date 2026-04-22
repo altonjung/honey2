@@ -377,52 +377,76 @@ namespace UndressPhysics
             return undressData;
         }
 
+        internal static IEnumerator RestoreMaxDistancesCoroutine(UndressData undressData)
+        {
+            if (undressData == null || undressData.cloth == null)
+                yield break;
+
+            var cloth = undressData.cloth;
+            ClothRuntimeState runtimeState = null;
+
+            cloth.enabled = false;
+
+            if (undressData.originalMaxDistances.TryGetValue(cloth, out var originalMax))
+            {
+                var coeffs = cloth.coefficients;
+                int count = Mathf.Min(coeffs.Length, originalMax.Length);
+
+                for (int i = 0; i < count; i++)
+                    coeffs[i].maxDistance = originalMax[i];
+
+                cloth.coefficients = coeffs;
+            }
+
+            if (undressData.originalRuntimeStates.TryGetValue(cloth, out runtimeState))
+            {
+                cloth.useGravity = runtimeState.useGravity;
+                cloth.externalAcceleration = Vector3.zero;
+                cloth.worldAccelerationScale = runtimeState.worldAccelerationScale;
+                cloth.worldVelocityScale = runtimeState.worldVelocityScale;
+                cloth.damping = runtimeState.damping;
+                cloth.stiffnessFrequency = runtimeState.stiffnessFrequency;
+            }
+
+            cloth.ClearTransformMotion();   // Reset simulation velocity.
+            cloth.enabled = true;
+            cloth.externalAcceleration = Vector3.zero;
+
+            // Allow the native cloth solver to settle with restored coefficients.
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            if (runtimeState != null)
+            {
+                cloth.useGravity = runtimeState.useGravity;
+                cloth.externalAcceleration = runtimeState.externalAcceleration;
+                cloth.worldAccelerationScale = runtimeState.worldAccelerationScale;
+                cloth.worldVelocityScale = runtimeState.worldVelocityScale;
+                cloth.damping = runtimeState.damping;
+                cloth.stiffnessFrequency = runtimeState.stiffnessFrequency;
+            }
+
+            undressData.originalMaxDistances.Remove(cloth);
+            undressData.originalRuntimeStates.Remove(cloth);
+        }
+        
         internal static void RestoreMaxDistances(UndressData undressData)
         {
-            if (undressData.cloth != null)
+            if (undressData == null || undressData.cloth == null)
+                return;
+
+            var cloth = undressData.cloth;
+            if (undressData.originalMaxDistances.TryGetValue(cloth, out var originalMax))
             {
-                var cloth = undressData.cloth;
-                ClothRuntimeState runtimeState = null;
-
-                cloth.enabled = false;
-
-                if (undressData.originalMaxDistances.TryGetValue(cloth, out var originalMax)) 
-                {
-                    var coeffs = cloth.coefficients;
-                    int count = Mathf.Min(coeffs.Length, originalMax.Length);
-
-                    for (int i = 0; i < count; i++)
-                        coeffs[i].maxDistance = originalMax[i];
-
-                    cloth.coefficients = coeffs;
-                }
-
-                if (undressData.originalRuntimeStates.TryGetValue(cloth, out runtimeState))
-                {
-                    cloth.useGravity = runtimeState.useGravity;
-                    cloth.externalAcceleration = runtimeState.externalAcceleration;
-                    cloth.worldAccelerationScale = runtimeState.worldAccelerationScale;
-                    cloth.worldVelocityScale = runtimeState.worldVelocityScale;
-                    cloth.damping = runtimeState.damping;
-                    cloth.stiffnessFrequency = runtimeState.stiffnessFrequency;
-                }
-
-                cloth.ClearTransformMotion();   // Important: reset simulation velocity.
-                cloth.enabled = true;
-
-                if (runtimeState != null)
-                {
-                    cloth.useGravity = runtimeState.useGravity;
-                    cloth.externalAcceleration = runtimeState.externalAcceleration;
-                    cloth.worldAccelerationScale = runtimeState.worldAccelerationScale;
-                    cloth.worldVelocityScale = runtimeState.worldVelocityScale;
-                    cloth.damping = runtimeState.damping;
-                    cloth.stiffnessFrequency = runtimeState.stiffnessFrequency;
-                }
-
-                undressData.originalMaxDistances.Remove(cloth);
-                undressData.originalRuntimeStates.Remove(cloth);
+                var coeffs = cloth.coefficients;
+                int count = Mathf.Min(coeffs.Length, originalMax.Length);
+                for (int i = 0; i < count; i++)
+                    coeffs[i].maxDistance = originalMax[i];
+                cloth.coefficients = coeffs;
             }
+
+            undressData.originalMaxDistances.Remove(cloth);
+            undressData.originalRuntimeStates.Remove(cloth);
         }
     }
 
@@ -434,6 +458,9 @@ namespace UndressPhysics
         public Dictionary<Cloth, ClothRuntimeState> originalRuntimeStates = new Dictionary<Cloth, ClothRuntimeState>();
         // public SkinnedMeshRenderer meshRenderer;
         public CapsuleCollider collider;
+        public float originalColliderRadius;
+        public float originalColliderHeight;
+        public Vector3 originalColliderCenter;
         public Coroutine coroutine;
         public bool IsTop; // top, bottom
     }

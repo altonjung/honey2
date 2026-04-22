@@ -141,7 +141,7 @@ namespace RealHumanSupport
 #endif
         internal ComputeShader _mergeComputeShader;
 
-        internal Coroutine _CheckRotationRoutine;
+        internal Coroutine _CheckFKChangeDetectingRoutine;
 
         private bool mouseReleased = false;
 #if FEATURE_WINK_SUPPORT 
@@ -198,11 +198,9 @@ namespace RealHumanSupport
 #endif
         internal static ConfigEntry<bool> TearDropActive { get; private set; }
 
-        internal static ConfigEntry<bool> BreathActive { get; private set; }        
-
         internal static ConfigEntry<bool> EyeShakeActive { get; private set; }
 
-        internal static ConfigEntry<bool> BodyBlendingActive { get; private set; }
+        internal static ConfigEntry<bool> BodyBumpMapActive { get; private set; }
 
         #endregion
 
@@ -214,12 +212,10 @@ namespace RealHumanSupport
             string support_type = "Studio";
 
             EyeShakeActive = Config.Bind(support_type, "Eye Shaking", true, new ConfigDescription("Enable/Disable"));
-
-            BreathActive = Config.Bind(support_type, "Bumping Belly", true, new ConfigDescription("Enable/Disable"));
             
             TearDropActive = Config.Bind(support_type, "Tear Drop", true, new ConfigDescription("Enable/Disable"));            
 
-            BodyBlendingActive = Config.Bind(support_type, "Dynamic Bump", true, new ConfigDescription("Enable/Disable"));
+            BodyBumpMapActive = Config.Bind(support_type, "Dynamic Bump", true, new ConfigDescription("Enable/Disable"));
 
             _self = this;
 
@@ -240,7 +236,7 @@ namespace RealHumanSupport
             CharacterApi.RegisterExtraBehaviour<RealHumanSupportController>(GUID);
 
             if (StudioAPI.InsideStudio)
-                _CheckRotationRoutine = StartCoroutine(CheckRotationRoutine());      
+                _CheckFKChangeDetectingRoutine = StartCoroutine(CheckFKChangeDetectingRoutine());      
 
             Logger.LogMessage($"{Name} {Version}.. by unbreakable dreamer");      
         }
@@ -340,19 +336,19 @@ namespace RealHumanSupport
             {
                 // ================= UI =================
     ///////////////////
-                GUILayout.Label("<color=orange>Breath</color>", RichLabel);
+                // GUILayout.Label("<color=orange>Breath</color>", RichLabel);
 
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
-                data.BreathStrong = GUILayout.HorizontalSlider(data.BreathStrong, 0.1f, 1.0f);
-                GUILayout.Label(data.BreathStrong.ToString("0.00"), GUILayout.Width(30));
-                GUILayout.EndHorizontal();
+                // GUILayout.BeginHorizontal();
+                // GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
+                // data.BreathStrong = GUILayout.HorizontalSlider(data.BreathStrong, 0.1f, 1.0f);
+                // GUILayout.Label(data.BreathStrong.ToString("0.00"), GUILayout.Width(30));
+                // GUILayout.EndHorizontal();
 
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(new GUIContent("Interval", "Interval"), GUILayout.Width(60));
-                data.BreathInterval = GUILayout.HorizontalSlider(data.BreathInterval, 1.0f, 5.0f);
-                GUILayout.Label(data.BreathInterval.ToString("0.00"), GUILayout.Width(30));
-                GUILayout.EndHorizontal();
+                // GUILayout.BeginHorizontal();
+                // GUILayout.Label(new GUIContent("Interval", "Interval"), GUILayout.Width(60));
+                // data.BreathInterval = GUILayout.HorizontalSlider(data.BreathInterval, 1.0f, 5.0f);
+                // GUILayout.Label(data.BreathInterval.ToString("0.00"), GUILayout.Width(30));
+                // GUILayout.EndHorizontal();
 
                 GUILayout.Label("<color=orange>Tear</color>", RichLabel);
 
@@ -361,7 +357,6 @@ namespace RealHumanSupport
                 data.TearDropLevel = GUILayout.HorizontalSlider(data.TearDropLevel, 0.1f, 1.0f);
                 GUILayout.Label(data.TearDropLevel.ToString("0.00"), GUILayout.Width(30));
                 GUILayout.EndHorizontal(); 
-
 
                 if (GUILayout.Button("Force Refresh"))
                 {
@@ -388,18 +383,18 @@ namespace RealHumanSupport
                     }
                 }
 
-                if (BreathActive.Value) {
-                    if (GUILayout.Button("Belly(D)"))
-                    {
-                        BreathActive.Value = false;
-                    }
-                }
-                else {
-                    if (GUILayout.Button("Belly(A)"))
-                    {
-                        BreathActive.Value = true;
-                    }
-                }
+                // if (BreathActive.Value) {
+                //     if (GUILayout.Button("Belly(D)"))
+                //     {
+                //         BreathActive.Value = false;
+                //     }
+                // }
+                // else {
+                //     if (GUILayout.Button("Belly(A)"))
+                //     {
+                //         BreathActive.Value = true;
+                //     }
+                // }
 
                 if (EyeShakeActive.Value) {
                     if (GUILayout.Button("Eye(D)"))
@@ -834,7 +829,7 @@ namespace RealHumanSupport
             return Quaternion.Angle(current, prev) > epsilonDeg;
         }
 
-        IEnumerator CheckRotationRoutine()
+        IEnumerator CheckFKChangeDetectingRoutine()
         {
             bool isReleased = false;
 

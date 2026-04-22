@@ -180,6 +180,10 @@ namespace JointCorrectionSlider
     
                     data.LeftShoulderValue = ReadFloat(boneNode, "leftShoulder", data.LeftShoulderValue);
                     data.RightShoulderValue = ReadFloat(boneNode, "rightShoulder", data.RightShoulderValue);
+                    data.ShoulderValue = ReadFloat(
+                        boneNode,
+                        "shoulder",
+                        (data.LeftShoulderValue + data.RightShoulderValue) * 0.5f);
                     data.LeftArmUpperValue = ReadFloat(boneNode, "leftArm", data.LeftArmUpperValue);
                     data.RightArmUpperValue = ReadFloat(boneNode, "rightArm", data.RightArmUpperValue);
                     data.LeftArmLowerValue = ReadFloat(boneNode, "leftArmLower", data.LeftArmLowerValue);
@@ -188,6 +192,10 @@ namespace JointCorrectionSlider
                     data.RightElbowValue = ReadFloat(boneNode, "rightElbow", data.RightElbowValue);
                     data.LeftLegValue = ReadFloat(boneNode, "leftLeg", data.LeftLegValue);
                     data.RightLegValue = ReadFloat(boneNode, "rightLeg", data.RightLegValue);
+                    data.ThighValue = ReadFloat(
+                        boneNode,
+                        "thigh",
+                        (data.LeftLegValue + data.RightLegValue) * 0.5f);
                     data.LeftKneeValue = ReadFloat(boneNode, "leftKnee", data.LeftKneeValue);
                     data.RightKneeValue = ReadFloat(boneNode, "rightKnee", data.RightKneeValue);
 #if FEATURE_DAN_CORRECTION
@@ -286,6 +294,7 @@ namespace JointCorrectionSlider
 
                     WriteValueNode(writer, "leftShoulder", data.LeftShoulderValue);
                     WriteValueNode(writer, "rightShoulder", data.RightShoulderValue);
+                    WriteValueNode(writer, "shoulder", data.ShoulderValue);
 
                     WriteValueNode(writer, "leftArm", data.LeftArmUpperValue);
                     WriteValueNode(writer, "rightArm", data.RightArmUpperValue);
@@ -298,6 +307,8 @@ namespace JointCorrectionSlider
 
                     WriteValueNode(writer, "leftLeg", data.LeftLegValue);
                     WriteValueNode(writer, "rightLeg", data.RightLegValue);
+                    WriteValueNode(writer, "thigh", data.ThighValue);
+                    
                     WriteValueNode(writer, "leftKnee", data.LeftKneeValue);
                     WriteValueNode(writer, "rightKnee", data.RightKneeValue);
                     WriteScriptInfoBaseNode(writer, data);

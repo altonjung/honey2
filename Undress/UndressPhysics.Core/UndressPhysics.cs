@@ -437,11 +437,11 @@ namespace UndressPhysics
                 {
                     Vector3[] vertices = smr.sharedMesh.vertices;
 
-                    // 🔹 아래로 당기는 힘 설정
-                    float startPull = 0.0f;    // 시작은 거의 없음
-                    float endPull   = 5.0f;    // 끝날 때 강한 하강력 (튜닝 포인트)
+                    // Pull-down force setup.
+                    float startPull = 0.0f;    // Almost no downward force at the start.
+                    float endPull   = 5.0f;    // Strong downward force near the end.
 
-                    // y좌표 기반 정규화
+                    // Normalize by Y position.
                     float minY = float.MaxValue;
                     float maxY = float.MinValue;
                     foreach (var v in vertices)
@@ -534,7 +534,6 @@ namespace UndressPhysics
                 // Warm up the cloth solver once so the first undress attempt
                 // starts from a consistent runtime state.
                 yield return StartCoroutine(WarmupClothSolver(cloth));
-                // UndressPhysicsUtils.RestoreMaxDistances(undressData);       
 
                 int sphereCount = cloth.sphereColliders != null ? cloth.sphereColliders.Length : 0;
                 int capsuleCount = cloth.capsuleColliders != null ? cloth.capsuleColliders.Length : 0;
@@ -549,6 +548,13 @@ namespace UndressPhysics
                             break;
                         }
                     }
+                }
+
+                if (undressData.collider != null)
+                {
+                    undressData.originalColliderRadius = undressData.collider.radius;
+                    undressData.originalColliderHeight = undressData.collider.height;
+                    undressData.originalColliderCenter = undressData.collider.center;
                 }
 
                 // Back up cloth coefficients.
@@ -573,20 +579,22 @@ namespace UndressPhysics
                 yield return StartCoroutine(UndressPartCoroutine(undressData, cloth));         
             }
 
-            // Restore default spine collider.
-            if (undressData.collider) {
+            if (cloth != null)
+            {
+                cloth.externalAcceleration = Vector3.zero;
+                UndressPhysicsUtils.RestoreClothColliders(cloth); // Restore original cloth colliders first.
+                yield return StartCoroutine(UndressPhysicsUtils.RestoreMaxDistancesCoroutine(undressData));
+            }
 
-                float resetRadius = 0.6f;
-                if (undressData.IsTop)
-                {
-                    resetRadius = 0.3f;
-                }
-                undressData.collider.radius = resetRadius;
-                undressData.collider.height = resetRadius * 2.0f;
+            // Restore pivot collider transform properties.
+            if (undressData.collider)
+            {
+                undressData.collider.radius = undressData.originalColliderRadius;
+                undressData.collider.height = undressData.originalColliderHeight;
+                undressData.collider.center = undressData.originalColliderCenter;
             }
 
             undressData.coroutine = null;
-            UndressPhysicsUtils.RestoreMaxDistances(undressData);
 
             int endCoroutineCnt = 0;
             // Count completed coroutines.
@@ -608,29 +616,14 @@ namespace UndressPhysics
             if (cloth == null)
                 yield break;
 
-            // One physics step to settle solver state before undress starts.
-            // yield return new WaitForFixedUpdate();
-
-            // Rebind coefficients while disabled so Unity's native cloth solver
-            // starts in the same state as the post-restore path.
-            // var coeffs = cloth.coefficients;
-
             cloth.enabled = false;
             cloth.enabled = true;
             cloth.ClearTransformMotion();
-            // cloth.coefficients = coeffs;
 
             cloth.externalAcceleration = Vector3.zero;
 
             // One physics step to settle solver state before undress starts.
             yield return new WaitForFixedUpdate();
-        }
-
-        private IEnumerator StartUndressDelayed(UndressData data)
-        {
-            yield return new WaitForFixedUpdate();
-
-            data.coroutine = StartCoroutine(DoUnressCoroutine(data, data.cloth));
         }
 
         private void DoUndressAll(){
@@ -705,7 +698,7 @@ namespace UndressPhysics
                             if (undressData != null)
                             {
                                 if (undressData.coroutine == null) {
-                                    undressData.coroutine = StartCoroutine(StartUndressDelayed(undressData));
+                                    undressData.coroutine = StartCoroutine(DoUnressCoroutine(undressData, undressData.cloth));
                                 }
                             }
                         }
@@ -746,12 +739,7 @@ namespace UndressPhysics
             if (chaCtrl != null)
             {
                 UndressData undressData = UndressPhysicsUtils.CreateUndressData(cloth, chaCtrl, isTop);
-                _undressDataList.Add(undressData);        
-                // foreach(Cloth cloth in clothes)
-                // {
-                //     UndressData undressData = UndressPhysicsUtils.CreateUndressData(cloth, chaCtrl, isTop);
-                //     _undressDataList.Add(undressData);
-                // }
+                _undressDataList.Add(undressData);
             }
         }
 

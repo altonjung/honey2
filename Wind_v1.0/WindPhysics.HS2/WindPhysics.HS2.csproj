@@ -4,12 +4,12 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{BEFEC27B-424D-4E89-AB56-48A7E42AE7B6}</ProjectGuid>
+    <ProjectGuid>{0E8A5A0B-D464-4950-BA76-E23F4F74FCAA}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>RealHumanSupport</RootNamespace>
-    <AssemblyName>RealGirlSupport</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <RootNamespace>WindPhysics</RootNamespace>
+    <AssemblyName>WindPhysics</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <NuGetPackageImportStamp>
@@ -30,7 +30,7 @@
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\bin\HS2\</OutputPath>
-    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX;FEATURE_TEARDROP_SUPPORT;FEATURE_REALPLAY_SUPPORT;FEATURE_BODY_BLENDSHAPE_SUPPORT</DefineConstants>
+    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX;FEATURE_VISUAL_WINDDIRECTION;FEATURE_TIMELINE_SUPPORT</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -61,17 +61,8 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="HS2_ExtensibleSaveFormat, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ExtensibleSaveFormat.HoneySelect2.18.2.0\lib\net46\HS2_ExtensibleSaveFormat.dll</HintPath>
+      <HintPath>..\packages\ExtensibleSaveFormat.HoneySelect2.21.0.0\lib\net46\HS2_ExtensibleSaveFormat.dll</HintPath>
       <Private>False</Private>
-    </Reference>
-    <Reference Include="HS2PE">
-      <HintPath>.\HS2PE.dll</HintPath>
-    </Reference>
-    <Reference Include="HS2_PregnancyPlus">
-      <HintPath>.\HS2_PregnancyPlus.dll</HintPath>
-    </Reference>
-    <Reference Include="JointCorrection">
-      <HintPath>.\JointCorrectionSlider.dll</HintPath>
     </Reference>
     <Reference Include="IL, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\IllusionLibs.HoneySelect2.IL.2020.5.29.5\lib\net46\IL.dll</HintPath>
@@ -89,6 +80,10 @@
       <HintPath>..\packages\IllusionLibs.HoneySelect2.Sirenix.Serialization.2020.5.29.5\lib\net46\Sirenix.Serialization.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.ClothModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.ClothModule.2018.4.11.4\lib\net46\UnityEngine.ClothModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -103,18 +98,6 @@
     </Reference>
     <Reference Include="UniRx.Async, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\IllusionLibs.HoneySelect2.UniRx.2020.5.29.5\lib\net46\UniRx.Async.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.Networking, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.Networking.2018.4.11.4\lib\net46\UnityEngine.Networking.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UnityWebRequestAudioModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.Networking.2018.4.11.4\lib\net46\UnityEngine.UnityWebRequestAudioModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UnityWebRequestModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.Networking.2018.4.11.4\lib\net46\UnityEngine.UnityWebRequestModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -149,18 +132,6 @@
       <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.UIModule.2018.4.11.4\lib\net46\UnityEngine.UIModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UnityEngine.ImageConversionModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.ImageConversionModule.2018.4.11.4\lib\net46\UnityEngine.ImageConversionModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.ClothModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\IllusionLibs.HoneySelect2.UnityEngine.ClothModule.2018.4.11.4\lib\net46\UnityEngine.ClothModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.PhysicsModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\IllusionLibs.KoikatsuSunshine.UnityEngine.PhysicsModule.2019.4.9\lib\net46\UnityEngine.PhysicsModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />
@@ -173,8 +144,8 @@
     <Analyzer Include="..\packages\BepInEx.Analyzers.1.0.4\analyzers\dotnet\cs\BepInEx.Analyzers.dll" />
     <Analyzer Include="..\packages\Microsoft.Unity.Analyzers.1.19.0\analyzers\dotnet\cs\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
-  <Import Project="..\RealHumanSupport.Core\RealHumanSupport.Core.projitems" Label="Shared" />
-  <!-- <Import Project="..\UIUtility\UIUtility.projitems" Label="Shared" /> -->
+  <Import Project="..\WindPhysics.Core\WindPhysics.Core.projitems" Label="Shared" />
+  <Import Project="..\UIUtility\UIUtility.projitems" Label="Shared" />
   <Import Project="..\ToolBox\ToolBox.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

@@ -31,12 +31,9 @@ using KKAPI.Chara;
 using AIChara;
 #endif
 
-
-/*  
-    - create only dynamic colliders when hair has dynamic bone
-    - create dynmaic colliders according to hair type (long, short)
-    - collaborate with jointcorrection when penetrating
+/*      
     - replace dan_bone with dan of jointcorrection
+    - collaborate with jointcorrection when penetrating    
 */
 namespace RealHumanSupport
 {
