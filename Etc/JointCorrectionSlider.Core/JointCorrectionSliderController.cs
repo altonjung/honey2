@@ -1,4 +1,4 @@
-using Studio;
+﻿using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -71,6 +71,8 @@ namespace JointCorrectionSlider
             if (charControl.sex == 0)
                 bone_prefix_str = "cm_";
 
+            correctionData._head_bone = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Head");
+            correctionData._headBaseSet = false;
             correctionData._shoulder02_s_L = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Shoulder02_s_L");
             correctionData._shoulder02_s_R = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Shoulder02_s_R");
 
@@ -205,7 +207,7 @@ namespace JointCorrectionSlider
             float clampedValue = ClampSliderValue(sliderValue);
             correctionData.ThighValue = clampedValue;
             correctionData.LeftLegValue = clampedValue;
-            correctionData.RightLegValue = clampedValue;
+            correctionData.RightLegValue = -clampedValue;
             return true;
         }
 
@@ -222,6 +224,137 @@ namespace JointCorrectionSlider
 #endif
         }
 
+        public bool SetCrotchShrink(float sliderValue)
+        {
+            if (correctionData == null)
+                return false;
+
+#if FEATURE_CROTCH_CORRECTION
+            correctionData.KosiCorrectionValue = ClampSliderValue(sliderValue);
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        public bool SetLegShrink(float sliderValue)
+        {
+            if (correctionData == null)
+                return false;
+
+            float clamped = ClampSliderValue(sliderValue);
+            float offsetX = clamped * 180.0f; // slider [-1, 1] -> offset X [-180, 180]
+            bool updated = false;
+
+            if (correctionData._legup01_L != null)
+            {
+                if (!correctionData._legup01BaseSetL)
+                {
+                    correctionData._legup01BaseRotEulerL = correctionData._legup01_L.localEulerAngles;
+                    correctionData._legup01BaseSetL = true;
+                }
+
+                UnityEngine.Vector3 euler = correctionData._legup01_L.localEulerAngles;
+                float baseX = Mathf.DeltaAngle(0f, correctionData._legup01BaseRotEulerL.x);
+                euler.x = Mathf.Repeat(baseX + offsetX + 360.0f, 360.0f);
+                correctionData._legup01_L.localEulerAngles = euler;
+                updated = true;
+            }
+
+            if (correctionData._legup01_R != null)
+            {
+                if (!correctionData._legup01BaseSetR)
+                {
+                    correctionData._legup01BaseRotEulerR = correctionData._legup01_R.localEulerAngles;
+                    correctionData._legup01BaseSetR = true;
+                }
+
+                UnityEngine.Vector3 euler = correctionData._legup01_R.localEulerAngles;
+                float baseX = Mathf.DeltaAngle(0f, correctionData._legup01BaseRotEulerR.x);
+                euler.x = Mathf.Repeat(baseX + offsetX + 360.0f, 360.0f);
+                correctionData._legup01_R.localEulerAngles = euler;
+                updated = true;
+            }
+
+            return updated;
+        }
+        public bool SetFootShrink(float sliderValue)
+        {
+            if (correctionData == null)
+                return false;
+
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+            float clamped = ClampSliderValue(sliderValue);
+            float blendshapeValue = (clamped + 1.0f) * 50.0f; // slider [-1, 1] -> blendshape [0, 100]
+
+            bool updated = false;
+            if (correctionData.footL_idx_in_body >= 0)
+            {
+                SetBlendShape(blendshapeValue, correctionData.footL_idx_in_body);
+                updated = true;
+            }
+
+            if (correctionData.footR_idx_in_body >= 0)
+            {
+                SetBlendShape(blendshapeValue, correctionData.footR_idx_in_body);
+                updated = true;
+            }
+
+            return updated;
+#else
+            return false;
+#endif
+        }
+        public bool SetToeShrink(float sliderValue)
+        {
+            if (correctionData == null)
+                return false;
+
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
+            float clamped = ClampSliderValue(sliderValue);
+            float blendshapeValue = (clamped + 1.0f) * 50.0f; // slider [-1, 1] -> blendshape [0, 100]
+
+            bool updated = false;
+            if (correctionData.toeL_idx_in_body >= 0)
+            {
+                SetBlendShape(blendshapeValue, correctionData.toeL_idx_in_body);
+                updated = true;
+            }
+
+            if (correctionData.toeR_idx_in_body >= 0)
+            {
+                SetBlendShape(blendshapeValue, correctionData.toeR_idx_in_body);
+                updated = true;
+            }
+
+            return updated;
+#else
+            return false;
+#endif
+        }
+
+        public bool SetHeadShrink(float sliderValue)
+        {
+            if (correctionData == null || correctionData._head_bone == null)
+                return false;
+
+            float clamped = ClampSliderValue(sliderValue);
+            float offsetX = clamped * 180.0f; // slider [-1, 1] -> offset X [-180, 180]
+
+            if (!correctionData._headBaseSet)
+            {
+                correctionData._headBaseRotEuler = correctionData._head_bone.localEulerAngles;
+                correctionData._headBaseSet = true;
+            }
+
+            UnityEngine.Vector3 euler = correctionData._head_bone.localEulerAngles;
+            float baseX = Mathf.DeltaAngle(0f, correctionData._headBaseRotEuler.x);
+            euler.x = Mathf.Repeat(baseX + offsetX + 360.0f, 360.0f);
+            correctionData._head_bone.localEulerAngles = euler;
+            return true;
+        }
+   
+
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
         internal void SetBodyBlendShapes()
         {
@@ -229,6 +362,10 @@ namespace JointCorrectionSlider
             {
                 correctionData.fulleg_idx_in_body = -1;
                 correctionData.buttchecks1_idx_in_body = -1;
+                correctionData.footL_idx_in_body = -1;
+                correctionData.footR_idx_in_body = -1;
+                correctionData.toeL_idx_in_body = -1;
+                correctionData.toeR_idx_in_body = -1;
 
                 SkinnedMeshRenderer[] bodyRenderers = correctionData.charControl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
                 foreach (SkinnedMeshRenderer render in bodyRenderers.ToList())
@@ -247,7 +384,23 @@ namespace JointCorrectionSlider
                         else if (name.IndexOf("open Buttcheeks1", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             correctionData.buttchecks1_idx_in_body = idx;
-                        }                                             
+                        }         
+                        else if (name.IndexOf("foot left", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            correctionData.footL_idx_in_body = idx;
+                        } 
+                        else if (name.IndexOf("foot right", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            correctionData.footR_idx_in_body = idx;
+                        } 
+                        else if (name.IndexOf("toe left", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            correctionData.toeL_idx_in_body = idx;
+                        }         
+                        else if (name.IndexOf("toe right", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            correctionData.toeR_idx_in_body = idx;
+                        }                                                                                                                                            
                     }
                 }
             }                       
@@ -468,7 +621,6 @@ namespace JointCorrectionSlider
         public bool _danTop4RotBaseSet;
 #endif
 
-#if FEATURE_BODY_BLENDSHAPE_SUPPORT
         public Transform _legup01_L;
         public Transform _legup01_R;
 
@@ -476,6 +628,8 @@ namespace JointCorrectionSlider
         public UnityEngine.Vector3 _legup01BasePosR;
         public UnityEngine.Vector3 _legup01BaseScaleL;
         public UnityEngine.Vector3 _legup01BaseScaleR;
+        public UnityEngine.Vector3 _legup01BaseRotEulerL;
+        public UnityEngine.Vector3 _legup01BaseRotEulerR;
         public bool _legup01BaseSetL;
         public bool _legup01BaseSetR;        
 
@@ -487,7 +641,20 @@ namespace JointCorrectionSlider
 
         public int _prevFullLegValue;
         public int _prevButtchecks1Value;
-#endif
+
+
+        public Transform _head_bone;
+        public UnityEngine.Vector3 _headBaseRotEuler;
+        public bool _headBaseSet;
+
+        // blend shape
+
+        public int footL_idx_in_body = -1;
+        public int footR_idx_in_body = -1;
+
+        public int toeL_idx_in_body = -1;
+        public int toeR_idx_in_body = -1;
+
 
         internal void Reset()
         {
@@ -547,11 +714,9 @@ namespace JointCorrectionSlider
 #if FEATURE_CROTCH_CORRECTION
             KosiCorrectionValue = 0.0f;
 #endif
-#if FEATURE_BODY_BLENDSHAPE_SUPPORT
             fullLegValue = 0;
             buttchecks1Value = 0;
-
-#endif
         }
     }
 }
+

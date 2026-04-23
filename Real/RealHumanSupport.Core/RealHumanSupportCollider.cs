@@ -251,30 +251,12 @@ namespace RealHumanSupport
 #if FEATURE_REALPLAY_SUPPORT
     public class CapsuleTrigger : MonoBehaviour
     {
-        public enum ContactResponseProfile
-        {
-            Natural,
-            Soft,
-            Tight,
-            Sticky,
-            Elastic
-        }
-
         private RealHumanSupportController _controller;
         private RealHumanData _data;
 
-        private float currentValue = 0f;
-        private float targetValue = 0f;
-        private float transitionFrom = 0f;
-        private float transitionTo = 0f;
-        private float transitionElapsed = 0f;
-        private float transitionDuration = 0.2f;
-        private bool isTransitionActive = false;
+        private readonly HashSet<Collider> _activeDriverColliders = new HashSet<Collider>();
+        private readonly HashSet<Collider> _activePenetrationColliders = new HashSet<Collider>();
 
-        public ContactResponseProfile ResponseProfile = ContactResponseProfile.Soft;
-        public float EnterDuration = 0.55f; // enter: slow -> fast
-        public float ExitDuration = 0.15f;  // exit: fast -> slow
-        public float GlobalResponseSpeed = 1.0f; // scales all profiles (0.1 ~ 3.0 recommended)
         private const float RootDanEnterScale = 0.85f;
         private const float RootDanExitScale = 1.0f;
 
@@ -284,55 +266,20 @@ namespace RealHumanSupport
             _data = _controller.GetRealHumanData();
         }
 
-        void Update()
-        {
-    #if FEATURE_BODY_BLENDSHAPE_SUPPORT
-            if (_controller == null || _data == null)
-                return;
-
-            if (isTransitionActive)
-            {
-                transitionElapsed += Time.deltaTime;
-                float speedScale = Mathf.Clamp(GlobalResponseSpeed, 0.1f, 3.0f);
-                float duration = Mathf.Max(0.0001f, transitionDuration / speedScale);
-                float t = Mathf.Clamp01(transitionElapsed / duration);
-
-                bool isEntering = transitionTo > transitionFrom;
-                float eased = EvaluateProfileCurve(ResponseProfile, t, isEntering);
-                currentValue = Mathf.Lerp(transitionFrom, transitionTo, eased);
-
-                if (t >= 1f)
-                {
-                    isTransitionActive = false;
-                    currentValue = transitionTo;
-                }
-            }
-            else
-            {
-                currentValue = targetValue;
-            }
-
-            _controller.SetBlendShape(currentValue, _data.vagina_open_front_idx_in_body);                            
-            _controller.SetBlendShape(currentValue/2, _data.vagina_open_all_outside_idx_in_body);
-    #endif
-        }
-
         void OnTriggerEnter(Collider other)
         {
             if (!IsValidDriverCollider(other))
                 return;
 
-            TryApplyRealPlayStateByCollider(other, true);
-
-            float desiredTarget = GetAdvancedStayTargetByBone(other);
-            StartTransition(desiredTarget);
-
+            _activeDriverColliders.Add(other);
             if (IsPenetrationBone(other))
             {
+                _activePenetrationColliders.Add(other);
                 TrySetDanBoneScaleFromHit(other, RootDanEnterScale);
-                if (_data != null)
-                    _data.ActiveRealPlay = true;                
+                _controller?.PlayOneShot("insert", 0.5f, _data.RealPlayBlendShapeTarget, 0);
             }
+
+            RefreshRealPlayState();
 
             UnityEngine.Debug.Log("Trigger Enter: " + other.name);
         }
@@ -342,11 +289,13 @@ namespace RealHumanSupport
             if (!IsValidDriverCollider(other))
                 return;
 
-            TryApplyRealPlayStateByCollider(other, true);
+            if (!_activeDriverColliders.Contains(other))
+                _activeDriverColliders.Add(other);
 
-            float desiredTarget = GetAdvancedStayTargetByBone(other);
-            if (!Mathf.Approximately(targetValue, desiredTarget))
-                StartTransition(desiredTarget);
+            if (IsPenetrationBone(other) && !_activePenetrationColliders.Contains(other))
+                _activePenetrationColliders.Add(other);
+
+            RefreshRealPlayState();
         }
 
         void OnTriggerExit(Collider other)
@@ -354,83 +303,68 @@ namespace RealHumanSupport
             if (!IsValidDriverCollider(other))
                 return;
 
-            TryApplyRealPlayStateByCollider(other, false);
+            _activeDriverColliders.Remove(other);
+            _activePenetrationColliders.Remove(other);
 
-            StartTransition(0f);
-
-            if (IsPenetrationBone(other))
-            {
+            if (_activePenetrationColliders.Count == 0 && IsPenetrationBone(other)) {
                 TrySetDanBoneScaleFromHit(other, RootDanExitScale);
-                if (_data != null)
-                    _data.ActiveRealPlay = false;
+                // 여기서 초기화 루틴 호출;
+                _controller?.PlayOneShot("remove", 0.5f, _data.RealPlayBlendShapeTarget, 1);
             }
+
+            RefreshRealPlayState();
 
             UnityEngine.Debug.Log("Trigger Exit: " + other.name);
         }
 
-        private bool TryApplyRealPlayStateByCollider(Collider other, bool isActive)
+        private void RefreshRealPlayState()
         {
-            if (_data == null || other == null || other.attachedRigidbody == null)
-                return false;
+            if (_data == null)
+                return;
 
-            if (!TryGetRealPlayStrongByColliderName(other.attachedRigidbody.name, out float strong))
-                return false;
+            PruneDeadColliders(_activeDriverColliders);
+            PruneDeadColliders(_activePenetrationColliders);
 
-            _data.realPlayStrong = isActive ? strong : 1.0f;
-            return true;
+            float blendShapeTarget = 0f;
+            float strongestPlayStrong = 1.0f;
+            bool hasDriver = false;
+            bool hasMappedStrong = false;
+
+            foreach (Collider activeCollider in _activeDriverColliders)
+            {
+                if (activeCollider == null || activeCollider.attachedRigidbody == null)
+                    continue;
+
+                hasDriver = true;
+                blendShapeTarget = Mathf.Max(blendShapeTarget, GetRealPlayBlendShapeValueByBone(activeCollider));
+
+                if (TryGetRealPlayStrongByColliderName(activeCollider.attachedRigidbody.name, out float strong))
+                {
+                    if (!hasMappedStrong)
+                    {
+                        strongestPlayStrong = strong;
+                        hasMappedStrong = true;
+                    }
+                    else
+                    {
+                        strongestPlayStrong = Mathf.Max(strongestPlayStrong, strong);
+                    }
+                }
+            }
+
+            _data.RealPlayActive = hasDriver;
+            _data.RealPlayStrong = hasDriver ? strongestPlayStrong : 1.0f;
+            _data.RealPlayBlendShapeTarget = hasDriver ? Mathf.Clamp(blendShapeTarget, 0f, 100f) : 0f;
         }
 
-        private bool TryGetRealPlayStrongByColliderName(string colliderName, out float strong)
+        private static void PruneDeadColliders(HashSet<Collider> colliders)
         {
-            strong = 1.0f;
-            if (string.IsNullOrEmpty(colliderName))
-                return false;
+            if (colliders == null || colliders.Count == 0)
+                return;
 
-            if (colliderName.Contains("cm_J_dan119_00"))
-            {
-                strong = 0.6f;
-                return true;
-            }
-
-            if (colliderName.Contains("cm_J_dan108_00"))
-            {
-                strong = 0.8f;
-                return true;
-            }
-
-            if (colliderName.Contains("cm_J_dan105_00"))
-            {
-                strong = 1.1f;
-                return true;
-            }
-
-            if (colliderName.Contains("cm_J_Hand") || colliderName.Contains("cf_J_Hand")) {
-
-                strong = 1.2f;
-                if (colliderName.Contains("cm_J_Hand_Index") || colliderName.Contains("cf_J_Hand_Index"))
-                {
-                    strong = 0.3f;
-                    return true;
-                }
-
-                if (colliderName.Contains("cm_J_Hand_Middle01") || colliderName.Contains("cf_J_Hand_Middle01"))
-                {
-                    strong = 0.5f;
-                    return true;
-                }
-
-                if (colliderName.Contains("cm_J_Hand_Middle02") || colliderName.Contains("cf_J_Hand_Middle02"))
-                {
-                    strong = 0.8f;
-                    return true;
-                }
-
-
-                return true;
-            }
-
-            return false;
+            colliders.RemoveWhere(collider => collider == null);
         }
+
 
         private bool TrySetDanBoneScaleFromHit(Collider other, float scale)
         {
@@ -455,29 +389,74 @@ namespace RealHumanSupport
             return true;
         }
 
-        private float GetAdvancedStayTargetByBone(Collider other)
+        private float GetRealPlayBlendShapeValueByBone(Collider other)
         {
             if (other == null || other.attachedRigidbody == null)
                 return 0f;
 
             string rbName = other.attachedRigidbody.name;
 
-            if (rbName.Contains("cf_J_Hand"))
-                return 30f;
-
-            if (rbName.Contains("cm_J_Hand"))
-                return 50f;
-
-            if (rbName.Contains("cm_J_dan119_00"))
+            if (rbName.Contains("_Index"))
                 return 40f;
 
-            if (rbName.Contains("cm_J_dan108_00"))
-                return 80f;
+            if (rbName.Contains("_Middle"))
+                return 40f;
 
-            if (rbName.Contains("cm_J_dan105_00"))
+            if (rbName.Contains("_Hand_L") || rbName.Contains("_Hand_R"))
                 return 100f;
 
+            if (rbName.Contains("_dan"))
+                return 50f;
+
             return 0f;
+        }
+
+        private bool TryGetRealPlayStrongByColliderName(string colliderName, out float strong)
+        {
+            strong = 1.0f;
+            if (string.IsNullOrEmpty(colliderName))
+                return false;
+
+            if (colliderName.Contains("_dan119_00"))
+            {
+                strong = 0.7f;
+                return true;
+            }
+            else if (colliderName.Contains("_dan108_00"))
+            {
+                strong = 1.3f;
+                return true;
+            }
+            else if (colliderName.Contains("_dan105_00"))
+            {
+                strong = 1.7f;
+                return true;
+            }
+            else if (colliderName.Contains("_J_Hand")) {
+
+                if (colliderName.Contains("_Index02"))
+                {
+                    strong = 0.6f;
+                    return true;
+                }                
+                else if (colliderName.Contains("_Index01"))
+                {
+                    strong = 0.9f;
+                    return true;
+                }                
+                else if (colliderName.Contains("_Middle02"))
+                {
+                    strong = 0.7f;
+                    return true;
+                }
+                else if (colliderName.Contains("_Middle01"))
+                {
+                    strong = 1.3f;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool IsPenetrationBone(Collider other)
@@ -487,10 +466,7 @@ namespace RealHumanSupport
 
             string rbName = other.attachedRigidbody.name;
 
-            if (rbName.Contains("cm_J_dan108_00"))
-                return true;
-
-            if (rbName.Contains("cm_J_Hand") || rbName.Contains("cf_J_Hand"))
+            if (rbName.Contains("_dan108_00") || rbName.Contains("_Index02") || rbName.Contains("_Middle02"))
                 return true;
 
             return false;
@@ -504,67 +480,6 @@ namespace RealHumanSupport
             return other.attachedRigidbody.name.StartsWith("RGRigidBody_");
         }
 
-        private void StartTransition(float nextTarget)
-        {
-            nextTarget = Mathf.Clamp(nextTarget, 0f, 100f);
-            if (Mathf.Approximately(targetValue, nextTarget) && isTransitionActive)
-                return;
-
-            transitionFrom = currentValue;
-            transitionTo = nextTarget;
-            targetValue = nextTarget;
-            transitionElapsed = 0f;
-            transitionDuration = (nextTarget > currentValue) ? EnterDuration : ExitDuration;
-            isTransitionActive = true;
-        }
-
-        private static float EvaluateProfileCurve(ContactResponseProfile profile, float t, bool isEntering)
-        {
-            t = Mathf.Clamp01(t);
-
-            switch (profile)
-            {
-                case ContactResponseProfile.Soft:
-                    return isEntering
-                        ? EaseOutQuart(t)
-                        : EaseInQuad(t);
-
-                case ContactResponseProfile.Tight:
-                    return isEntering
-                        ? EaseOutExpo(t)
-                        : EaseInExpo(t);
-
-                case ContactResponseProfile.Sticky:
-                    if (isEntering)
-                    {
-                        float baseCurve = EaseOutCubic(t);
-                        return Mathf.Lerp(baseCurve, t, 0.18f);
-                    }
-                    return Mathf.Pow(t, 1.6f);
-
-                case ContactResponseProfile.Elastic:
-                    if (isEntering)
-                    {
-                        float baseCurve = EaseOutCubic(t);
-                        float micro = Mathf.Sin(t * Mathf.PI * 2f) * (1f - t) * 0.04f;
-                        return Mathf.Clamp01(baseCurve + micro);
-                    }
-                    return EaseInCubic(t);
-
-                case ContactResponseProfile.Natural:
-                default:
-                    return isEntering
-                        ? EaseOutCubic(t) // Enter transition: fast response with eased settling.
-                        : EaseInCubic(t); // Exit transition: smooth ramp-down to idle.
-            }
-        }
-
-        private static float EaseInQuad(float t) => t * t;
-        private static float EaseInCubic(float t) => t * t * t;
-        private static float EaseOutCubic(float t) => 1f - Mathf.Pow(1f - t, 3f);
-        private static float EaseOutQuart(float t) => 1f - Mathf.Pow(1f - t, 4f);
-        private static float EaseInExpo(float t) => (t <= 0f) ? 0f : Mathf.Pow(2f, 10f * (t - 1f));
-        private static float EaseOutExpo(float t) => (t >= 1f) ? 1f : 1f - Mathf.Pow(2f, -10f * t);
     }
     #endif    
 }

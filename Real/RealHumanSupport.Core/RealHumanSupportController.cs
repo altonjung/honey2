@@ -42,6 +42,9 @@ namespace RealHumanSupport
     {
         internal RealHumanData realHumanData;
         internal Status status;// 0: init, 1: pause, 2: play
+        private Coroutine _elasticShotCoroutine;
+
+        private Coroutine _oneShotCoroutine;
 
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
@@ -108,11 +111,16 @@ namespace RealHumanSupport
 
         internal void ResetRealHumanData()
         {
+            SetTearDropActive(false);
+            realHumanData.BreathActive = false;
+            realHumanData.EyeShakeActive = true;
+            realHumanData.BodyBumpMapActive = true;
+            realHumanData.RealPlayActive = false;            
             realHumanData.TearDropLevel = 0.3f;
-            // realHumanData.BreathInterval = 1.5f;
-            // realHumanData.BreathStrong = 0.45f;
-            realHumanData.realPlayStrong = 1.0f;
-            realHumanData.ActiveRealPlay = false;
+            realHumanData.BreathInterval = 1.5f;
+            realHumanData.BreathStrong = 0.45f;
+            realHumanData.RealPlayStrong = 1.0f;
+            realHumanData.RealPlayBlendShapeTarget = 0f;
         }
 
         internal void UpdateRealHumanData()
@@ -133,13 +141,7 @@ namespace RealHumanSupport
                 if (realHumanData.chaCtrl.sex == 1) {
 
                     realHumanData.jointCorrectionSliderController = realHumanData.chaCtrl.GetComponent<JointCorrectionSlider.JointCorrectionSliderController>();
-                    // realHumanData.pregnancyController = realHumanData.chaCtrl.GetComponent<KK_PregnancyPlus.PregnancyPlusCharaController>();
-                    // if (realHumanData.pregnancyController != null)
-                    // {
-                    //     realHumanData.pregnancyController.infConfig.inflationSize = realHumanData.pregnancyController.infConfig.inflationSize + 10;
-                    //     realHumanData.pregnancyController.MeshInflate(new MeshInflateFlags(realHumanData.pregnancyController), "StudioSlider");
-                    //     // previosBellySize = realHumanData.pregnancyController.infConfig.inflationSize;                        
-                    // }
+                    realHumanData.pregnancyController = realHumanData.chaCtrl.GetComponent<KK_PregnancyPlus.PregnancyPlusCharaController>();
 
                     if (realHumanData.extraBodyColliders != null)
                         realHumanData.extraBodyColliders.Clear();
@@ -213,87 +215,13 @@ namespace RealHumanSupport
                         {
                             OCIChar ociChar = realHumanData.chaCtrl.GetOCIChar();
 
-                            if (RealHumanSupport.BodyBumpMapActive.Value)
+                            if (realHumanData.BodyBumpMapActive)
                             {
-                                AllocateBumpMap(realHumanData.chaCtrl, realHumanData);
-
-                                foreach (OCIChar.BoneInfo bone in ociChar.listBones)
-                                {
-                                    if (bone.guideObject != null && bone.guideObject.transformTarget != null) {
-
-                                        if (bone.guideObject.transformTarget.name.Contains("_J_Hips"))
-                                        {
-                                            realHumanData.fk_hip_bone = bone; // Cache FK hip bone reference.
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_Spine01"))
-                                        {
-                                            realHumanData.fk_spine01_bone = bone; // Cache FK spine01 bone reference.
-                                        }
-                                        else if(bone.guideObject.transformTarget.name.Contains("_J_Spine02"))
-                                        {
-                                            realHumanData.fk_spine02_bone = bone; // Cache FK spine02 bone reference.
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_L"))
-                                        {
-                                            realHumanData.fk_left_shoulder_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_R"))
-                                        {
-                                            realHumanData.fk_right_shoulder_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_L"))
-                                        {
-                                            realHumanData.fk_left_armup_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_R"))
-                                        {
-                                            realHumanData.fk_right_armup_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_L"))
-                                        {
-                                            realHumanData.fk_left_armdown_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_R"))
-                                        {
-                                            realHumanData.fk_right_armdown_bone = bone;
-                                        }                                                                        
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_LegUp00_L"))
-                                        {
-                                            realHumanData.fk_left_thigh_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_LegUp00_R"))
-                                        {
-                                            realHumanData.fk_right_thigh_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_LegLow01_L"))
-                                        {
-                                            realHumanData.fk_left_knee_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_LegLow01_R"))
-                                        {
-                                            realHumanData.fk_right_knee_bone = bone;
-                                        }                        
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_Head"))
-                                        {
-                                            realHumanData.fk_head_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_Neck"))
-                                        {
-                                            realHumanData.fk_neck_bone = bone;
-                                        }
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_Foot01_L"))
-                                        {
-                                            realHumanData.fk_left_foot_bone = bone;
-                                        }   
-                                        else if (bone.guideObject.transformTarget.name.Contains("_J_Foot01_R"))
-                                        {
-                                            realHumanData.fk_right_foot_bone = bone;
-                                        }
-                                    }
-                                }            
+                                AllocateBumpMap();
+                                AllocateFKBones();
+                                AllocateAnimBones();
                             }                                                            
-                        }   
-                        
+                        }                        
                     }
                    
                     realHumanData.leftBoob = realHumanData.chaCtrl.GetDynamicBoneBustAndHip(ChaControlDefine.DynamicBoneKind.BreastL);
@@ -308,7 +236,7 @@ namespace RealHumanSupport
                     SupportBlendShapes(realHumanData.chaCtrl, realHumanData);
 
                     if (StudioAPI.InsideStudio) {
-                        if (RealHumanSupport.BodyBumpMapActive.Value) {
+                        if (realHumanData.BodyBumpMapActive) {
                             DoBodyBumpEffect(realHumanData.chaCtrl, realHumanData);
                             DoFaceBumpEffect(realHumanData.chaCtrl, realHumanData);
                         }
@@ -328,11 +256,120 @@ namespace RealHumanSupport
                 }
                 
     #if FEATURE_REALPLAY_SUPPORT
-                SupportRealPlay(realHumanData.chaCtrl, realHumanData);
+                SupportRealPlay();
     #endif               
             }
         }
 
+        internal void AllocateFKBones()
+        {
+            if (realHumanData != null)
+            {
+                OCIChar ociChar = realHumanData.chaCtrl.GetOCIChar();
+
+                foreach (OCIChar.BoneInfo bone in ociChar.listBones)
+                {
+                    if (bone.guideObject != null && bone.guideObject.transformTarget != null) {
+
+                        if (bone.guideObject.transformTarget.name.Contains("_J_Hips"))
+                        {
+                            realHumanData.fk_hip_bone = bone; // Cache FK hip bone reference.
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_Spine01"))
+                        {
+                            realHumanData.fk_spine01_bone = bone; // Cache FK spine01 bone reference.
+                        }
+                        else if(bone.guideObject.transformTarget.name.Contains("_J_Spine02"))
+                        {
+                            realHumanData.fk_spine02_bone = bone; // Cache FK spine02 bone reference.
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_L"))
+                        {
+                            realHumanData.fk_left_shoulder_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_Shoulder_R"))
+                        {
+                            realHumanData.fk_right_shoulder_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_L"))
+                        {
+                            realHumanData.fk_left_armup_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_ArmUp00_R"))
+                        {
+                            realHumanData.fk_right_armup_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_L"))
+                        {
+                            realHumanData.fk_left_armdown_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_ArmLow01_R"))
+                        {
+                            realHumanData.fk_right_armdown_bone = bone;
+                        }                                                                        
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_LegUp00_L"))
+                        {
+                            realHumanData.fk_left_thigh_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_LegUp00_R"))
+                        {
+                            realHumanData.fk_right_thigh_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_LegLow01_L"))
+                        {
+                            realHumanData.fk_left_knee_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_LegLow01_R"))
+                        {
+                            realHumanData.fk_right_knee_bone = bone;
+                        }                        
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_Head"))
+                        {
+                            realHumanData.fk_head_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_Neck"))
+                        {
+                            realHumanData.fk_neck_bone = bone;
+                        }
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_Foot01_L"))
+                        {
+                            realHumanData.fk_left_foot_bone = bone;
+                        }   
+                        else if (bone.guideObject.transformTarget.name.Contains("_J_Foot01_R"))
+                        {
+                            realHumanData.fk_right_foot_bone = bone;
+                        }
+                    }
+                }   
+            }            
+        }
+
+        internal void AllocateAnimBones()
+        {
+            if (realHumanData == null || realHumanData.chaCtrl == null || realHumanData.chaCtrl.objAnim == null)
+                return;
+
+            string bonePrefix = realHumanData.chaCtrl.sex == 0 ? "cm_" : "cf_";
+            Transform animRoot = realHumanData.chaCtrl.objAnim.transform;
+
+            realHumanData.anim_hip_bone = animRoot.FindLoop(bonePrefix + "J_Hips");
+            realHumanData.anim_spine01_bone = animRoot.FindLoop(bonePrefix + "J_Spine01");
+            realHumanData.anim_spine02_bone = animRoot.FindLoop(bonePrefix + "J_Spine02");
+            realHumanData.anim_head_bone = animRoot.FindLoop(bonePrefix + "J_Head");
+            realHumanData.anim_neck_bone = animRoot.FindLoop(bonePrefix + "J_Neck");
+            realHumanData.anim_left_shoulder_bone = animRoot.FindLoop(bonePrefix + "J_Shoulder_L");
+            realHumanData.anim_right_shoulder_bone = animRoot.FindLoop(bonePrefix + "J_Shoulder_R");
+            realHumanData.anim_left_armup_bone = animRoot.FindLoop(bonePrefix + "J_ArmUp00_L");
+            realHumanData.anim_right_armup_bone = animRoot.FindLoop(bonePrefix + "J_ArmUp00_R");
+            realHumanData.anim_left_armdown_bone = animRoot.FindLoop(bonePrefix + "J_ArmLow01_L");
+            realHumanData.anim_right_armdown_bone = animRoot.FindLoop(bonePrefix + "J_ArmLow01_R");
+            realHumanData.anim_left_thigh_bone = animRoot.FindLoop(bonePrefix + "J_LegUp00_L");
+            realHumanData.anim_right_thigh_bone = animRoot.FindLoop(bonePrefix + "J_LegUp00_R");
+            realHumanData.anim_left_knee_bone = animRoot.FindLoop(bonePrefix + "J_LegLow01_L");
+            realHumanData.anim_right_knee_bone = animRoot.FindLoop(bonePrefix + "J_LegLow01_R");
+            realHumanData.anim_left_foot_bone = animRoot.FindLoop(bonePrefix + "J_Foot01_L");
+            realHumanData.anim_right_foot_bone = animRoot.FindLoop(bonePrefix + "J_Foot01_R");
+        }
         internal IEnumerator ExecuteRealHumanDelayed()
         {
             int frameCount = 10;
@@ -561,90 +598,6 @@ namespace RealHumanSupport
         //     File.WriteAllBytes(path, bytes);
         // }
 
-
-        internal static Texture2D MakeWritableTexture(Texture texture)
-        {
-            if (texture == null)
-                return null;
-
-            int width = texture.width;
-            int height = texture.height;
-
-            RenderTexture rt = RenderTexture.GetTemporary(
-                width,
-                height,
-                24,
-                RenderTextureFormat.ARGB32
-            );
-
-            RenderTexture prev = RenderTexture.active;
-            RenderTexture.active = rt;
-
-            // Blit source texture into a writable render target.
-            Graphics.Blit(texture, rt);
-
-            Texture2D tex = new Texture2D(width, height, TextureFormat.ARGB32, false);
-            tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-            tex.Apply();
-
-            RenderTexture.active = prev;
-            RenderTexture.ReleaseTemporary(rt);
-
-            return tex;
-        }
-
-        internal static Texture2D CaptureMaterialOutput(Material mat, int width, int height)
-        {
-            RenderTexture rt = RenderTexture.GetTemporary(
-                width,
-                height,
-                0,
-                RenderTextureFormat.ARGB32
-            );
-
-            Graphics.Blit(null, rt, mat);
-
-            RenderTexture prev = RenderTexture.active;
-            RenderTexture.active = rt;
-
-            Texture2D tex = new Texture2D(width, height, TextureFormat.ARGB32, false);
-            tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-            tex.Apply();
-
-            RenderTexture.active = prev;
-            RenderTexture.ReleaseTemporary(rt);
-
-            return tex;
-        }
-
-        internal static Texture2D SetTextureSize(Texture2D rexture, int width, int height)
-        {
-            int targetWidth = width;
-            int targetHeight = height;
-
-            if (rexture.width == targetWidth && rexture.height == targetHeight)
-            {
-                // No resize needed; return original texture.
-                return rexture;
-            }
-
-            // Resize through temporary render texture and read back to Texture2D.
-            RenderTexture rt = RenderTexture.GetTemporary(targetWidth, targetHeight, 24, RenderTextureFormat.ARGB32);
-            Graphics.Blit(rexture, rt);
-
-            RenderTexture previous = RenderTexture.active;
-            RenderTexture.active = rt;
-
-            Texture2D resized = new Texture2D(targetWidth, targetHeight, TextureFormat.ARGB32, false);
-            resized.ReadPixels(new Rect(0, 0, targetWidth, targetHeight), 0, 0);
-            resized.Apply();
-
-            RenderTexture.active = previous;
-            RenderTexture.ReleaseTemporary(rt);
-
-            return resized;
-        }        
-
         internal static RenderTexture ConvertToRenderTexture(Texture sourceTexture, int targetWidth, int targetHeight)
         {
             if (sourceTexture == null)
@@ -789,11 +742,6 @@ namespace RealHumanSupport
             }        
         }
 
-        internal void SetPregnancyRoundness(float roundNess) {
-            // if (realHumanData != null && realHumanData.pregnancyController != null)
-            //     realHumanData.pregnancyController.infConfig.inflationRoundness += roundNess;        
-        }        
-
 #if FEATURE_TEARDROP_SUPPORT
         internal void SetTearDrops() {
             if (realHumanData != null)
@@ -931,7 +879,11 @@ namespace RealHumanSupport
                         else if (name.Contains("Vagina Up"))
                         {
                             realHumanData.vagina_up_idx_in_body = idx;
-                        }                                                
+                        }
+                        else if (name.Contains("Vagina Top"))
+                        {
+                            realHumanData.vagina_top_idx_in_body = idx;
+                        }                                                                     
                         else if (name.Contains("Vagina Open Front"))
                         {
                             realHumanData.vagina_open_front_idx_in_body = idx;
@@ -943,15 +895,7 @@ namespace RealHumanSupport
                         else if (name.Contains("Vagina Open Squeeze"))
                         {
                             realHumanData.vagina_open_squeeze_idx_in_body = idx;
-                        }                      
-                        // else if (name.Contains("Foot Left")) 
-                        // {
-
-                        // }
-                        // else if (name.Contains("Foot Right"))
-                        // {
-
-                        // }                        
+                        }                                            
                         // UnityEngine.Debug.Log($">> blendShape {name}, {idx} in body");
                     }
                 }
@@ -1138,22 +1082,11 @@ namespace RealHumanSupport
             return data;
         }
 
-        internal static Texture2D ConvertToTexture2D(RenderTexture renderTex)
-        {
-            RenderTexture previous = RenderTexture.active;
-            RenderTexture.active = renderTex;
+        internal void AllocateBumpMap()
+        {   
+            if (realHumanData == null)
+                return;
 
-            Texture2D tex = new Texture2D(renderTex.width, renderTex.height, TextureFormat.RGBA32, false);
-            tex.ReadPixels(new Rect(0, 0, renderTex.width, renderTex.height), 0, 0);
-            tex.Apply();
-
-            RenderTexture.active = previous;
-
-            return tex;
-        }
-
-        internal static void AllocateBumpMap(ChaControl chaCtrl, RealHumanData realHumanData)
-        {
             // Cache original bump textures only once; reuse on re-init to avoid cumulative blending.
             if (realHumanData.headOriginTexture == null)
             {
@@ -1174,9 +1107,9 @@ namespace RealHumanSupport
             }            
         }
 
-        internal static RealHumanData GetMaterials(ChaControl charCtrl, RealHumanData realHumanData)
+        internal static RealHumanData GetMaterials(ChaControl chaCtrl, RealHumanData realHumanData)
         {
-            SkinnedMeshRenderer[] bodyRenderers = charCtrl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
+            SkinnedMeshRenderer[] bodyRenderers = realHumanData.chaCtrl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
             // UnityEngine.Debug.Log($">> bodyRenderers {bodyRenderers.Length}");
 
             foreach (SkinnedMeshRenderer render in bodyRenderers.ToList())
@@ -1197,7 +1130,7 @@ namespace RealHumanSupport
             }
             
 
-            SkinnedMeshRenderer[] headRenderers = charCtrl.objHead.GetComponentsInChildren<SkinnedMeshRenderer>();
+            SkinnedMeshRenderer[] headRenderers = realHumanData.chaCtrl.objHead.GetComponentsInChildren<SkinnedMeshRenderer>();
             // UnityEngine.Debug.Log($">> headRenderers {headRenderers.Length}");
             realHumanData.c_m_eye.Clear();
 
@@ -1257,33 +1190,7 @@ namespace RealHumanSupport
         {
             return outMin + (value - inMin) * (outMax - outMin) / (inMax - inMin);
         }
-
-        internal static float GetRelativePosition(float a, float b)
-        {
-            bool sameSign = (a >= 0 && b >= 0) || (a < 0 && b < 0);
-
-            if (sameSign)
-                return Math.Abs(Math.Abs(a) - Math.Abs(b)); // Same sign: use absolute distance.
-            else
-                return Math.Abs(Math.Abs(a) + Math.Abs(b)); // Opposite sign: use absolute sum.
-        }
-
-        internal static bool IsFront(float a, float b)
-        {
-            if (a > b) 
-                return true;
-            else 
-                return false;
-        }
-
-        internal static bool IsWide(float a, float b)
-        {
-            if (a > b) 
-                return true;
-            else 
-                return false;
-        }
-
+        
         internal void SupportBlendShapes(ChaControl chaCtrl, RealHumanData realHumanData)
         {
             if (chaCtrl.sex == 0)
@@ -1306,11 +1213,14 @@ namespace RealHumanSupport
         }
                 
 #if FEATURE_REALPLAY_SUPPORT
-        internal void SupportRealPlay(ChaControl chaCtrl, RealHumanData realHumanData) 
+        internal void SupportRealPlay() 
         {
-            if (chaCtrl.sex == 0) {
-                // SetRigidBodyOnObject("cm_J_Hand_Index02_L", 0.05f, 0.15f);
-                // SetRigidBodyOnObject("cm_J_Hand_Index02_R", 0.05f, 0.15f); 
+            if (realHumanData == null)
+                return;
+
+            if (realHumanData.chaCtrl.sex == 0) {
+                SetRigidBodyOnObject("cm_J_Hand_Index02_L", 0.05f, 0.15f);
+                SetRigidBodyOnObject("cm_J_Hand_Index02_R", 0.05f, 0.15f); 
                 // SetRigidBodyOnObject("cm_J_Hand_Index01_L", 0.05f, 0.15f);
                 // SetRigidBodyOnObject("cm_J_Hand_Index01_R", 0.05f, 0.15f); 
 
@@ -1319,18 +1229,18 @@ namespace RealHumanSupport
                 SetRigidBodyOnObject("cm_J_Hand_Middle01_L", 0.1f, 0.22f);
                 SetRigidBodyOnObject("cm_J_Hand_Middle01_R", 0.1f, 0.22f);
 
-                // SetRigidBodyOnObject("cm_J_Hand_L", 0.20f, 0.45f);
-                // SetRigidBodyOnObject("cm_J_Hand_R", 0.20f, 0.45f);
+                SetRigidBodyOnObject("cm_J_Hand_L", 0.20f, 0.45f);
+                SetRigidBodyOnObject("cm_J_Hand_R", 0.20f, 0.45f);
 
                 // SetRigidBodyOnObject("cm_J_Kosi02", 0.5f, 1.25f);
 
-                SetRigidBodyOnObject("cm_J_dan119_00", 0.10f, 0.3f);          
+                SetRigidBodyOnObject("cm_J_dan119_00", 0.15f, 0.38f);          
                 SetRigidBodyOnObject("cm_J_dan108_00", 0.15f, 0.4f); 
                 SetRigidBodyOnObject("cm_J_dan105_00", 0.15f, 0.4f); 
                 // SetRigidBodyOnObject("cm_J_dan100_00", 0.15f, 0.4f);               
             } else {
-                // SetRigidBodyOnObject("cf_J_Hand_Index02_L", 0.1f, 0.25f);
-                // SetRigidBodyOnObject("cf_J_Hand_Index02_R", 0.1f, 0.25f);  
+                SetRigidBodyOnObject("cf_J_Hand_Index02_L", 0.1f, 0.25f);
+                SetRigidBodyOnObject("cf_J_Hand_Index02_R", 0.1f, 0.25f);  
                 // SetRigidBodyOnObject("cf_J_Hand_Index01_L", 0.1f, 0.22f);
                 // SetRigidBodyOnObject("cf_J_Hand_Index01_R", 0.1f, 0.22f);  
                 
@@ -1341,19 +1251,47 @@ namespace RealHumanSupport
                 SetRigidBodyOnObject("cf_J_Hand_Middle01_L", 0.1f, 0.22f);
                 SetRigidBodyOnObject("cf_J_Hand_Middle01_R", 0.1f, 0.22f);
 
-                // SetRigidBodyOnObject("cf_J_Hand_L", 0.20f, 0.45f);
-                // SetRigidBodyOnObject("cf_J_Hand_R", 0.20f, 0.45f);
+                SetRigidBodyOnObject("cf_J_Hand_L", 0.20f, 0.45f);
+                SetRigidBodyOnObject("cf_J_Hand_R", 0.20f, 0.45f);
 
                 SetCollisionOnOnObject("cf_J_Vagina_root");
             }
         }
 #endif
 
-        internal static void SupportEyeFastBlinkEffect(ChaControl chaCtrl, RealHumanData realHumanData) 
+        internal void SupportEyeFastBlinkEffect(ChaControl chaCtrl, RealHumanData realHumanData) 
         {
             if (chaCtrl.fbsCtrl != null)
                 chaCtrl.fbsCtrl.BlinkCtrl.BaseSpeed = 0.05f; // Increase blink cadence.
         }
+
+        internal void SetTearDropActive(bool active)
+        {
+            if (realHumanData == null)
+                return;
+
+            if (realHumanData.TearDropActive == active)
+                return;
+
+            realHumanData.TearDropActive = active;
+            if (!active)
+            {
+                if (realHumanData.m_tear_eye != null) {
+                    realHumanData.m_tear_eye.SetFloat("_NamidaScale", 0f);
+                    realHumanData.m_tear_eye.SetFloat("_RefractionScale", 0f);
+                }
+
+                if (realHumanData.noseScaleInitialized)
+                {
+                    if (realHumanData.nose_wing_l_tr != null)
+                        realHumanData.nose_wing_l_tr.localScale = realHumanData.noseBaseScale;
+
+                    if (realHumanData.nose_wing_r_tr != null)
+                        realHumanData.nose_wing_r_tr.localScale = realHumanData.noseBaseScale;
+                }  
+            }
+        }
+
 #endregion
     }
 
@@ -1379,7 +1317,12 @@ namespace RealHumanSupport
         public Collider headLastTriggerCollider = null;
         // Rigidbody linked to the last detected trigger collider (can be null).
         public Rigidbody headLastTriggerRigidbody = null;
-        public bool ActiveRealPlay = false;
+        
+        public bool RealPlayActive = false;
+        public bool TearDropActive = false;
+        public bool BreathActive = false;
+        public bool EyeShakeActive = true;
+        public bool BodyBumpMapActive = true;
         // Whether a rigidbody was detected in the last check.
         public bool headRigidbodyDetected = false;
         // Last detected rigidbody.
@@ -1455,8 +1398,26 @@ namespace RealHumanSupport
         public OCIChar.BoneInfo  fk_right_foot_bone;
         public OCIChar.BoneInfo  fk_left_foot_bone;
 
+        public Transform anim_hip_bone;
+        public Transform anim_spine01_bone;
+        public Transform anim_spine02_bone;
+        public Transform anim_head_bone;
+        public Transform anim_neck_bone;
+        public Transform anim_left_shoulder_bone;
+        public Transform anim_right_shoulder_bone;
+        public Transform anim_left_armup_bone;
+        public Transform anim_right_armup_bone;
+        public Transform anim_left_armdown_bone;
+        public Transform anim_right_armdown_bone;
+        public Transform anim_left_thigh_bone;
+        public Transform anim_right_thigh_bone;
+        public Transform anim_left_knee_bone;
+        public Transform anim_right_knee_bone;
+        public Transform anim_left_foot_bone;
+        public Transform anim_right_foot_bone;
+
         // Optional integration hook for pregnancy controller.
-        // public PregnancyPlusCharaController pregnancyController;
+        public PregnancyPlusCharaController pregnancyController;
         public JointCorrectionSliderController jointCorrectionSliderController;
 
         // Eye materials affected by face/tear effects.
@@ -1494,18 +1455,18 @@ namespace RealHumanSupport
         public int buttchecks2_idx_in_body;
         public int anus_open_idx_in_body;
         public int anus_pullout_idx_in_body;
-        public int vagina_open_front_idx_in_body;        
+        public int vagina_top_idx_in_body;
+        public int vagina_open_front_idx_in_body;
         public int vagina_open_all_outside_idx_in_body;
         public int vagina_open_squeeze_idx_in_body;
         public int vagina_up_idx_in_body;
-        public int foot_left_idx_in_body;
-        public int foot_right_idx_in_body;
 #endif
 
         public float TearDropLevel = 0.3f;
-        // public float BreathInterval = 1.5f;
-        // public float BreathStrong = 0.45f;
-        public float realPlayStrong = 1.0f;
+        public float BreathInterval = 1.5f;
+        public float BreathStrong = 0.45f;
+        public float RealPlayStrong = 1.0f;
+        public float RealPlayBlendShapeTarget = 0f;
         public RealHumanData()
         {
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
@@ -1514,12 +1475,11 @@ namespace RealHumanSupport
             buttchecks2_idx_in_body = -1;
             anus_open_idx_in_body = -1;
             anus_pullout_idx_in_body = -1;
+            vagina_top_idx_in_body = -1;
             vagina_open_front_idx_in_body = -1;
             vagina_open_all_outside_idx_in_body = -1;
             vagina_open_squeeze_idx_in_body = -1;
             vagina_up_idx_in_body = -1;
-            foot_left_idx_in_body = -1;
-            foot_right_idx_in_body = -1;
 #endif
         }     
     }

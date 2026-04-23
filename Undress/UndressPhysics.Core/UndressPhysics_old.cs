@@ -435,12 +435,34 @@ namespace UndressPhysics
 
                 if (smr != null)
                 {
+                    Vector3[] vertices = smr.sharedMesh.vertices;
+
                     // Pull-down force setup.
                     float startPull = 0.0f;    // Almost no downward force at the start.
                     float endPull   = 5.0f;    // Strong downward force near the end.
 
+                    // Normalize by Y position.
+                    float minY = float.MaxValue;
+                    float maxY = float.MinValue;
+                    foreach (var v in vertices)
+                    {
+                        float y = smr.transform.TransformPoint(v).y;
+                        minY = Mathf.Min(minY, y);
+                        maxY = Mathf.Max(maxY, y);
+                    }
+                    float rangeY = maxY - minY;
+
+                    float[] normalizedYs = new float[vertices.Length];
+                    for (int i = 0; i < vertices.Length; i++)
+                    {
+                        float y = smr.transform.TransformPoint(vertices[i]).y;
+                        normalizedYs[i] = (y - minY) / rangeY;
+                    }
+
                     float timer = 0f;
-                    float uniformMaxDistance = 5.0f * ClothUndressForce.Value;
+                    float topMaxDistance = 3.0f * ClothUndressForce.Value;
+                    float midMaxDistance = 5.0f * ClothUndressForce.Value;
+                    float bottomMaxDistance = 3.0f * ClothUndressForce.Value;
 
                     float startRadius = undressData.IsTop ? 0.5f : 1.0f; // Initial collider size for push-down.
                     float endRadius = undressData.IsTop ? 1.6f : 2.4f; // Final collider size for push-down.
@@ -454,7 +476,9 @@ namespace UndressPhysics
                         if (cloth == null)
                             break;
 
-                        uniformMaxDistance = 5.0f * ClothUndressForce.Value;
+                        topMaxDistance = 3.0f * ClothUndressForce.Value;
+                        midMaxDistance = 5.0f * ClothUndressForce.Value;
+                        bottomMaxDistance = 3.0f * ClothUndressForce.Value;
 
                         float t = timer / duration;
                         float tSmooth = Mathf.SmoothStep(0f, 1f, t);
@@ -470,12 +494,22 @@ namespace UndressPhysics
                         if (cloth != null)
                             cloth.externalAcceleration = Vector3.down * pullForce;
 
-                        float uniformScale = Mathf.Lerp(1f, 2.0f, tSmooth);
+                        float topScale = Mathf.Lerp(1f, 1.5f, tSmooth);
+                        float midScale = Mathf.Lerp(1f, 2.0f, tSmooth);
+                        float bottomScale = Mathf.Lerp(1f, 2.5f, tSmooth);
 
                         for (int i = 0; i < coeffs.Length; i++)
                         {
                             var c = coeffs[i];
-                            float targetMaxDistance = Mathf.Lerp(startDistances[i], uniformMaxDistance * uniformScale, tSmooth);
+
+                            float targetMaxDistance;
+                            if (normalizedYs[i] > 0.80f)
+                                targetMaxDistance = Mathf.Lerp(startDistances[i], topMaxDistance * topScale, tSmooth);
+                            else if (normalizedYs[i] > 0.40f)
+                                targetMaxDistance = Mathf.Lerp(startDistances[i], midMaxDistance * midScale, tSmooth);
+                            else
+                                targetMaxDistance = Mathf.Lerp(startDistances[i], bottomMaxDistance * bottomScale, tSmooth);
+
                             c.maxDistance = targetMaxDistance;
                             coeffs[i] = c;
                         }
