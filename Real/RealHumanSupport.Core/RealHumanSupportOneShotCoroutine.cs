@@ -38,6 +38,7 @@ namespace RealHumanSupport
         // type (0: 0 -> strength, 1: strength -> 0)
         internal void PlayOneShot(string oneShotType = "insert", float duration = 0.45f, float strength = 1.0f, int type = 0)
         {
+            UnityEngine.Debug.Log($">> PlayOneShot: strength: {strength}, realHumanData: {realHumanData} ");
             if (realHumanData == null)
                 return;
 
@@ -86,6 +87,11 @@ namespace RealHumanSupport
                 elapsed += Time.deltaTime;
                 yield return null;
             }
+
+            if (oneShotType == "insert")
+                realHumanData.RealPlayActive = true;
+            else if (oneShotType == "remove")
+                realHumanData.RealPlayActive = false;
 
             _oneShotCoroutine = null;
         }

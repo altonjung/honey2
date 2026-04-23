@@ -953,7 +953,7 @@ namespace RealHumanSupport
 
                 if (danObject != null)
                 {
-                    string childName = "RGRigidBody_" + boneName;
+                    string childName = "RG_" + boneName;
                     Transform existingChild = danObject.Find(childName);
 
                     GameObject childObj;

@@ -352,7 +352,6 @@ namespace RealHumanSupport
                 }
             }
 
-            _data.RealPlayActive = hasDriver;
             _data.RealPlayStrong = hasDriver ? strongestPlayStrong : 1.0f;
             _data.RealPlayBlendShapeTarget = hasDriver ? Mathf.Clamp(blendShapeTarget, 0f, 100f) : 0f;
         }
@@ -477,7 +476,7 @@ namespace RealHumanSupport
             if (other == null || other.attachedRigidbody == null)
                 return false;
 
-            return other.attachedRigidbody.name.StartsWith("RGRigidBody_");
+            return other.attachedRigidbody.name.StartsWith("RG_");
         }
 
     }
