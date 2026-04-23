@@ -69,16 +69,16 @@ namespace RealHumanSupport
                 switch (oneShotType)
                 {
                     case "insert":
-                        SetBlendShape(strength, realHumanData.vagina_up_idx_in_body);
-                        SetBlendShape(strength, realHumanData.vagina_open_squeeze_idx_in_body);
-                        SetBlendShape(strength, realHumanData.vagina_open_all_outside_idx_in_body);
-                        SetBlendShape(strength, realHumanData.vagina_open_all_outside_idx_in_body);                    
+                        SetBlendShape(slider, realHumanData.vagina_up_idx_in_body);
+                        SetBlendShape(slider, realHumanData.vagina_open_squeeze_idx_in_body);
+                        SetBlendShape(slider, realHumanData.vagina_open_all_outside_idx_in_body);
+                        SetBlendShape(slider, realHumanData.vagina_open_all_outside_idx_in_body);                    
                         break;
                     case "remove":    
-                        SetBlendShape(strength, realHumanData.vagina_up_idx_in_body);
-                        SetBlendShape(strength, realHumanData.vagina_open_squeeze_idx_in_body);
-                        SetBlendShape(strength, realHumanData.vagina_open_all_outside_idx_in_body);
-                        SetBlendShape(strength, realHumanData.vagina_open_all_outside_idx_in_body);                       
+                        SetBlendShape(slider, realHumanData.vagina_up_idx_in_body);
+                        SetBlendShape(slider, realHumanData.vagina_open_squeeze_idx_in_body);
+                        SetBlendShape(slider, realHumanData.vagina_open_all_outside_idx_in_body);
+                        SetBlendShape(slider, realHumanData.vagina_open_all_outside_idx_in_body);                       
                         break;                  
                     default:
                         break;
