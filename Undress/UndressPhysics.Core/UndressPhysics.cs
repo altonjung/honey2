@@ -492,98 +492,136 @@ namespace UndressPhysics
 
         private IEnumerator DoUnressCoroutine(UndressData undressData, Cloth cloth)
         {
-            if (cloth != null)
+            try
             {
-                while (!_loaded)
-                    yield return null;
-
-                // Warm up the cloth solver once so the first undress attempt
-                // starts from a consistent runtime state.
-                yield return StartCoroutine(WarmupClothSolver(cloth));
-
-                int sphereCount = cloth.sphereColliders != null ? cloth.sphereColliders.Length : 0;
-                int capsuleCount = cloth.capsuleColliders != null ? cloth.capsuleColliders.Length : 0;
-                bool hasPivotCapsule = false;
-                if (undressData.collider != null && cloth.capsuleColliders != null)
+                if (cloth != null)
                 {
-                    foreach (var c in cloth.capsuleColliders)
+                    while (!_loaded)
+                        yield return null;
+
+                    // Warm up the cloth solver once so the first undress attempt
+                    // starts from a consistent runtime state.
+                    yield return StartCoroutine(WarmupClothSolver(cloth));
+
+                    int sphereCount = cloth.sphereColliders != null ? cloth.sphereColliders.Length : 0;
+                    int capsuleCount = cloth.capsuleColliders != null ? cloth.capsuleColliders.Length : 0;
+                    bool hasPivotCapsule = false;
+                    if (undressData.collider != null && cloth.capsuleColliders != null)
                     {
-                        if (ReferenceEquals(c, undressData.collider))
+                        foreach (var c in cloth.capsuleColliders)
                         {
-                            hasPivotCapsule = true;
-                            break;
+                            if (ReferenceEquals(c, undressData.collider))
+                            {
+                                hasPivotCapsule = true;
+                                break;
+                            }
                         }
                     }
+
+                    if (undressData.collider != null)
+                    {
+                        undressData.originalColliderRadius = undressData.collider.radius;
+                        undressData.originalColliderHeight = undressData.collider.height;
+                        undressData.originalColliderCenter = undressData.collider.center;
+                    }
+
+                    // Back up cloth coefficients.
+                    ClothSkinningCoefficient[] coeffs = cloth.coefficients;
+                    if (coeffs == null || coeffs.Length == 0)
+                    {
+                        var smr = cloth.GetComponent<SkinnedMeshRenderer>();
+                        string meshName = smr != null && smr.sharedMesh != null ? smr.sharedMesh.name : "null";
+                        Logger.LogWarning($"Skip undress: invalid cloth coefficients. mesh={meshName}");
+                        yield break;
+                    }
+
+                    undressData.originalRuntimeStates[cloth] = new ClothRuntimeState
+                    {
+                        useGravity = cloth.useGravity,
+                        externalAcceleration = cloth.externalAcceleration,
+                        worldAccelerationScale = cloth.worldAccelerationScale,
+                        worldVelocityScale = cloth.worldVelocityScale,
+                        damping = cloth.damping,
+                        stiffnessFrequency = cloth.stiffnessFrequency
+                    };
+
+                    float[] maxDistances = new float[coeffs.Length];
+                    for (int i = 0; i < coeffs.Length; i++)
+                    {
+                        maxDistances[i] = coeffs[i].maxDistance;
+                    }
+                    undressData.originalMaxDistances[cloth] = maxDistances;
+
+                    yield return StartCoroutine(UndressPartCoroutine(undressData, cloth));         
                 }
 
-                if (undressData.collider != null)
+                if (cloth != null)
                 {
-                    undressData.originalColliderRadius = undressData.collider.radius;
-                    undressData.originalColliderHeight = undressData.collider.height;
-                    undressData.originalColliderCenter = undressData.collider.center;
+                    cloth.externalAcceleration = Vector3.zero;
+                    UndressPhysicsUtils.RestoreClothColliders(cloth); // Restore original cloth colliders first.
+                    yield return StartCoroutine(UndressPhysicsUtils.RestoreMaxDistancesCoroutine(undressData));
                 }
 
-                // Back up cloth coefficients.
-                ClothSkinningCoefficient[] coeffs = cloth.coefficients;
-                if (coeffs == null || coeffs.Length == 0)
+                // Restore pivot collider transform properties.
+                if (undressData.collider)
                 {
-                    var smr = cloth.GetComponent<SkinnedMeshRenderer>();
-                    string meshName = smr != null && smr.sharedMesh != null ? smr.sharedMesh.name : "null";
-                    Logger.LogWarning($"Skip undress: invalid cloth coefficients. mesh={meshName}");
+                    undressData.collider.radius = undressData.originalColliderRadius;
+                    undressData.collider.height = undressData.originalColliderHeight;
+                    undressData.collider.center = undressData.originalColliderCenter;
+                }
+            }
+            finally
+            {
+                if (undressData != null)
+                {
+                    // Safety net: if coroutine exits early, restore remaining saved state.
+                    UndressPhysicsUtils.RestoreMaxDistances(undressData);
+                    if (undressData.cloth != null)
+                        undressData.cloth.externalAcceleration = Vector3.zero;
                     undressData.coroutine = null;
-                    yield break;
                 }
 
-                undressData.originalRuntimeStates[cloth] = new ClothRuntimeState
-                {
-                    useGravity = cloth.useGravity,
-                    externalAcceleration = cloth.externalAcceleration,
-                    worldAccelerationScale = cloth.worldAccelerationScale,
-                    worldVelocityScale = cloth.worldVelocityScale,
-                    damping = cloth.damping,
-                    stiffnessFrequency = cloth.stiffnessFrequency
-                };
-
-                float[] maxDistances = new float[coeffs.Length];
-                for (int i = 0; i < coeffs.Length; i++)
-                {
-                    maxDistances[i] = coeffs[i].maxDistance;
-                }
-                undressData.originalMaxDistances[cloth] = maxDistances;
-
-                yield return StartCoroutine(UndressPartCoroutine(undressData, cloth));         
+                TryFinishUndress();
             }
+        }
 
-            if (cloth != null)
-            {
-                cloth.externalAcceleration = Vector3.zero;
-                UndressPhysicsUtils.RestoreClothColliders(cloth); // Restore original cloth colliders first.
-                yield return StartCoroutine(UndressPhysicsUtils.RestoreMaxDistancesCoroutine(undressData));
-            }
+        private void TryFinishUndress()
+        {
+            if (_undressDataList == null || _undressDataList.Count == 0)
+                return;
 
-            // Restore pivot collider transform properties.
-            if (undressData.collider)
-            {
-                undressData.collider.radius = undressData.originalColliderRadius;
-                undressData.collider.height = undressData.originalColliderHeight;
-                undressData.collider.center = undressData.originalColliderCenter;
-            }
-
-            undressData.coroutine = null;
-
-            int endCoroutineCnt = 0;
-            // Count completed coroutines.
+            int runningCoroutineCnt = 0;
             foreach (UndressData item in _undressDataList)
             {
-                if (item.coroutine == null)
-                    endCoroutineCnt++;
+                if (item != null && item.coroutine != null)
+                    runningCoroutineCnt++;
             }
 
-            if (endCoroutineCnt == _undressDataList.Count)
+            if (runningCoroutineCnt > 0)
+                return;
+
+            Logger.LogMessage("undress done");
+
+            ChaControl chaCtrl = null;
+            foreach (UndressData item in _undressDataList)
             {
-                Logger.LogMessage("undress done");
-                EndUndress(undressData.ociChar.GetChaControl());
+                if (item != null && item.ociChar != null)
+                {
+                    chaCtrl = item.ociChar.GetChaControl();
+                    if (chaCtrl != null)
+                        break;
+                }
             }
+
+            if (chaCtrl != null)
+            {
+                EndUndress(chaCtrl);
+                return;
+            }
+
+            _undressDataList.Clear();
+            _sphereColliders.Clear();
+            _capsuleColliders.Clear();
         }
 
         private IEnumerator WarmupClothSolver(Cloth cloth)
@@ -603,13 +641,11 @@ namespace UndressPhysics
 
         private void DoUndressAll(){
             int endCoroutineCnt = 0;
-            
-            _quickStop = false;
-            
+                        
             // Count completed coroutines.
             foreach (UndressData undressData in _undressDataList)
             {
-                if (undressData.coroutine == null)
+                if (undressData == null || undressData.coroutine == null)
                     endCoroutineCnt++;
             }
 
@@ -617,6 +653,8 @@ namespace UndressPhysics
             {
                 return;
             }
+
+            _quickStop = false;
 
             if (Studio.Studio.Instance.treeNodeCtrl.selectNodes.Length != 0)
             {
@@ -693,16 +731,23 @@ namespace UndressPhysics
             // Reset state.
             foreach(UndressData undressData in _undressDataList)
             {
+                if (undressData == null)
+                    continue;
+
                 if (undressData.coroutine != null) {
                     StopCoroutine(undressData.coroutine);
                 }
 
-                UndressPhysicsUtils.RestoreClothColliders(undressData.cloth); // back to origin clothes
+                if (undressData.cloth != null)
+                    UndressPhysicsUtils.RestoreClothColliders(undressData.cloth); // back to origin clothes
             }
 
             _undressDataList.Clear();
             _sphereColliders.Clear();
             _capsuleColliders.Clear();
+
+            if (chaCtrl == null || chaCtrl.objBodyBone == null)
+                return;
 
             var transforms = chaCtrl.objBodyBone.GetComponentsInChildren<Transform>(true);
 
