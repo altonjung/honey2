@@ -13,6 +13,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)JointCorrectionSlider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)JointCorrectionSliderScene.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)JointCorrectionSliderController.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)JointCorrectionSliderAction.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Help.txt" />
