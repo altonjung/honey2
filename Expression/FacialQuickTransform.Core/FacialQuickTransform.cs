@@ -121,10 +121,8 @@ namespace FacialQuickTransform
             LeftEye,
             RightEye,
             Both,
-            LidUp,
-            LidDn,
-            SmileIn,
-            SmileOut,
+            Lid,
+            Smile,
             Position,
             Rotation
         }
@@ -174,10 +172,8 @@ namespace FacialQuickTransform
             }),
             new ExpressionCategoryUi(ExpressionCategoryId.Eye, "Eye", new[]
             {
-                new ExpressionTargetUi(ExpressionTargetId.LidUp, "lid_up", "Rotate Eye01/Eye02 pairs on X"),
-                new ExpressionTargetUi(ExpressionTargetId.LidDn, "lid_dn", "Rotate Eye03/Eye04 pairs on X"),
-                new ExpressionTargetUi(ExpressionTargetId.SmileIn, "smile_in", "Rotate Eye01 pair on X"),
-                new ExpressionTargetUi(ExpressionTargetId.SmileOut, "smile_out", "Rotate Eye03 pair on X")
+                new ExpressionTargetUi(ExpressionTargetId.Lid, "lid", "Edit upper/lower lid X rotation"),
+                new ExpressionTargetUi(ExpressionTargetId.Smile, "smile", "Edit in/out smile X rotation")
             }),
             new ExpressionCategoryUi(ExpressionCategoryId.Mouth, "Mouth", new[]
             {
@@ -450,9 +446,20 @@ namespace FacialQuickTransform
 
             if (categoryId == ExpressionCategoryId.Eye)
             {
-                float currentX = GetEyeTargetValue(data, targetId);
-                float updatedX = DrawAngleFieldRow("X Rotate", currentX, step, EyeRotationMinX, EyeRotationMaxX);
-                SetEyeTargetValue(data, targetId, updatedX);
+                if (targetId == ExpressionTargetId.Lid)
+                {
+                    float lidUp = DrawAngleFieldRow("up", data.EyeLidUpRotX, step, EyeRotationMinX, EyeRotationMaxX);
+                    float lidDn = DrawAngleFieldRow("dn", data.EyeLidDnRotX, step, EyeRotationMinX, EyeRotationMaxX);
+                    data.EyeLidUpRotX = lidUp;
+                    data.EyeLidDnRotX = lidDn;
+                }
+                else
+                {
+                    float smileIn = DrawAngleFieldRow("in", data.EyeSmileInRotX, step, EyeRotationMinX, EyeRotationMaxX);
+                    float smileOut = DrawAngleFieldRow("out", data.EyeSmileOutRotX, step, EyeRotationMinX, EyeRotationMaxX);
+                    data.EyeSmileInRotX = smileIn;
+                    data.EyeSmileOutRotX = smileOut;
+                }
                 return;
             }
 
@@ -507,7 +514,11 @@ namespace FacialQuickTransform
             }
 
             if (categoryId == ExpressionCategoryId.Eye)
-                return IsModifiedValue(GetEyeTargetValue(data, targetId));
+            {
+                if (targetId == ExpressionTargetId.Lid)
+                    return IsModifiedValue(data.EyeLidUpRotX) || IsModifiedValue(data.EyeLidDnRotX);
+                return IsModifiedValue(data.EyeSmileInRotX) || IsModifiedValue(data.EyeSmileOutRotX);
+            }
 
             bool isPosition = targetId == ExpressionTargetId.Position;
             return IsModifiedValue(GetFaceAxisValue(data, categoryId, isPosition, AxisId.X))
@@ -569,38 +580,6 @@ namespace FacialQuickTransform
                 else
                     data.EyeBallRightY = value;
             }
-        }
-
-        private float GetEyeTargetValue(FacialQuickTransformData data, ExpressionTargetId targetId)
-        {
-            if (targetId == ExpressionTargetId.LidUp)
-                return data.EyeLidUpRotX;
-            if (targetId == ExpressionTargetId.LidDn)
-                return data.EyeLidDnRotX;
-            if (targetId == ExpressionTargetId.SmileIn)
-                return data.EyeSmileInRotX;
-            return data.EyeSmileOutRotX;
-        }
-
-        private void SetEyeTargetValue(FacialQuickTransformData data, ExpressionTargetId targetId, float value)
-        {
-            if (targetId == ExpressionTargetId.LidUp)
-            {
-                data.EyeLidUpRotX = value;
-                return;
-            }
-
-            if (targetId == ExpressionTargetId.LidDn)
-            {
-                data.EyeLidDnRotX = value;
-                return;
-            }
-            if (targetId == ExpressionTargetId.SmileIn)
-            {
-                data.EyeSmileInRotX = value;
-                return;
-            }
-            data.EyeSmileOutRotX = value;
         }
 
         private float GetFaceAxisValue(FacialQuickTransformData data, ExpressionCategoryId categoryId, bool isPosition, AxisId axisId)
