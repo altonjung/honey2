@@ -39,7 +39,6 @@ namespace UndressPhysics
                 <cloth>
                     <CapsuleCollider boneName='cf_J_Spine03' radius='1.00' center='0.00, 0.00, 0.00' height='2.60' direction='0' />
                     <CapsuleCollider boneName='cf_J_Spine02' radius='0.90' center='0.00, 0.65, 0.30' height='3.20' direction='0' />
-                    <CapsuleCollider boneName='cf_J_Kosi02' radius='1.30' center='0.00, 0.00, 0.00' height='3.00' direction='1' />
                     <CapsuleCollider boneName='cf_J_Neck' radius='0.3' center='0.00, 0.00, -0.15' height='0.60' direction='1' />
                 </cloth>
             </AI_ClothColliders>";
@@ -456,6 +455,7 @@ namespace UndressPhysics
             cloth.worldAccelerationScale = 0f;
             cloth.worldVelocityScale = 0f;
 
+
             if (undressData.originalMaxDistances.TryGetValue(cloth, out var originalMax))
             {
                 int count = Mathf.Min(coeffs.Length, originalMax.Length);
@@ -477,6 +477,7 @@ namespace UndressPhysics
             {
                 cloth.externalAcceleration = Vector3.zero;
             }
+
 
             undressData.originalMaxDistances.Remove(cloth);
             undressData.originalRuntimeStates.Remove(cloth);
