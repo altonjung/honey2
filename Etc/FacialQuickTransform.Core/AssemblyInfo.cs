@@ -1,8 +1,8 @@
 ﻿using System.Reflection;
 
-[assembly: AssemblyTitle(ExpressionSlider.ExpressionSlider.Name)]
+[assembly: AssemblyTitle(FacialQuickTransform.FacialQuickTransform.Name)]
 [assembly: AssemblyDescription("Keyframe sequencing/animation tool for Studio")]
 [assembly: AssemblyCompany("https://github.com/IllusionMods/HSPlugins")]
-[assembly: AssemblyProduct(ExpressionSlider.ExpressionSlider.Name)]
+[assembly: AssemblyProduct(FacialQuickTransform.FacialQuickTransform.Name)]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
-[assembly: AssemblyVersion(ExpressionSlider.ExpressionSlider.Version)]
+[assembly: AssemblyVersion(FacialQuickTransform.FacialQuickTransform.Version)]
