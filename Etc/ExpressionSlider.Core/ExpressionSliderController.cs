@@ -1,4 +1,4 @@
-﻿using Studio;
+using Studio;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -51,28 +51,26 @@ using static CharaUtils.Expression;
 using KKAPI;
 
 
-namespace JointCorrectionSlider
+namespace ExpressionSlider
 {
-    public partial class JointCorrectionSliderController : CharaCustomFunctionController
+    public class ExpressionSliderController : CharaCustomFunctionController
     {
-        internal JointCorrectionSliderData correctionData;
+        internal ExpressionSliderData correctionData;
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
-        internal JointCorrectionSliderData CreateData(OCIChar ociChar)
+        internal ExpressionSliderData CreateData(OCIChar ociChar)
         {
             if (ociChar == null || ociChar.GetChaControl() == null)
                 return null;
 
             ChaControl charControl = ociChar.GetChaControl();
-            correctionData = new JointCorrectionSliderData();
+            correctionData = new ExpressionSliderData();
             correctionData.charControl = charControl;
 
             string bone_prefix_str = "cf_";
             if (charControl.sex == 0)
                 bone_prefix_str = "cm_";
 
-            correctionData._head_bone = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Head");
-            correctionData._headBaseSet = false;
             correctionData._shoulder02_s_L = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Shoulder02_s_L");
             correctionData._shoulder02_s_R = charControl.objAnim.transform.FindLoop(bone_prefix_str + "J_Shoulder02_s_R");
 
@@ -167,21 +165,13 @@ namespace JointCorrectionSlider
                 case 1:
                 case 2:
                 case 3:
-                case 4:
-                case 5:
-                case 6:
-                case 7:
-                case 8:
-                case 9:
-                case 10:
-                case 11:
                     return true;
                 default:
                     return false;
             }
         }
 
-        internal void ResetJointCorrectionSliderData()
+        internal void ResetExpressionSliderData()
         {
             if (correctionData != null)
             {
@@ -189,7 +179,7 @@ namespace JointCorrectionSlider
             }
         }
 
-        internal JointCorrectionSliderData GetData()
+        internal ExpressionSliderData GetData()
         {
             return correctionData;
         }
@@ -207,7 +197,7 @@ namespace JointCorrectionSlider
             float clampedValue = ClampSliderValue(sliderValue);
             correctionData.ThighValue = clampedValue;
             correctionData.LeftLegValue = clampedValue;
-            correctionData.RightLegValue = -clampedValue;
+            correctionData.RightLegValue = clampedValue;
             return true;
         }
 
@@ -231,10 +221,6 @@ namespace JointCorrectionSlider
             {
                 correctionData.fulleg_idx_in_body = -1;
                 correctionData.buttchecks1_idx_in_body = -1;
-                correctionData.footL_idx_in_body = -1;
-                correctionData.footR_idx_in_body = -1;
-                correctionData.toeL_idx_in_body = -1;
-                correctionData.toeR_idx_in_body = -1;
 
                 SkinnedMeshRenderer[] bodyRenderers = correctionData.charControl.objBody.GetComponentsInChildren<SkinnedMeshRenderer>();
                 foreach (SkinnedMeshRenderer render in bodyRenderers.ToList())
@@ -253,23 +239,7 @@ namespace JointCorrectionSlider
                         else if (name.IndexOf("open Buttcheeks1", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             correctionData.buttchecks1_idx_in_body = idx;
-                        }         
-                        else if (name.IndexOf("foot left", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            correctionData.footL_idx_in_body = idx;
-                        } 
-                        else if (name.IndexOf("foot right", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            correctionData.footR_idx_in_body = idx;
-                        } 
-                        else if (name.IndexOf("toe left", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            correctionData.toeL_idx_in_body = idx;
-                        }         
-                        else if (name.IndexOf("toe right", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            correctionData.toeR_idx_in_body = idx;
-                        }                                                                                                                                            
+                        }                                             
                     }
                 }
             }                       
@@ -315,7 +285,7 @@ namespace JointCorrectionSlider
 #endif        
     }
 
-    class JointCorrectionSliderData
+    class ExpressionSliderData
     {
         public ChaControl charControl;
 
@@ -336,6 +306,10 @@ namespace JointCorrectionSlider
         public float ThighValue = 0.0f;
         public float LeftLegValue = 0.0f;
         public float RightLegValue = 0.0f;
+        public float MouthValue = 0.0f;
+        public float EyeValue = 0.0f;
+        public float EyelineValue = 0.0f;
+        public float ExpressionValue = 0.0f;
 
 #if FEATURE_DAN_CORRECTION
         public float DanRootScaleValue = 0.0f;
@@ -379,6 +353,10 @@ namespace JointCorrectionSlider
         public float _prevRightArmDn = 0f;
         public float _prevLeftElbow = 0f;
         public float _prevRightElbow = 0f;
+        public float _prevMouth = 0f;
+        public float _prevEye = 0f;
+        public float _prevEyeline = 0f;
+        public float _prevExpression = 0f;
 
         public Transform _shoulder02_s_L;
         public Transform _shoulder02_s_R;
@@ -490,6 +468,7 @@ namespace JointCorrectionSlider
         public bool _danTop4RotBaseSet;
 #endif
 
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
         public Transform _legup01_L;
         public Transform _legup01_R;
 
@@ -497,8 +476,6 @@ namespace JointCorrectionSlider
         public UnityEngine.Vector3 _legup01BasePosR;
         public UnityEngine.Vector3 _legup01BaseScaleL;
         public UnityEngine.Vector3 _legup01BaseScaleR;
-        public UnityEngine.Vector3 _legup01BaseRotEulerL;
-        public UnityEngine.Vector3 _legup01BaseRotEulerR;
         public bool _legup01BaseSetL;
         public bool _legup01BaseSetR;        
 
@@ -510,20 +487,7 @@ namespace JointCorrectionSlider
 
         public int _prevFullLegValue;
         public int _prevButtchecks1Value;
-
-
-        public Transform _head_bone;
-        public UnityEngine.Vector3 _headBaseRotEuler;
-        public bool _headBaseSet;
-
-        // blend shape
-
-        public int footL_idx_in_body = -1;
-        public int footR_idx_in_body = -1;
-
-        public int toeL_idx_in_body = -1;
-        public int toeR_idx_in_body = -1;
-
+#endif
 
         internal void Reset()
         {
@@ -541,7 +505,11 @@ namespace JointCorrectionSlider
             RightKneeValue = 0.0f;
             ThighValue = 0.0f;
             LeftLegValue = 0.0f;
-            RightLegValue = 0.0f;            
+            RightLegValue = 0.0f;
+            MouthValue = 0.0f;
+            EyeValue = 0.0f;
+            EyelineValue = 0.0f;
+            ExpressionValue = 0.0f;
 
 #if FEATURE_DAN_CORRECTION
             DanRootScaleValue = 0.0f;
@@ -583,8 +551,11 @@ namespace JointCorrectionSlider
 #if FEATURE_CROTCH_CORRECTION
             KosiCorrectionValue = 0.0f;
 #endif
+#if FEATURE_BODY_BLENDSHAPE_SUPPORT
             fullLegValue = 0;
             buttchecks1Value = 0;
+
+#endif
         }
     }
 }

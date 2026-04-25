@@ -115,7 +115,7 @@ namespace RealHumanSupport
                         }
                 
                         float time = Time.time;
-                        // Mathf.Sin(...) 범위가 -1 ~ 1이먀, +1 후 *0.5 하면 0 ~ 1로 정규화
+                        // Mathf.Sin(...) is in [-1, 1]. Shift and scale it to normalize into [0, 1].
                         float sinValue = (Mathf.Sin(time * realHumanData.BreathInterval) + 1f) * 0.5f;
                         
                         // male/ female both
@@ -164,16 +164,22 @@ namespace RealHumanSupport
                             {
                                 float playStrong = Mathf.Max(0.1f, realHumanData.RealPlayStrong);
                                 float blendTarget = Mathf.Clamp(realHumanData.RealPlayBlendShapeTarget, 0f, 100f);
-                                // float blendScale = blendTarget / 100f;
+                                // Oscillate around the target center value instead of [0, target].
+                                // Example: center=30 and percent=0.10 -> [27, 33].
+                                float baseOscillationPercent = Mathf.Clamp(realHumanData.RealPlayOscillationPercent, 0f, 1f);
+                                float oscillationPercent = Mathf.Clamp(baseOscillationPercent * playStrong, 0f, 1f);
+                                float sinSigned = (sinValue * 2f) - 1f; // [0,1] -> [-1,1]
+                                float oscillationRange = blendTarget * oscillationPercent;
+                                float centeredWeight = Mathf.Clamp(blendTarget + (sinSigned * oscillationRange), 0f, 100f);
 
-                                float anusPullWeight = sinValue * playStrong * blendTarget;
-                                float vaginaFrontWeight = sinValue * playStrong * blendTarget;
-                                float vaginaSqueezeWeight = sinValue * playStrong * blendTarget;
-                                float vaginaOutsideWeight = sinValue * playStrong * blendTarget;
-                                float vaginaTopWeight = sinValue * playStrong * blendTarget;
-                                // float footWeight = sinValue * playStrong * blendTarget;
-                                // float crotchWeight = sinValue * 5f;
-                                // float crotchSliderValue = Mathf.Clamp(MapWeightToSliderRange(crotchWeight) * playStrong, -1f, 1f);
+                                float anusPullWeight = centeredWeight;
+                                float vaginaFrontWeight = centeredWeight;
+                                float vaginaSqueezeWeight = centeredWeight;
+                                float vaginaOutsideWeight = centeredWeight;
+                                float vaginaTopWeight = centeredWeight;
+                                // float footWeight = centeredWeight;
+                                // float crotchWeight = centeredWeight;
+                                // float crotchSliderValue = Mathf.Clamp(MapWeightToSliderRange(crotchWeight), -1f, 1f);
 
             #if FEATURE_BODY_BLENDSHAPE_SUPPORT
                                 SetBlendShape(anusPullWeight, realHumanData.anus_pullout_idx_in_body);

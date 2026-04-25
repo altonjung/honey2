@@ -276,7 +276,7 @@ namespace RealHumanSupport
             {
                 _activePenetrationColliders.Add(other);
                 TrySetDanBoneScaleFromHit(other, RootDanEnterScale);
-                _controller?.PlayOneShot("insert", 0.5f, _data.RealPlayBlendShapeTarget, 0);
+                _controller?.PlayOneShot("enter", 0.5f, _data.RealPlayBlendShapeTarget, 0);
             }
 
             RefreshRealPlayState();
@@ -309,7 +309,7 @@ namespace RealHumanSupport
             if (_activePenetrationColliders.Count == 0 && IsPenetrationBone(other)) {
                 TrySetDanBoneScaleFromHit(other, RootDanExitScale);
                 // 여기서 초기화 루틴 호출;
-                _controller?.PlayOneShot("remove", 0.5f, _data.RealPlayBlendShapeTarget, 1);
+                _controller?.PlayOneShot("exit", 0.5f, _data.RealPlayBlendShapeTarget, 1);
             }
 
             RefreshRealPlayState();

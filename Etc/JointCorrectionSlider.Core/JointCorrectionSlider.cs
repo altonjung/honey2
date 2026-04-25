@@ -161,14 +161,22 @@ namespace JointCorrectionSlider
 
         private class CorrectionCategoryUi
         {
+            public readonly CorrectionUiSection Section;
             public readonly string Name;
             public readonly CorrectionFieldUi[] Fields;
 
-            public CorrectionCategoryUi(string name, CorrectionFieldUi[] fields)
+            public CorrectionCategoryUi(CorrectionUiSection section, string name, CorrectionFieldUi[] fields)
             {
+                Section = section;
                 Name = name;
                 Fields = fields;
             }
+        }
+
+        private enum CorrectionUiSection
+        {
+            Joint,
+            Bone
         }
         #endregion
 
@@ -197,70 +205,71 @@ namespace JointCorrectionSlider
         private Vector2 _targetScroll;
         private int _selectedCategoryIndex;
         private int _selectedTargetIndex;
+        private CorrectionUiSection _selectedSection = CorrectionUiSection.Joint;
 
         private static readonly int[] CorrectionCategoryIds = new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
         private static readonly CorrectionCategoryUi[] CorrectionUiCategories = new CorrectionCategoryUi[]
         {
 #if FEATURE_CHEST_CORRECTION
-            new CorrectionCategoryUi("Chest", new[]
+            new CorrectionCategoryUi(CorrectionUiSection.Bone, "Chest", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.MunePosX, "XPos", "Chest position X", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.MunePosY, "YPos", "Chest position Y", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.MuneScale, "Scale", "Chest scale", -1.0f, 1.0f),
             }),
 #endif            
-            new CorrectionCategoryUi("Shoulder", new[]
+            new CorrectionCategoryUi(CorrectionUiSection.Joint, "Shoulder", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.Shoulder, "Both", "Both shoulders", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.LeftShoulder, "Sholdr(L)", "Left", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightShoulder, "Sholdr(R)", "Right", -1.0f, 1.0f)
             }),
-            new CorrectionCategoryUi("Arm", new[]
+            new CorrectionCategoryUi(CorrectionUiSection.Joint, "Arm", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.LeftArmUpper, "ArmUp(L)", "Left upper arm", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightArmUpper, "ArmUp(R)", "Right upper arm", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.LeftArmLower, "ArmDn(L)", "Left", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightArmLower, "ArmDn(R)", "Right", -1.0f, 1.0f)
             }),
-            new CorrectionCategoryUi("Elbow", new[]
+            new CorrectionCategoryUi(CorrectionUiSection.Joint, "Elbow", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.LeftElbow, "Elbow(L)", "Left", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightElbow, "Elbow(R)", "Right", -1.0f, 1.0f)
             }),
-            new CorrectionCategoryUi("Thigh", new[]
+            new CorrectionCategoryUi(CorrectionUiSection.Joint, "Thigh", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.Thigh, "Both", "Both thighs", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.LeftLeg, "Thigh(L)", "Left", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightLeg, "Thigh(R)", "Right", -1.0f, 1.0f)
             }),
-            new CorrectionCategoryUi("Knee", new[]
+            new CorrectionCategoryUi(CorrectionUiSection.Joint, "Knee", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.LeftKnee, "Knee(L)", "Back", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.RightKnee, "Knee(R)", "Back", -1.0f, 1.0f)
             }),
+#if FEATURE_CROTCH_CORRECTION
+            new CorrectionCategoryUi(CorrectionUiSection.Joint, "Crotch", new[]
+            {
+                new CorrectionFieldUi(CorrectionFieldId.CrotchCorrection, "vertical", "Crotch X rotation", -1.0f, 1.0f),
+            }),
+#endif
 #if FEATURE_BUTT_CORRECTION
-            new CorrectionCategoryUi("Butt", new[]
+            new CorrectionCategoryUi(CorrectionUiSection.Bone, "Butt", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.SiriPosX, "XPos", "Butt position X", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.SiriPosY, "YPos", "Butt position Y", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.SiriScale, "Scale", "Butt scale", -1.0f, 1.0f),
             }),
 #endif
-#if FEATURE_CROTCH_CORRECTION
-            new CorrectionCategoryUi("Crotch", new[]
-            {
-                new CorrectionFieldUi(CorrectionFieldId.CrotchCorrection, "vertical", "Crotch X rotation", -1.0f, 1.0f),
-            }),
-#endif
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
-            new CorrectionCategoryUi("Creek", new[]
+            new CorrectionCategoryUi(CorrectionUiSection.Bone, "Creek", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.BlendFullLeg, "Thigh", "Creek", 0f, 100f),
                 new CorrectionFieldUi(CorrectionFieldId.BlendButtCreek, "Butt", "Creek", 0f, 100f),
             }),
 #endif
 #if FEATURE_DAN_CORRECTION
-            new CorrectionCategoryUi("Penis", new[]
+            new CorrectionCategoryUi(CorrectionUiSection.Bone, "Penis", new[]
             {
                 new CorrectionFieldUi(CorrectionFieldId.DanTop1Scale, "Glans1(S)", "Glans1 Scale", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.DanTop2Scale, "Glans2(S)", "Glans2 Scale", -1.0f, 1.0f),
@@ -692,11 +701,31 @@ namespace JointCorrectionSlider
                 DrawStepSelector(ref _correctionStepIndex, "Step");
                 float correctionStep = SliderStepOptions[_correctionStepIndex];
 
+                GUILayout.BeginHorizontal();
+                bool isJointSection = _selectedSection == CorrectionUiSection.Joint;
+                if (GUILayout.Toggle(isJointSection, "Joint Correction", GUI.skin.button) && !isJointSection)
+                {
+                    _selectedSection = CorrectionUiSection.Joint;
+                    _selectedCategoryIndex = 0;
+                    _selectedTargetIndex = 0;
+                }
+
+                bool isBoneSection = _selectedSection == CorrectionUiSection.Bone;
+                if (GUILayout.Toggle(isBoneSection, "Bone Correction", GUI.skin.button) && !isBoneSection)
+                {
+                    _selectedSection = CorrectionUiSection.Bone;
+                    _selectedCategoryIndex = 0;
+                    _selectedTargetIndex = 0;
+                }
+                GUILayout.EndHorizontal();
+
+                draw_seperate();
+
                 var visibleCategories = new List<CorrectionCategoryUi>();
                 for (int i = 0; i < CorrectionUiCategories.Length; i++)
                 {
                     CorrectionCategoryUi category = CorrectionUiCategories[i];
-                    if (HasAvailableField(data, category))
+                    if (category.Section == _selectedSection && HasAvailableField(data, category))
                         visibleCategories.Add(category);
                 }
 
@@ -778,6 +807,10 @@ namespace JointCorrectionSlider
                             GUILayout.Label("<color=red>Select Golden Palace Body</color>", RichLabel);
 #endif
                     }
+                }
+                else
+                {
+                    GUILayout.Label("<color=white>No targets in this section</color>", RichLabel);
                 }
 
                 if (GUILayout.Button("Default"))

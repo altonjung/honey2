@@ -384,13 +384,27 @@ namespace UndressPhysics
 
             var cloth = undressData.cloth;
             ClothRuntimeState runtimeState = null;
+            var coeffs = cloth.coefficients;
+            if (coeffs == null || coeffs.Length == 0)
+            {
+                UndressPhysics.Logger.LogWarning("RestoreMaxDistancesCoroutine skipped: cloth coefficients are empty.");
+                yield break;
+            }
 
-            cloth.enabled = false;
+            // Minimize solver movement while restoring coefficients.
+            cloth.externalAcceleration = Vector3.zero;
+            cloth.useGravity = false;
+            cloth.worldAccelerationScale = 0f;
+            cloth.worldVelocityScale = 0f;
 
             if (undressData.originalMaxDistances.TryGetValue(cloth, out var originalMax))
             {
-                var coeffs = cloth.coefficients;
                 int count = Mathf.Min(coeffs.Length, originalMax.Length);
+                if (count != coeffs.Length || count != originalMax.Length)
+                {
+                    UndressPhysics.Logger.LogWarning(
+                        $"RestoreMaxDistancesCoroutine length mismatch: coeffs={coeffs.Length}, original={originalMax.Length}, apply={count}");
+                }
 
                 for (int i = 0; i < count; i++)
                     coeffs[i].maxDistance = originalMax[i];
@@ -400,20 +414,13 @@ namespace UndressPhysics
 
             if (undressData.originalRuntimeStates.TryGetValue(cloth, out runtimeState))
             {
-                cloth.useGravity = runtimeState.useGravity;
-                cloth.externalAcceleration = Vector3.zero;
-                cloth.worldAccelerationScale = runtimeState.worldAccelerationScale;
-                cloth.worldVelocityScale = runtimeState.worldVelocityScale;
                 cloth.damping = runtimeState.damping;
                 cloth.stiffnessFrequency = runtimeState.stiffnessFrequency;
             }
 
-            cloth.ClearTransformMotion();   // Reset simulation velocity.
-            cloth.enabled = true;
+            cloth.ClearTransformMotion();
             cloth.externalAcceleration = Vector3.zero;
 
-            // Allow the native cloth solver to settle with restored coefficients.
-            yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
 
             if (runtimeState != null)
@@ -436,13 +443,39 @@ namespace UndressPhysics
                 return;
 
             var cloth = undressData.cloth;
+            ClothRuntimeState runtimeState = null;
+            var coeffs = cloth.coefficients;
+            if (coeffs == null || coeffs.Length == 0)
+            {
+                UndressPhysics.Logger.LogWarning("RestoreMaxDistances skipped: cloth coefficients are empty.");
+                return;
+            }
+
+            cloth.externalAcceleration = Vector3.zero;
+            cloth.useGravity = false;
+            cloth.worldAccelerationScale = 0f;
+            cloth.worldVelocityScale = 0f;
+
             if (undressData.originalMaxDistances.TryGetValue(cloth, out var originalMax))
             {
-                var coeffs = cloth.coefficients;
                 int count = Mathf.Min(coeffs.Length, originalMax.Length);
                 for (int i = 0; i < count; i++)
                     coeffs[i].maxDistance = originalMax[i];
                 cloth.coefficients = coeffs;
+            }
+
+            if (undressData.originalRuntimeStates.TryGetValue(cloth, out runtimeState))
+            {
+                cloth.useGravity = runtimeState.useGravity;
+                cloth.externalAcceleration = runtimeState.externalAcceleration;
+                cloth.worldAccelerationScale = runtimeState.worldAccelerationScale;
+                cloth.worldVelocityScale = runtimeState.worldVelocityScale;
+                cloth.damping = runtimeState.damping;
+                cloth.stiffnessFrequency = runtimeState.stiffnessFrequency;
+            }
+            else
+            {
+                cloth.externalAcceleration = Vector3.zero;
             }
 
             undressData.originalMaxDistances.Remove(cloth);

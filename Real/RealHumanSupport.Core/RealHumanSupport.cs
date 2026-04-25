@@ -410,6 +410,12 @@ namespace RealHumanSupport
                 }
                 GUILayout.EndHorizontal();
 
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(new GUIContent("Real Osc(%)", "Real-play centered oscillation percent"), GUILayout.Width(90));
+                data.RealPlayOscillationPercent = GUILayout.HorizontalSlider(data.RealPlayOscillationPercent, 0f, 1f);
+                GUILayout.Label((data.RealPlayOscillationPercent * 100f).ToString("0"), GUILayout.Width(30));
+                GUILayout.EndHorizontal();
+
                 if (GUILayout.Button("Default")) {
                     InitConfig();
                 }

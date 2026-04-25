@@ -59,7 +59,7 @@ namespace RealHumanSupport
 
             OCIChar ociChar = chaCtrl.GetOCIChar();
 
-            Texture origin_texture = realHumanData.bodyOriginTexture;
+            Texture origin_bumpMap2_texture = realHumanData.bodyOriginBumpMap2Texture;
 
             // Rebuild bump influence areas from current pose each update.
             realHumanData.areas.Clear();
@@ -423,7 +423,7 @@ namespace RealHumanSupport
             AddAreaIfNonZero(120, 1450, 110, 300, right_shin_bs, 1.8f); 
             AddAreaIfNonZero(900, 1030, 60, 160, right_thigh_bk_bs, 1.8f); 
             AddAreaIfNonZero(920, 850, 85, 90, right_butt_bs, 1.8f); 
-            AddAreaIfNonZero(890, 1420, 95, 140, right_calf_bs, 1.8f); 
+            AddAreaIfNonZero(890, 1420, 95, 140, right_calf_bs, 1.8f);
 
             SetPrev(ref realHumanData.prev_fk_left_foot_rot, fk_left_foot._q);
             SetPrev(ref realHumanData.prev_fk_right_foot_rot, fk_right_foot._q);
@@ -441,7 +441,7 @@ namespace RealHumanSupport
             SetPrev(ref realHumanData.prev_fk_right_armdown_rot, fk_right_armdown._q);
             SetPrev(ref realHumanData.prev_fk_left_armdown_rot, fk_left_armdown._q);
 
-            if (origin_texture != null)
+            if (origin_bumpMap2_texture != null)
             {
                 int kernel = RealHumanSupport._self._mergeComputeShader.FindKernel("CSMain");
 
@@ -465,26 +465,19 @@ namespace RealHumanSupport
                     RealHumanSupport._self._mergeComputeShader.SetInt("Width", w);
                     RealHumanSupport._self._mergeComputeShader.SetInt("Height", h);
                     RealHumanSupport._self._mergeComputeShader.SetInt("AreaCount", realHumanData.areas.Count);
-                    RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexA", origin_texture);
+                    RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexA", origin_bumpMap2_texture);
                     RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexB", RealHumanSupport._self._bodyStrongFemaleBumpMap2);
                     RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "Result", realHumanData._body_rt);
                     RealHumanSupport._self._mergeComputeShader.SetBuffer(kernel, "Areas", realHumanData.body_areaBuffer);
-
                     
                     RealHumanSupport._self._mergeComputeShader.Dispatch(kernel, Mathf.CeilToInt(w / 8f), Mathf.CeilToInt(h / 8f), 1);                 
                     
                     realHumanData.m_skin_body.SetTexture(realHumanData.body_bumpmap_type, realHumanData._body_rt);
-
-                    // Texture2D merged =  MergeRGBAlphaMaps(origin_texture, strong_texture, areas);    
-                    // realHumanData.m_skin_body.SetTexture(realHumanData.body_bumpmap_type, merged);
-                    // SaveAsPNG(merged, "./body_merge.png");
-                    // SaveAsPNG(strong_texture, "./body_strong.png");
-                    // SaveAsPNG(RenderTextureToTexture2D(RealHumanSupport._self._body_rt), "./body_merged.png");                     
                 }
             }            
             else
             {
-                realHumanData.m_skin_body.SetTexture(realHumanData.body_bumpmap_type, realHumanData.bodyOriginTexture);
+                realHumanData.m_skin_body.SetTexture(realHumanData.body_bumpmap_type, realHumanData.bodyOriginBumpMap2Texture);
             }
         }
 
@@ -615,7 +608,7 @@ namespace RealHumanSupport
 
             if (realHumanData.BodyBumpMapActive)
             {
-                Texture origin_texture = realHumanData.headOriginTexture;
+                Texture origin_bumpMap2_texture = realHumanData.headOriginBumpMap2Texture;
                 Texture express_texture = null;
 
                 if (chaCtrl.sex == 1) // female
@@ -626,7 +619,7 @@ namespace RealHumanSupport
                     // face
                     areas.Add(InitBArea(512, 512, 180, 180, 0.5f));
 
-                    if (origin_texture != null)
+                    if (origin_bumpMap2_texture != null)
                     {
                         int kernel = RealHumanSupport._self._mergeComputeShader.FindKernel("CSMain");
                         int w = 1024;
@@ -649,7 +642,7 @@ namespace RealHumanSupport
                             RealHumanSupport._self._mergeComputeShader.SetInt("Width", w);
                             RealHumanSupport._self._mergeComputeShader.SetInt("Height", h);
                             RealHumanSupport._self._mergeComputeShader.SetInt("AreaCount", areas.Count);
-                            RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexA", origin_texture);
+                            RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexA", origin_bumpMap2_texture);
                             RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "TexB", express_texture);
                             RealHumanSupport._self._mergeComputeShader.SetTexture(kernel, "Result", realHumanData._head_rt);
                             RealHumanSupport._self._mergeComputeShader.SetBuffer(kernel, "Areas", realHumanData.head_areaBuffer);
@@ -665,7 +658,7 @@ namespace RealHumanSupport
             } 
             else
             {
-                realHumanData.m_skin_head.SetTexture(realHumanData.head_bumpmap_type, realHumanData.headOriginTexture);
+                realHumanData.m_skin_head.SetTexture(realHumanData.head_bumpmap_type, realHumanData.headOriginBumpMap2Texture);
             }
         }
     }

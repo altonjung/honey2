@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{BEFEC27B-424D-4E89-AB56-48A7E42AE7B6}</ProjectGuid>
+    <ProjectGuid>{BEFEC27B-424A-4E89-AB56-48A7E42AE7B6}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>RealHumanSupport</RootNamespace>
-    <AssemblyName>RealGirlSupport</AssemblyName>
+    <RootNamespace>ExpressionSlider</RootNamespace>
+    <AssemblyName>ExpressionSlider</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -30,7 +30,7 @@
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\bin\HS2\</OutputPath>
-    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX;FEATURE_TEARDROP_SUPPORT</DefineConstants>
+    <DefineConstants>TRACE;HONEYSELECT2;BEPINEX;FEATURE_JOINT_CORRECTION;FEATURE_DAN_CORRECTION;FEATURE_CHEST_CORRECTION;FEATURE_BUTT_CORRECTION;FEATURE_CROTCH_CORRECTION;FEATURE_BODY_BLENDSHAPE_SUPPORT;FEATURE_SCENE_SAVE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -66,12 +66,6 @@
     </Reference>
     <Reference Include="HS2PE">
       <HintPath>.\HS2PE.dll</HintPath>
-    </Reference>
-    <Reference Include="HS2_PregnancyPlus">
-      <HintPath>.\HS2_PregnancyPlus.dll</HintPath>
-    </Reference>
-    <Reference Include="JointCorrection">
-      <HintPath>.\JointCorrectionSlider.dll</HintPath>
     </Reference>
     <Reference Include="IL, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\IllusionLibs.HoneySelect2.IL.2020.5.29.5\lib\net46\IL.dll</HintPath>
@@ -173,7 +167,7 @@
     <Analyzer Include="..\packages\BepInEx.Analyzers.1.0.4\analyzers\dotnet\cs\BepInEx.Analyzers.dll" />
     <Analyzer Include="..\packages\Microsoft.Unity.Analyzers.1.19.0\analyzers\dotnet\cs\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
-  <Import Project="..\RealHumanSupport.Core\RealHumanSupport.Core.projitems" Label="Shared" />
+  <Import Project="..\ExpressionSlider.Core\ExpressionSlider.Core.projitems" Label="Shared" />
   <!-- <Import Project="..\UIUtility\UIUtility.projitems" Label="Shared" /> -->
   <Import Project="..\ToolBox\ToolBox.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

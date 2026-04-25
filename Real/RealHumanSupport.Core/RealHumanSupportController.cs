@@ -42,7 +42,8 @@ namespace RealHumanSupport
     {
         internal RealHumanData realHumanData;
         internal Status status;// 0: init, 1: pause, 2: play
-        private Coroutine _elasticShotCoroutine;
+
+        private Coroutine _oneShotESCoroutine;
 
         private Coroutine _oneShotCoroutine;
 
@@ -78,19 +79,19 @@ namespace RealHumanSupport
             ReleaseRenderTexture(ref realHumanData._head_rt);
             ReleaseRenderTexture(ref realHumanData._body_rt);
 
-            if (realHumanData.headOriginTexture is RenderTexture headOriginRenderTexture)
+            if (realHumanData.headOriginBumpMap2Texture is RenderTexture headOriginRenderTexture)
             {
                 headOriginRenderTexture.Release();
                 UnityEngine.Object.Destroy(headOriginRenderTexture);
             }
-            realHumanData.headOriginTexture = null;
+            realHumanData.headOriginBumpMap2Texture = null;
 
-            if (realHumanData.bodyOriginTexture is RenderTexture bodyOriginRenderTexture)
+            if (realHumanData.bodyOriginBumpMap2Texture is RenderTexture bodyOriginRenderTexture)
             {
                 bodyOriginRenderTexture.Release();
                 UnityEngine.Object.Destroy(bodyOriginRenderTexture);
             }
-            realHumanData.bodyOriginTexture = null;
+            realHumanData.bodyOriginBumpMap2Texture = null;
         }
 
         private void OnDisable()
@@ -121,6 +122,7 @@ namespace RealHumanSupport
             realHumanData.BreathStrong = 0.45f;
             realHumanData.RealPlayStrong = 1.0f;
             realHumanData.RealPlayBlendShapeTarget = 0f;
+            realHumanData.RealPlayOscillationPercent = 0.10f;
         }
 
         internal void UpdateRealHumanData()
@@ -1088,20 +1090,20 @@ namespace RealHumanSupport
                 return;
 
             // Cache original bump textures only once; reuse on re-init to avoid cumulative blending.
-            if (realHumanData.headOriginTexture == null)
+            if (realHumanData.headOriginBumpMap2Texture == null)
             {
-                Texture headOriginTexture = realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_type);
-                realHumanData.headOriginTexture = ConvertToRenderTexture(
-                    headOriginTexture,
+                Texture headOriginBumpMap2Texture = realHumanData.m_skin_head.GetTexture(realHumanData.head_bumpmap_type);
+                realHumanData.headOriginBumpMap2Texture = ConvertToRenderTexture(
+                    headOriginBumpMap2Texture,
                     RealHumanSupport._self._faceExpressionFemaleBumpMap2.width,
                     RealHumanSupport._self._faceExpressionFemaleBumpMap2.height);
             }
 
-            if (realHumanData.bodyOriginTexture == null)
+            if (realHumanData.bodyOriginBumpMap2Texture == null)
             {
-                Texture bodyOriginTexture = realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_type);
-                realHumanData.bodyOriginTexture = ConvertToRenderTexture(
-                    bodyOriginTexture,
+                Texture bodyOriginBumpMap2Texture = realHumanData.m_skin_body.GetTexture(realHumanData.body_bumpmap_type);
+                realHumanData.bodyOriginBumpMap2Texture = ConvertToRenderTexture(
+                    bodyOriginBumpMap2Texture,
                     RealHumanSupport._self._bodyStrongFemaleBumpMap2.width,
                     RealHumanSupport._self._bodyStrongFemaleBumpMap2.height);
             }            
@@ -1349,8 +1351,8 @@ namespace RealHumanSupport
         public Material m_skin_head;
         public Material m_skin_body;
 
-        public Texture headOriginTexture;
-        public Texture bodyOriginTexture;
+        public Texture headOriginBumpMap2Texture;
+        public Texture bodyOriginBumpMap2Texture;
 
         public RenderTexture _head_rt;
         public ComputeBuffer head_areaBuffer;
@@ -1467,6 +1469,8 @@ namespace RealHumanSupport
         public float BreathStrong = 0.45f;
         public float RealPlayStrong = 1.0f;
         public float RealPlayBlendShapeTarget = 0f;
+        // Centered oscillation ratio for real-play blendshapes (0.10 = +/-10%).
+        public float RealPlayOscillationPercent = 0.10f;
         public RealHumanData()
         {
 #if FEATURE_BODY_BLENDSHAPE_SUPPORT
