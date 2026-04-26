@@ -180,6 +180,7 @@ namespace FacialQuickTransform
     
                     data.EyeBallCategory = Mathf.Clamp(ReadInt(boneNode, "eyeBallCategory", data.EyeBallCategory), 0, 1);
                     data.EyeBallEditTarget = Mathf.Clamp(ReadInt(boneNode, "eyeBallEditTarget", data.EyeBallEditTarget), 0, 2);
+                    data.EyebrowTypeIndex = Mathf.Clamp(ReadInt(boneNode, "eyebrowTypeIndex", data.EyebrowTypeIndex), 0, 8);
                     bool hasLeftX = HasNode(boneNode, "eyeBallLeftX");
                     bool hasLeftY = HasNode(boneNode, "eyeBallLeftY");
                     bool hasRightX = HasNode(boneNode, "eyeBallRightX");
@@ -193,18 +194,42 @@ namespace FacialQuickTransform
                         data.EyeBallRightX = ReadFloat(boneNode, "eyeBallRightX", data.EyeBallRightX);
                     if (hasRightY)
                         data.EyeBallRightY = ReadFloat(boneNode, "eyeBallRightY", data.EyeBallRightY);
-                    data.MouthPosX = ReadFloat(boneNode, "mouthPosX", data.MouthPosX);
-                    data.MouthPosY = ReadFloat(boneNode, "mouthPosY", data.MouthPosY);
-                    data.MouthPosZ = ReadFloat(boneNode, "mouthPosZ", data.MouthPosZ);
+                    data.EyeLidUpRotX = ReadFloat(boneNode, "eyeLidUpRotX", data.EyeLidUpRotX);
+                    data.EyeLidDnRotX = ReadFloat(boneNode, "eyeLidDnRotX", data.EyeLidDnRotX);
+                    data.EyeSmileInRotX = ReadFloat(boneNode, "eyeSmileInRotX", data.EyeSmileInRotX);
+                    data.EyeSmileOutRotX = ReadFloat(boneNode, "eyeSmileOutRotX", data.EyeSmileOutRotX);
+                    data.EyeWinkLeftRotX = ReadFloat(boneNode, "eyeWinkLeftRotX", data.EyeWinkLeftRotX);
+                    data.EyeWinkRightRotX = ReadFloat(boneNode, "eyeWinkRightRotX", data.EyeWinkRightRotX);
                     data.MouthRotX = ReadFloat(boneNode, "mouthRotX", data.MouthRotX);
                     data.MouthRotY = ReadFloat(boneNode, "mouthRotY", data.MouthRotY);
                     data.MouthRotZ = ReadFloat(boneNode, "mouthRotZ", data.MouthRotZ);
-                    data.NosePosX = ReadFloat(boneNode, "nosePosX", data.NosePosX);
-                    data.NosePosY = ReadFloat(boneNode, "nosePosY", data.NosePosY);
-                    data.NosePosZ = ReadFloat(boneNode, "nosePosZ", data.NosePosZ);
+                    data.MouthLipUpRotX = ReadFloat(boneNode, "mouthLipUpRotX", data.MouthLipUpRotX);
+                    data.MouthLipUpRotY = ReadFloat(boneNode, "mouthLipUpRotY", data.MouthLipUpRotY);
+                    data.MouthLipUpRotZ = ReadFloat(boneNode, "mouthLipUpRotZ", data.MouthLipUpRotZ);
+                    data.MouthLipDnRotX = ReadFloat(boneNode, "mouthLipDnRotX", data.MouthLipDnRotX);
+                    data.MouthLipDnRotY = ReadFloat(boneNode, "mouthLipDnRotY", data.MouthLipDnRotY);
+                    data.MouthLipDnRotZ = ReadFloat(boneNode, "mouthLipDnRotZ", data.MouthLipDnRotZ);
+                    data.MouthCavityPosZ = ReadFloat(boneNode, "mouthCavityPosZ", data.MouthCavityPosZ);
+                    data.MouthTypeIndex = ReadInt(boneNode, "mouthTypeIndex", data.MouthTypeIndex);
+                    data.MouthSmileLeftPosX = ReadFloat(boneNode, "mouthSmileLeftPosX", data.MouthSmileLeftPosX);
+                    data.MouthSmileLeftPosY = ReadFloat(boneNode, "mouthSmileLeftPosY", data.MouthSmileLeftPosY);
+                    data.MouthSmileRightPosX = ReadFloat(boneNode, "mouthSmileRightPosX", data.MouthSmileRightPosX);
+                    data.MouthSmileRightPosY = ReadFloat(boneNode, "mouthSmileRightPosY", data.MouthSmileRightPosY);
                     data.NoseRotX = ReadFloat(boneNode, "noseRotX", data.NoseRotX);
                     data.NoseRotY = ReadFloat(boneNode, "noseRotY", data.NoseRotY);
                     data.NoseRotZ = ReadFloat(boneNode, "noseRotZ", data.NoseRotZ);
+                    data.NoseWingLeftRotX = ReadFloat(boneNode, "noseWingLeftRotX", data.NoseWingLeftRotX);
+                    data.NoseWingLeftRotY = ReadFloat(boneNode, "noseWingLeftRotY", data.NoseWingLeftRotY);
+                    data.NoseWingLeftRotZ = ReadFloat(boneNode, "noseWingLeftRotZ", data.NoseWingLeftRotZ);
+                    data.NoseWingRightRotX = ReadFloat(boneNode, "noseWingRightRotX", data.NoseWingRightRotX);
+                    data.NoseWingRightRotY = ReadFloat(boneNode, "noseWingRightRotY", data.NoseWingRightRotY);
+                    data.NoseWingRightRotZ = ReadFloat(boneNode, "noseWingRightRotZ", data.NoseWingRightRotZ);
+                    data.TongueCategoryEnabled = ReadInt(boneNode, "tongueCategoryEnabled", data.TongueCategoryEnabled ? 1 : 0) != 0;
+                    data.Tongue1PosZ = ReadFloat(boneNode, "tongue1PosZ", data.Tongue1PosZ);
+                    data.Tongue1RotY = ReadFloat(boneNode, "tongue1RotY", data.Tongue1RotY);
+                    data.Tongue2PosZ = ReadFloat(boneNode, "tongue2PosZ", data.Tongue2PosZ);
+                    data.Tongue2RotX = ReadFloat(boneNode, "tongue2RotX", data.Tongue2RotX);
+                    data.Tongue2RotY = ReadFloat(boneNode, "tongue2RotY", data.Tongue2RotY);
 
                     // Backward compatibility for old sync format.
                     if (!hasLeftX || !hasRightX)
@@ -273,22 +298,47 @@ namespace FacialQuickTransform
 
                     WriteIntNode(writer, "eyeBallCategory", Mathf.Clamp(data.EyeBallCategory, 0, 1));
                     WriteIntNode(writer, "eyeBallEditTarget", Mathf.Clamp(data.EyeBallEditTarget, 0, 2));
+                    WriteIntNode(writer, "eyebrowTypeIndex", Mathf.Clamp(data.EyebrowTypeIndex, 0, 8));
                     WriteValueNode(writer, "eyeBallLeftX", data.EyeBallLeftX);
                     WriteValueNode(writer, "eyeBallLeftY", data.EyeBallLeftY);
                     WriteValueNode(writer, "eyeBallRightX", data.EyeBallRightX);
                     WriteValueNode(writer, "eyeBallRightY", data.EyeBallRightY);
-                    WriteValueNode(writer, "mouthPosX", data.MouthPosX);
-                    WriteValueNode(writer, "mouthPosY", data.MouthPosY);
-                    WriteValueNode(writer, "mouthPosZ", data.MouthPosZ);
+                    WriteValueNode(writer, "eyeLidUpRotX", data.EyeLidUpRotX);
+                    WriteValueNode(writer, "eyeLidDnRotX", data.EyeLidDnRotX);
+                    WriteValueNode(writer, "eyeSmileInRotX", data.EyeSmileInRotX);
+                    WriteValueNode(writer, "eyeSmileOutRotX", data.EyeSmileOutRotX);
+                    WriteValueNode(writer, "eyeWinkLeftRotX", data.EyeWinkLeftRotX);
+                    WriteValueNode(writer, "eyeWinkRightRotX", data.EyeWinkRightRotX);
                     WriteValueNode(writer, "mouthRotX", data.MouthRotX);
                     WriteValueNode(writer, "mouthRotY", data.MouthRotY);
                     WriteValueNode(writer, "mouthRotZ", data.MouthRotZ);
-                    WriteValueNode(writer, "nosePosX", data.NosePosX);
-                    WriteValueNode(writer, "nosePosY", data.NosePosY);
-                    WriteValueNode(writer, "nosePosZ", data.NosePosZ);
+                    WriteValueNode(writer, "mouthLipUpRotX", data.MouthLipUpRotX);
+                    WriteValueNode(writer, "mouthLipUpRotY", data.MouthLipUpRotY);
+                    WriteValueNode(writer, "mouthLipUpRotZ", data.MouthLipUpRotZ);
+                    WriteValueNode(writer, "mouthLipDnRotX", data.MouthLipDnRotX);
+                    WriteValueNode(writer, "mouthLipDnRotY", data.MouthLipDnRotY);
+                    WriteValueNode(writer, "mouthLipDnRotZ", data.MouthLipDnRotZ);
+                    WriteValueNode(writer, "mouthCavityPosZ", data.MouthCavityPosZ);
+                    WriteIntNode(writer, "mouthTypeIndex", data.MouthTypeIndex);
+                    WriteValueNode(writer, "mouthSmileLeftPosX", data.MouthSmileLeftPosX);
+                    WriteValueNode(writer, "mouthSmileLeftPosY", data.MouthSmileLeftPosY);
+                    WriteValueNode(writer, "mouthSmileRightPosX", data.MouthSmileRightPosX);
+                    WriteValueNode(writer, "mouthSmileRightPosY", data.MouthSmileRightPosY);
                     WriteValueNode(writer, "noseRotX", data.NoseRotX);
                     WriteValueNode(writer, "noseRotY", data.NoseRotY);
                     WriteValueNode(writer, "noseRotZ", data.NoseRotZ);
+                    WriteValueNode(writer, "noseWingLeftRotX", data.NoseWingLeftRotX);
+                    WriteValueNode(writer, "noseWingLeftRotY", data.NoseWingLeftRotY);
+                    WriteValueNode(writer, "noseWingLeftRotZ", data.NoseWingLeftRotZ);
+                    WriteValueNode(writer, "noseWingRightRotX", data.NoseWingRightRotX);
+                    WriteValueNode(writer, "noseWingRightRotY", data.NoseWingRightRotY);
+                    WriteValueNode(writer, "noseWingRightRotZ", data.NoseWingRightRotZ);
+                    WriteIntNode(writer, "tongueCategoryEnabled", data.TongueCategoryEnabled ? 1 : 0);
+                    WriteValueNode(writer, "tongue1PosZ", data.Tongue1PosZ);
+                    WriteValueNode(writer, "tongue1RotY", data.Tongue1RotY);
+                    WriteValueNode(writer, "tongue2PosZ", data.Tongue2PosZ);
+                    WriteValueNode(writer, "tongue2RotX", data.Tongue2RotX);
+                    WriteValueNode(writer, "tongue2RotY", data.Tongue2RotY);
 
                     writer.WriteEndElement(); // config
                 
