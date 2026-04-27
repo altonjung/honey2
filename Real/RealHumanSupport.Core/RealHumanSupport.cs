@@ -134,9 +134,6 @@ namespace RealHumanSupport
 
         internal Texture2D _bodyStrongFemaleBumpMap2;
 
-#if FEATURE_TEARDROP_SUPPORT
-        internal Texture2D _TearDropImg;
-#endif
 #if FEATURE_WINK_SUPPORT        
         private WinkState _winkState = WinkState.Idle;
         
@@ -341,14 +338,6 @@ namespace RealHumanSupport
                 // GUILayout.Label(data.BreathInterval.ToString("0.00"), GUILayout.Width(30));
                 // GUILayout.EndHorizontal();
 
-                GUILayout.Label("<color=orange>Tear</color>", RichLabel);
-
-                // GUILayout.BeginHorizontal();
-                // GUILayout.Label(new GUIContent("Strong", "Strong"), GUILayout.Width(60));
-                // data.TearDropLevel = GUILayout.HorizontalSlider(data.TearDropLevel, 0.1f, 1.0f);
-                // GUILayout.Label(data.TearDropLevel.ToString("0.00"), GUILayout.Width(30));
-                // GUILayout.EndHorizontal(); 
-
                 if (GUILayout.Button("Force Refresh"))
                 {
                     if (controller != null) {
@@ -367,21 +356,6 @@ namespace RealHumanSupport
                 DrawExtraBodyColliderEditor(data);
 
                 GUILayout.BeginHorizontal();
-
-                if (data.TearDropActive) {
-                    if (GUILayout.Button("Tear(D)"))
-                    {
-                        if (controller != null)
-                            controller.SetTearDropActive(false);
-                    }
-                }
-                else {
-                    if (GUILayout.Button("Tear(A)"))
-                    {
-                        if (controller != null)
-                            controller.SetTearDropActive(true);
-                    }
-                }
 
                 if (data.BreathActive) {
                     if (GUILayout.Button("Belly(D)"))
@@ -815,9 +789,6 @@ namespace RealHumanSupport
             }
 
             _bodyStrongFemaleBumpMap2 = _bundle.LoadAsset<Texture2D>("Body_Strong_F_BumpMap2");            
-#if FEATURE_TEARDROP_SUPPORT
-            _TearDropImg = _bundle.LoadAsset<Texture2D>("teardrop");
-#endif            
             _faceExpressionFemaleBumpMap2 = _bundle.LoadAsset<Texture2D>("Face_Expression_F_BumpMap2");
 
             _mergeComputeShader = _bundle.LoadAsset<ComputeShader>("MergeTextures.compute");
@@ -1048,26 +1019,6 @@ namespace RealHumanSupport
                     {
                     }
                 }
-            }
-        }
-
-        // Comment normalized to English.
-        [HarmonyPatch(typeof(AIChara.ChaControl), "ChangeTearsRate", typeof(float))]
-        private static class ChaControl_ChangeTearsRate_Patches
-        {
-            private static bool Prefix(AIChara.ChaControl __instance, float value)
-            {
-                if (__instance != null)
-                {
-                    var controller = __instance.GetComponent<RealHumanSupportController>();
-                    if (controller != null)
-                    {
-#if FEATURE_TEARDROP_SUPPORT
-                        controller.SetTearDropRate(value);
-#endif
-                     }
-                }
-                return true;
             }
         }
 

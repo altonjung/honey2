@@ -181,6 +181,8 @@ namespace FacialQuickTransform
                     data.EyeBallCategory = Mathf.Clamp(ReadInt(boneNode, "eyeBallCategory", data.EyeBallCategory), 0, 1);
                     data.EyeBallEditTarget = Mathf.Clamp(ReadInt(boneNode, "eyeBallEditTarget", data.EyeBallEditTarget), 0, 2);
                     data.EyebrowTypeIndex = Mathf.Clamp(ReadInt(boneNode, "eyebrowTypeIndex", data.EyebrowTypeIndex), 0, 8);
+                    data.EyeTypeIndex = Mathf.Clamp(ReadInt(boneNode, "eyeTypeIndex", data.EyeTypeIndex), 0, 20);
+                    data.EyeOpenMax = Mathf.Clamp(ReadFloat(boneNode, "eyeOpenMax", data.EyeOpenMax), 0f, 1f);
                     bool hasLeftX = HasNode(boneNode, "eyeBallLeftX");
                     bool hasLeftY = HasNode(boneNode, "eyeBallLeftY");
                     bool hasRightX = HasNode(boneNode, "eyeBallRightX");
@@ -194,8 +196,6 @@ namespace FacialQuickTransform
                         data.EyeBallRightX = ReadFloat(boneNode, "eyeBallRightX", data.EyeBallRightX);
                     if (hasRightY)
                         data.EyeBallRightY = ReadFloat(boneNode, "eyeBallRightY", data.EyeBallRightY);
-                    data.EyeLidUpRotX = ReadFloat(boneNode, "eyeLidUpRotX", data.EyeLidUpRotX);
-                    data.EyeLidDnRotX = ReadFloat(boneNode, "eyeLidDnRotX", data.EyeLidDnRotX);
                     data.EyeSmileInRotX = ReadFloat(boneNode, "eyeSmileInRotX", data.EyeSmileInRotX);
                     data.EyeSmileOutRotX = ReadFloat(boneNode, "eyeSmileOutRotX", data.EyeSmileOutRotX);
                     data.EyeWinkLeftRotX = ReadFloat(boneNode, "eyeWinkLeftRotX", data.EyeWinkLeftRotX);
@@ -211,6 +211,7 @@ namespace FacialQuickTransform
                     data.MouthLipDnRotZ = ReadFloat(boneNode, "mouthLipDnRotZ", data.MouthLipDnRotZ);
                     data.MouthCavityPosZ = ReadFloat(boneNode, "mouthCavityPosZ", data.MouthCavityPosZ);
                     data.MouthTypeIndex = ReadInt(boneNode, "mouthTypeIndex", data.MouthTypeIndex);
+                    data.MouthOpenMax = Mathf.Clamp(ReadFloat(boneNode, "mouthOpenMax", data.MouthOpenMax), 0f, 1f);
                     data.MouthSmileLeftPosX = ReadFloat(boneNode, "mouthSmileLeftPosX", data.MouthSmileLeftPosX);
                     data.MouthSmileLeftPosY = ReadFloat(boneNode, "mouthSmileLeftPosY", data.MouthSmileLeftPosY);
                     data.MouthSmileRightPosX = ReadFloat(boneNode, "mouthSmileRightPosX", data.MouthSmileRightPosX);
@@ -230,6 +231,8 @@ namespace FacialQuickTransform
                     data.Tongue2PosZ = ReadFloat(boneNode, "tongue2PosZ", data.Tongue2PosZ);
                     data.Tongue2RotX = ReadFloat(boneNode, "tongue2RotX", data.Tongue2RotX);
                     data.Tongue2RotY = ReadFloat(boneNode, "tongue2RotY", data.Tongue2RotY);
+                    data.TearDropActive = ReadInt(boneNode, "tearDropActive", data.TearDropActive ? 1 : 0) != 0;
+                    data.TearDropLevel = Mathf.Clamp(ReadFloat(boneNode, "tearDropLevel", data.TearDropLevel), 0f, 1f);
 
                     // Backward compatibility for old sync format.
                     if (!hasLeftX || !hasRightX)
@@ -299,12 +302,12 @@ namespace FacialQuickTransform
                     WriteIntNode(writer, "eyeBallCategory", Mathf.Clamp(data.EyeBallCategory, 0, 1));
                     WriteIntNode(writer, "eyeBallEditTarget", Mathf.Clamp(data.EyeBallEditTarget, 0, 2));
                     WriteIntNode(writer, "eyebrowTypeIndex", Mathf.Clamp(data.EyebrowTypeIndex, 0, 8));
+                    WriteIntNode(writer, "eyeTypeIndex", Mathf.Clamp(data.EyeTypeIndex, 0, 20));
+                    WriteValueNode(writer, "eyeOpenMax", Mathf.Clamp(data.EyeOpenMax, 0f, 1f));
                     WriteValueNode(writer, "eyeBallLeftX", data.EyeBallLeftX);
                     WriteValueNode(writer, "eyeBallLeftY", data.EyeBallLeftY);
                     WriteValueNode(writer, "eyeBallRightX", data.EyeBallRightX);
                     WriteValueNode(writer, "eyeBallRightY", data.EyeBallRightY);
-                    WriteValueNode(writer, "eyeLidUpRotX", data.EyeLidUpRotX);
-                    WriteValueNode(writer, "eyeLidDnRotX", data.EyeLidDnRotX);
                     WriteValueNode(writer, "eyeSmileInRotX", data.EyeSmileInRotX);
                     WriteValueNode(writer, "eyeSmileOutRotX", data.EyeSmileOutRotX);
                     WriteValueNode(writer, "eyeWinkLeftRotX", data.EyeWinkLeftRotX);
@@ -320,6 +323,7 @@ namespace FacialQuickTransform
                     WriteValueNode(writer, "mouthLipDnRotZ", data.MouthLipDnRotZ);
                     WriteValueNode(writer, "mouthCavityPosZ", data.MouthCavityPosZ);
                     WriteIntNode(writer, "mouthTypeIndex", data.MouthTypeIndex);
+                    WriteValueNode(writer, "mouthOpenMax", Mathf.Clamp(data.MouthOpenMax, 0f, 1f));
                     WriteValueNode(writer, "mouthSmileLeftPosX", data.MouthSmileLeftPosX);
                     WriteValueNode(writer, "mouthSmileLeftPosY", data.MouthSmileLeftPosY);
                     WriteValueNode(writer, "mouthSmileRightPosX", data.MouthSmileRightPosX);
@@ -339,6 +343,8 @@ namespace FacialQuickTransform
                     WriteValueNode(writer, "tongue2PosZ", data.Tongue2PosZ);
                     WriteValueNode(writer, "tongue2RotX", data.Tongue2RotX);
                     WriteValueNode(writer, "tongue2RotY", data.Tongue2RotY);
+                    WriteIntNode(writer, "tearDropActive", data.TearDropActive ? 1 : 0);
+                    WriteValueNode(writer, "tearDropLevel", Mathf.Clamp(data.TearDropLevel, 0f, 1f));
 
                     writer.WriteEndElement(); // config
                 

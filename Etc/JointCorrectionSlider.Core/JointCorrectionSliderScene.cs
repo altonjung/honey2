@@ -201,7 +201,11 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
                     data.DanRootScaleValue = ReadFloat(boneNode, "danRootScale", data.DanRootScaleValue);
                     data.DanRootPosValue = ReadFloat(boneNode, "danRootLength", data.DanRootPosValue);
-                    data.DanRootRotateValue = ReadFloat(boneNode, "danRootRotate", data.DanRootRotateValue);
+                    data.DanRootRotateXValue = ReadFloat(
+                        boneNode,
+                        "danRootRotateX",
+                        ReadFloat(boneNode, "danRootRotate", data.DanRootRotateXValue));
+                    data.DanRootRotateYValue = ReadFloat(boneNode, "danRootRotateY", data.DanRootRotateYValue);
                     data.DanTop1ScaleValue = ReadFloat(boneNode, "danTop1Scale", data.DanTop1ScaleValue);
                     data.DanTop1PosValue = ReadFloat(boneNode, "danTop1Length", data.DanTop1PosValue);
                     data.DanTop1RotateValue = ReadFloat(boneNode, "danTop1Rotate", data.DanTop1RotateValue);
@@ -315,7 +319,8 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
                     WriteValueNode(writer, "danRootScale", data.DanRootScaleValue);
                     WriteValueNode(writer, "danRootLength", data.DanRootPosValue);
-                    WriteValueNode(writer, "danRootRotate", data.DanRootRotateValue);
+                    WriteValueNode(writer, "danRootRotateX", data.DanRootRotateXValue);
+                    WriteValueNode(writer, "danRootRotateY", data.DanRootRotateYValue);
                     WriteValueNode(writer, "danTop1Scale", data.DanTop1ScaleValue);
                     WriteValueNode(writer, "danTop1Length", data.DanTop1PosValue);
                     WriteValueNode(writer, "danTop1Rotate", data.DanTop1RotateValue);

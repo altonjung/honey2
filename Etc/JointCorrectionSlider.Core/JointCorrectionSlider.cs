@@ -120,7 +120,8 @@ namespace JointCorrectionSlider
             DanTop3Scale,
             DanRootLength,
             DanRootScale,
-            DanRootBent,
+            DanRootBentX,
+            DanRootBentY,
 #endif
 #if FEATURE_BUTT_CORRECTION
             SiriPosX,
@@ -250,7 +251,7 @@ namespace JointCorrectionSlider
 #if FEATURE_CROTCH_CORRECTION
             new CorrectionCategoryUi(CorrectionUiSection.Joint, "Crotch", new[]
             {
-                new CorrectionFieldUi(CorrectionFieldId.CrotchCorrection, "vertical", "Crotch X rotation", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.CrotchCorrection, "Move", "Crotch X rotation", -1.0f, 1.0f),
             }),
 #endif
 #if FEATURE_BUTT_CORRECTION
@@ -276,7 +277,8 @@ namespace JointCorrectionSlider
                 new CorrectionFieldUi(CorrectionFieldId.DanTop3Scale, "Glans3(S)", "Glans3 Scale", -1.0f, 1.0f),
                 new CorrectionFieldUi(CorrectionFieldId.DanRootLength, "Length", "Penis Length", -1.0f, 0.0f),
                 new CorrectionFieldUi(CorrectionFieldId.DanRootScale, "Scale", "Penis Scale", -0.5f, 1.0f),
-                new CorrectionFieldUi(CorrectionFieldId.DanRootBent, "Bent", "Penis Bent", -1.0f, 1.0f)
+                new CorrectionFieldUi(CorrectionFieldId.DanRootBentX, "BentX", "Penis root bent X", -1.0f, 1.0f),
+                new CorrectionFieldUi(CorrectionFieldId.DanRootBentY, "BentY", "Penis root bent Y", -1.0f, 1.0f)
             }),
 #endif
         };
@@ -591,7 +593,7 @@ namespace JointCorrectionSlider
                 ApplyPenisTransform(data._dan_top2, data.DanTop2PosValue, data.DanTop2ScaleValue, data.DanTop2RotateValue, ref data._danTop2PosBaseSet, ref data._danTop2PosBasePos, ref data._danTop2ScaleBaseSet, ref data._danTop2ScaleBasePos, ref data._danTop2RotBaseSet, ref data._danTop2RotBaseEuler, false, TargetDirection.Z_POS);
                 ApplyPenisTransform(data._dan_top3, data.DanTop3PosValue, data.DanTop3ScaleValue, data.DanTop3RotateValue, ref data._danTop3PosBaseSet, ref data._danTop3PosBasePos, ref data._danTop3ScaleBaseSet, ref data._danTop3ScaleBasePos, ref data._danTop3RotBaseSet, ref data._danTop3RotBaseEuler, false, TargetDirection.Z_POS);
                 ApplyPenisTransform(data._dan_top4, data.DanTop4PosValue, data.DanTop4ScaleValue, data.DanTop4RotateValue, ref data._danTop4PosBaseSet, ref data._danTop4PosBasePos, ref data._danTop4ScaleBaseSet, ref data._danTop4ScaleBasePos, ref data._danTop4RotBaseSet, ref data._danTop4RotBaseEuler, false, TargetDirection.Z_POS);                
-                ApplyPenisTransform(data._dan_root, data.DanRootPosValue, data.DanRootScaleValue, data.DanRootRotateValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos, ref data._danRootRotBaseSet, ref data._danRootRotBaseEuler, true, TargetDirection.Z_POS);                
+                ApplyPenisTransform(data._dan_root, data.DanRootPosValue, data.DanRootScaleValue, data.DanRootRotateXValue, data.DanRootRotateYValue, ref data._danRootPosBaseSet, ref data._danRootPosBasePos, ref data._danRootScaleBaseSet, ref data._danRootScaleBasePos, ref data._danRootRotBaseSet, ref data._danRootRotBaseEuler, true, TargetDirection.Z_POS);
 #endif
             }
         }
@@ -915,7 +917,8 @@ namespace JointCorrectionSlider
                 case CorrectionFieldId.DanRootLength:
                     return isMale && data._dan_top4 != null;
                 case CorrectionFieldId.DanRootScale:
-                case CorrectionFieldId.DanRootBent:
+                case CorrectionFieldId.DanRootBentX:
+                case CorrectionFieldId.DanRootBentY:
                     return isMale && data._dan_root != null;
 #endif
 #if FEATURE_BUTT_CORRECTION
@@ -1028,7 +1031,8 @@ namespace JointCorrectionSlider
                 case CorrectionFieldId.DanTop3Scale: return data.DanTop3ScaleValue;
                 case CorrectionFieldId.DanRootLength: return data.DanTop4PosValue;
                 case CorrectionFieldId.DanRootScale: return data.DanRootScaleValue;
-                case CorrectionFieldId.DanRootBent: return data.DanRootRotateValue;
+                case CorrectionFieldId.DanRootBentX: return data.DanRootRotateXValue;
+                case CorrectionFieldId.DanRootBentY: return data.DanRootRotateYValue;
 #endif
 #if FEATURE_BUTT_CORRECTION
                 case CorrectionFieldId.SiriPosX: return data.SiriPosLValue;
@@ -1083,7 +1087,7 @@ namespace JointCorrectionSlider
                         break;
                     data.ThighValue = Mathf.Clamp(value, -1.0f, 1.0f);
                     data.LeftLegValue = data.ThighValue;
-                    data.RightLegValue = -data.ThighValue;
+                    data.RightLegValue = data.ThighValue;
                     break;
                 case CorrectionFieldId.LeftLeg:
                     data.LeftLegValue = value;
@@ -1101,7 +1105,8 @@ namespace JointCorrectionSlider
                 case CorrectionFieldId.DanTop3Scale: data.DanTop3ScaleValue = value; break;
                 case CorrectionFieldId.DanRootLength: data.DanTop4PosValue = value; break;
                 case CorrectionFieldId.DanRootScale: data.DanRootScaleValue = value; break;
-                case CorrectionFieldId.DanRootBent: data.DanRootRotateValue = value; break;
+                case CorrectionFieldId.DanRootBentX: data.DanRootRotateXValue = value; break;
+                case CorrectionFieldId.DanRootBentY: data.DanRootRotateYValue = value; break;
 #endif
 #if FEATURE_BUTT_CORRECTION
                 case CorrectionFieldId.SiriPosX: data.SiriPosLValue = value; break;
@@ -1426,6 +1431,7 @@ namespace JointCorrectionSlider
             float posValue,
             float scaleValue,
             float rotateValue,
+            float rotateValueSecondary,
             ref bool posBaseSet,
             ref Vector3 posBase,
             ref bool scaleBaseSet,
@@ -1459,6 +1465,7 @@ namespace JointCorrectionSlider
             posValue = Mathf.Clamp(posValue, -1f, 1f);
             scaleValue = Mathf.Clamp(scaleValue, -1f, 1f);
             rotateValue = Mathf.Clamp(rotateValue, -1f, 1f);
+            rotateValueSecondary = Mathf.Clamp(rotateValueSecondary, -1f, 1f);
 
             float posOffset = posValue;
             Vector3 newPos = posBase;
@@ -1503,10 +1510,12 @@ namespace JointCorrectionSlider
                 : Mathf.Lerp(1f, DanScaleMin, -scaleValue);
 
             float rotOffset = rotateValue * DanRotateMaxDegrees;
+            float rotOffsetSecondary = rotateValueSecondary * DanRotateMaxDegrees;
             Vector3 newEuler = rotBaseEuler;
             if (rotateOnXAxisOnly)
             {
                 newEuler.x += rotOffset;
+                newEuler.y += rotOffsetSecondary;
             }
             else if (directions != null && directions.Length > 0)
             {
@@ -1536,6 +1545,36 @@ namespace JointCorrectionSlider
             tr.localRotation = Quaternion.Euler(newEuler);
 
             // UnityEngine.Debug.Log($">> ApplyPenisTransform posValue: {posValue}, pos: {tr.localPosition}, rotate: {tr.localRotation} scale: {tr.localScale}");
+        }
+
+        private void ApplyPenisTransform(
+            Transform tr,
+            float posValue,
+            float scaleValue,
+            float rotateValue,
+            ref bool posBaseSet,
+            ref Vector3 posBase,
+            ref bool scaleBaseSet,
+            ref Vector3 scaleBase,
+            ref bool rotBaseSet,
+            ref Vector3 rotBaseEuler,
+            bool rotateOnXAxisOnly = false,
+            params TargetDirection[] directions)
+        {
+            ApplyPenisTransform(
+                tr,
+                posValue,
+                scaleValue,
+                rotateValue,
+                0f,
+                ref posBaseSet,
+                ref posBase,
+                ref scaleBaseSet,
+                ref scaleBase,
+                ref rotBaseSet,
+                ref rotBaseEuler,
+                rotateOnXAxisOnly,
+                directions);
         }
 #endif
         #endregion

@@ -207,7 +207,7 @@ namespace JointCorrectionSlider
             float clampedValue = ClampSliderValue(sliderValue);
             correctionData.ThighValue = clampedValue;
             correctionData.LeftLegValue = clampedValue;
-            correctionData.RightLegValue = -clampedValue;
+            correctionData.RightLegValue = clampedValue;
             return true;
         }
 
@@ -340,7 +340,8 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
         public float DanRootScaleValue = 0.0f;
         public float DanRootPosValue = 0.0f;
-        public float DanRootRotateValue = 0.0f;
+        public float DanRootRotateXValue = 0.0f;
+        public float DanRootRotateYValue = 0.0f;
 
         public float DanTop1ScaleValue = 0.0f;
         public float DanTop1PosValue = 0.0f;
@@ -546,7 +547,8 @@ namespace JointCorrectionSlider
 #if FEATURE_DAN_CORRECTION
             DanRootScaleValue = 0.0f;
             DanRootPosValue = 0.0f;
-            DanRootRotateValue = 0.0f;
+            DanRootRotateXValue = 0.0f;
+            DanRootRotateYValue = 0.0f;
 
             DanTop1ScaleValue = 0.0f;
             DanTop1PosValue = 0.0f;

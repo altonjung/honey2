@@ -104,6 +104,8 @@ namespace FacialQuickTransform
         private GameObject _eyeBallMarkerL;
         private GameObject _eyeBallMarkerR;
         private Material _eyeBallMarkerMaterial;
+        private AssetBundle _bundle;
+        internal Texture2D _tearDropImg;
         private Vector2 _categoryScroll;
         private Vector2 _targetScroll;
         private int _selectedCategoryIndex;
@@ -125,9 +127,9 @@ namespace FacialQuickTransform
         private enum ExpressionTargetId
         {
             Both,
+            Open,
             Tongue1,
             Tongue2,
-            Sleep,
             Smile,
             LipUp,
             LipDown,
@@ -181,15 +183,15 @@ namespace FacialQuickTransform
             }),
             new ExpressionCategoryUi(ExpressionCategoryId.Eye, "Eye", new[]
             {
+                new ExpressionTargetUi(ExpressionTargetId.Type, "Type", "Edit eye pattern type"),
+                new ExpressionTargetUi(ExpressionTargetId.Smile, "Smile", "Edit in/out smile X rotation"),                
                 new ExpressionTargetUi(ExpressionTargetId.Both, "Ball(Both)", "Edit both eyeballs"),
                 new ExpressionTargetUi(ExpressionTargetId.Left, "Ball(L)", "Edit left eyeball"),
-                new ExpressionTargetUi(ExpressionTargetId.Right, "Ball(R)", "Edit right eyeball"),
-                new ExpressionTargetUi(ExpressionTargetId.Sleep, "Lid(Up)", "Edit upper/lower lid X rotation"),
-                new ExpressionTargetUi(ExpressionTargetId.Smile, "Lid(Dn)", "Edit in/out smile X rotation")
+                new ExpressionTargetUi(ExpressionTargetId.Right, "Ball(R)", "Edit right eyeball")
             }),
             new ExpressionCategoryUi(ExpressionCategoryId.Nose, "Nose", new[]
             {
-                new ExpressionTargetUi(ExpressionTargetId.Shape, "Shape", "Edit nose rotation"),
+                new ExpressionTargetUi(ExpressionTargetId.Shape, "Bridge", "Edit nose rotation"),
                 new ExpressionTargetUi(ExpressionTargetId.Both, "Wing(Both)", "Edit both nose wings"),
                 new ExpressionTargetUi(ExpressionTargetId.Left, "Wing(L)", "Edit left nose wing rotation"),
                 new ExpressionTargetUi(ExpressionTargetId.Right, "Wing(R)", "Edit right nose wing rotation")
@@ -207,10 +209,11 @@ namespace FacialQuickTransform
                 new ExpressionTargetUi(ExpressionTargetId.LipDown, "Down", "Edit lower lip rotation")
             }),                     
         };
+
         private static readonly ExpressionCategoryUi TongueExpressionCategory = new ExpressionCategoryUi(ExpressionCategoryId.Tongue, "Tongue", new[]
         {
-            new ExpressionTargetUi(ExpressionTargetId.Tongue1, "tongue1", "Edit tongue segment 1"),
-            new ExpressionTargetUi(ExpressionTargetId.Tongue2, "tongue2", "Edit tongue segment 2")
+            new ExpressionTargetUi(ExpressionTargetId.Tongue2, "Tip", "Edit tongue segment 2"),
+            new ExpressionTargetUi(ExpressionTargetId.Tongue1, "Root", "Edit tongue segment 1")
         });
 
         private GUIStyle RichLabel
@@ -263,6 +266,11 @@ namespace FacialQuickTransform
         private void OnDestroy()
         {
             DestroyEyeBallMarkers();
+            if (_bundle != null)
+            {
+                _bundle.Unload(false);
+                _bundle = null;
+            }
         }
 
 #if SUNSHINE || HONEYSELECT2 || AISHOUJO
@@ -381,6 +389,7 @@ namespace FacialQuickTransform
 
             DrawExpressionControl(data, step);
             DrawTongueActivationButton(data);
+            DrawTearDropActivationButton(data);
 
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Default"))
@@ -421,6 +430,26 @@ namespace FacialQuickTransform
                     data.chaCtrl.ChangeTongueState(0);                
                 }
                 data.TongueCategoryEnabled = enableTongue;
+            }
+
+            GUI.enabled = prevEnabled;
+        }
+
+        private void DrawTearDropActivationButton(FacialQuickTransformData data)
+        {
+            bool canActivateTearDrop = data != null && data.chaCtrl != null;
+            bool prevEnabled = GUI.enabled;
+            GUI.enabled = canActivateTearDrop;
+
+            string label = data != null && data.TearDropActive ? "Tear Active: ON" : "Tear Active: OFF";
+            if (GUILayout.Button(new GUIContent(label, "Toggle tear drop effect coroutine")))
+            {
+                bool enableTearDrop = !data.TearDropActive;
+                FacialQuickTransformController controller = GetCurrentControl();
+                if (controller != null)
+                    controller.SetTearDropActive(enableTearDrop);
+                else
+                    data.TearDropActive = enableTearDrop;
             }
 
             GUI.enabled = prevEnabled;
@@ -488,12 +517,21 @@ namespace FacialQuickTransform
             if (categoryId == ExpressionCategoryId.Eyebrow)
             {
                 if (targetId == ExpressionTargetId.Type)
+                {
                     data.EyebrowTypeIndex = DrawIntFieldRow("Type", data.EyebrowTypeIndex, 0, 8);
+                }
                 return;
             }
 
             if (categoryId == ExpressionCategoryId.Eye)
             {
+                if (targetId == ExpressionTargetId.Type)
+                {
+                    data.EyeTypeIndex = DrawIntFieldRow("Type", data.EyeTypeIndex, 0, 20);
+                    data.EyeOpenMax = DrawClampedFieldRow("Open", data.EyeOpenMax, step, 0f, 1f, 1f);
+                    return;
+                }
+
                 if (targetId == ExpressionTargetId.Both
                     || targetId == ExpressionTargetId.Left
                     || targetId == ExpressionTargetId.Right)
@@ -504,15 +542,6 @@ namespace FacialQuickTransform
                     float updatedY = DrawAngleFieldRow("Y Rotate", currentY, step, EyeBallMinY, EyeBallMaxY);
                     SetEyeBallTargetAxisValue(data, targetId, true, updatedX);
                     SetEyeBallTargetAxisValue(data, targetId, false, updatedY);
-                    return;
-                }
-
-                if (targetId == ExpressionTargetId.Sleep)
-                {
-                    float lidUp = DrawAngleFieldRow("up", data.EyeLidUpRotX, step, EyeRotationMinX, EyeRotationMaxX);
-                    float lidDn = DrawAngleFieldRow("dn", data.EyeLidDnRotX, step, EyeRotationMinX, EyeRotationMaxX);
-                    data.EyeLidUpRotX = lidUp;
-                    data.EyeLidDnRotX = lidDn;
                     return;
                 }
 
@@ -564,14 +593,7 @@ namespace FacialQuickTransform
 
             if (categoryId == ExpressionCategoryId.EyeLid)
             {
-                if (targetId == ExpressionTargetId.Sleep)
-                {
-                    float lidUp = DrawAngleFieldRow("up", data.EyeLidUpRotX, step, EyeRotationMinX, EyeRotationMaxX);
-                    float lidDn = DrawAngleFieldRow("dn", data.EyeLidDnRotX, step, EyeRotationMinX, EyeRotationMaxX);
-                    data.EyeLidUpRotX = lidUp;
-                    data.EyeLidDnRotX = lidDn;
-                }
-                else if (targetId == ExpressionTargetId.Smile)
+                if (targetId == ExpressionTargetId.Smile)
                 {
                     float smileIn = DrawAngleFieldRow("in", data.EyeSmileInRotX, step, EyeRotationMinX, EyeRotationMaxX);
                     float smileOut = DrawAngleFieldRow("out", data.EyeSmileOutRotX, step, EyeRotationMinX, EyeRotationMaxX);
@@ -600,6 +622,7 @@ namespace FacialQuickTransform
                 if (targetId == ExpressionTargetId.Type)
                 {
                     data.MouthTypeIndex = DrawIntFieldRow("Type", data.MouthTypeIndex, 0, MouthTypePatternMap.Length - 1);
+                    data.MouthOpenMax = DrawClampedFieldRow("Open", data.MouthOpenMax, step, 0f, 1f, 1f);
                     return;
                 }
 
@@ -731,12 +754,12 @@ namespace FacialQuickTransform
 
             if (categoryId == ExpressionCategoryId.Eye)
             {
-                return IsModifiedValue(data.EyeBallLeftX)
+                return data.EyeTypeIndex != 0
+                    || Mathf.Abs(data.EyeOpenMax - 1f) > ValueCompareEpsilon
+                    || IsModifiedValue(data.EyeBallLeftX)
                     || IsModifiedValue(data.EyeBallLeftY)
                     || IsModifiedValue(data.EyeBallRightX)
                     || IsModifiedValue(data.EyeBallRightY)
-                    || IsModifiedValue(data.EyeLidUpRotX)
-                    || IsModifiedValue(data.EyeLidDnRotX)
                     || IsModifiedValue(data.EyeSmileInRotX)
                     || IsModifiedValue(data.EyeSmileOutRotX);
             }
@@ -745,9 +768,7 @@ namespace FacialQuickTransform
 
             if (categoryId == ExpressionCategoryId.EyeLid)
             {
-                return IsModifiedValue(data.EyeLidUpRotX)
-                    || IsModifiedValue(data.EyeLidDnRotX)
-                    || IsModifiedValue(data.EyeSmileInRotX)
+                return IsModifiedValue(data.EyeSmileInRotX)
                     || IsModifiedValue(data.EyeSmileOutRotX)
                     || IsModifiedValue(data.EyeWinkLeftRotX)
                     || IsModifiedValue(data.EyeWinkRightRotX);
@@ -757,6 +778,7 @@ namespace FacialQuickTransform
             {
                 return IsModifiedValue(data.MouthCavityPosZ)
                     || data.MouthTypeIndex != 0
+                    || Mathf.Abs(data.MouthOpenMax - 1f) > ValueCompareEpsilon
                     || IsModifiedValue(data.MouthSmileLeftPosX)
                     || IsModifiedValue(data.MouthSmileLeftPosY)
                     || IsModifiedValue(data.MouthSmileRightPosX)
@@ -818,6 +840,9 @@ namespace FacialQuickTransform
 
             if (categoryId == ExpressionCategoryId.Eye)
             {
+                if (targetId == ExpressionTargetId.Type)
+                    return data.EyeTypeIndex != 0
+                        || Mathf.Abs(data.EyeOpenMax - 1f) > ValueCompareEpsilon;
                 if (targetId == ExpressionTargetId.Both
                     || targetId == ExpressionTargetId.Left
                     || targetId == ExpressionTargetId.Right)
@@ -825,19 +850,17 @@ namespace FacialQuickTransform
                     return IsModifiedValue(GetEyeBallTargetAxisValue(data, targetId, true))
                         || IsModifiedValue(GetEyeBallTargetAxisValue(data, targetId, false));
                 }
-                if (targetId == ExpressionTargetId.Sleep)
-                    return IsModifiedValue(data.EyeLidUpRotX) || IsModifiedValue(data.EyeLidDnRotX);
                 if (targetId == ExpressionTargetId.Smile)
                     return IsModifiedValue(data.EyeSmileInRotX) || IsModifiedValue(data.EyeSmileOutRotX);
                 return false;
             }
             if (categoryId == ExpressionCategoryId.Eyebrow)
+            {
                 return data.EyebrowTypeIndex != 0;
+            }
 
             if (categoryId == ExpressionCategoryId.EyeLid)
             {
-                if (targetId == ExpressionTargetId.Sleep)
-                    return IsModifiedValue(data.EyeLidUpRotX) || IsModifiedValue(data.EyeLidDnRotX);
                 if (targetId == ExpressionTargetId.Smile)
                     return IsModifiedValue(data.EyeSmileInRotX) || IsModifiedValue(data.EyeSmileOutRotX);
                 return IsModifiedValue(data.EyeWinkLeftRotX) || IsModifiedValue(data.EyeWinkRightRotX);
@@ -856,7 +879,8 @@ namespace FacialQuickTransform
                 if (targetId == ExpressionTargetId.Tooth)
                     return IsModifiedValue(data.MouthCavityPosZ);
 
-                return data.MouthTypeIndex != 0;
+                return data.MouthTypeIndex != 0
+                    || Mathf.Abs(data.MouthOpenMax - 1f) > ValueCompareEpsilon;
             }
 
             if (categoryId == ExpressionCategoryId.Lip)
@@ -1078,6 +1102,11 @@ namespace FacialQuickTransform
 
         private float DrawAngleFieldRow(string label, float value, float step, float min, float max)
         {
+            return DrawClampedFieldRow(label, value, step, min, max, 0f);
+        }
+
+        private float DrawClampedFieldRow(string label, float value, float step, float min, float max, float resetValue)
+        {
             GUILayout.BeginHorizontal();
             GUILayout.Label(label, GUILayout.Width(80));
             if (GUILayout.Button("-", GUILayout.Width(22)))
@@ -1088,7 +1117,7 @@ namespace FacialQuickTransform
             value = Quantize(value, step, min, max);
             GUILayout.Label(FormatByStep(value, step), GUILayout.Width(44));
             if (GUILayout.Button("Reset", GUILayout.Width(52)))
-                value = 0f;
+                value = Mathf.Clamp(resetValue, min, max);
             GUILayout.EndHorizontal();
             return value;
         }
@@ -1174,25 +1203,25 @@ namespace FacialQuickTransform
                 return;
 
             ApplyEyebrowType(data);
+            ApplyEyeType(data);
+            ApplyEyeOpenMax(data);
 
             if (!data._eye_base_rot_ready)
                 data.CaptureEyeBaseTransformRotations();
 
-            float lidUp = data.EyeLidUpRotX;
-            float lidDn = data.EyeLidDnRotX;
             float smileIn = data.EyeSmileInRotX;
             float smileOut = data.EyeSmileOutRotX;
 
-            // lid_up: Eye01 + Eye02, lid_dn: Eye03 + Eye04, smile_in: Eye01, smile_out: Eye03
-            ApplyEyePairRotationX(data._eye_01_L, data._eye_01_base_rot_L, lidUp + smileIn);
-            ApplyEyePairRotationX(data._eye_02_L, data._eye_02_base_rot_L, lidUp);
-            ApplyEyePairRotationX(data._eye_03_L, data._eye_03_base_rot_L, lidDn + smileOut);
-            ApplyEyePairRotationX(data._eye_04_L, data._eye_04_base_rot_L, lidDn);
+            // smile_in: Eye01, smile_out: Eye03
+            ApplyEyePairRotationX(data._eye_01_L, data._eye_01_base_rot_L, smileIn);
+            ApplyEyePairRotationX(data._eye_02_L, data._eye_02_base_rot_L, 0f);
+            ApplyEyePairRotationX(data._eye_03_L, data._eye_03_base_rot_L, smileOut);
+            ApplyEyePairRotationX(data._eye_04_L, data._eye_04_base_rot_L, 0f);
 
-            ApplyEyePairRotationX(data._eye_01_R, data._eye_01_base_rot_R, lidUp + smileIn);
-            ApplyEyePairRotationX(data._eye_02_R, data._eye_02_base_rot_R, lidUp);
-            ApplyEyePairRotationX(data._eye_03_R, data._eye_03_base_rot_R, lidDn + smileOut);
-            ApplyEyePairRotationX(data._eye_04_R, data._eye_04_base_rot_R, lidDn);
+            ApplyEyePairRotationX(data._eye_01_R, data._eye_01_base_rot_R, smileIn);
+            ApplyEyePairRotationX(data._eye_02_R, data._eye_02_base_rot_R, 0f);
+            ApplyEyePairRotationX(data._eye_03_R, data._eye_03_base_rot_R, smileOut);
+            ApplyEyePairRotationX(data._eye_04_R, data._eye_04_base_rot_R, 0f);
         }
 
         private void ApplyEyebrowType(FacialQuickTransformData data)
@@ -1209,6 +1238,38 @@ namespace FacialQuickTransform
 
             data.chaCtrl.ChangeEyebrowPtn(typeIndex, true);
             data.EyebrowTypeLastAppliedIndex = typeIndex;
+        }
+
+        private void ApplyEyeType(FacialQuickTransformData data)
+        {
+            if (data == null || data.chaCtrl == null)
+                return;
+
+            int typeIndex = Mathf.Clamp(data.EyeTypeIndex, 0, 20);
+            if (data.EyeTypeIndex != typeIndex)
+                data.EyeTypeIndex = typeIndex;
+
+            if (data.EyeTypeLastAppliedIndex == typeIndex)
+                return;
+
+            data.chaCtrl.ChangeEyesPtn(typeIndex, true);
+            data.EyeTypeLastAppliedIndex = typeIndex;
+        }
+
+        private void ApplyEyeOpenMax(FacialQuickTransformData data)
+        {
+            if (data == null || data.chaCtrl == null)
+                return;
+
+            float maxValue = Mathf.Clamp(data.EyeOpenMax, 0f, 1f);
+            if (!Mathf.Approximately(data.EyeOpenMax, maxValue))
+                data.EyeOpenMax = maxValue;
+
+            if (Mathf.Abs(data.EyeOpenMaxLastApplied - maxValue) <= ValueCompareEpsilon)
+                return;
+
+            data.chaCtrl.ChangeEyesOpenMax(maxValue);
+            data.EyeOpenMaxLastApplied = maxValue;
         }
 
         private void ApplyFaceTransforms(FacialQuickTransformData data)
@@ -1248,6 +1309,7 @@ namespace FacialQuickTransform
                 data._mouth_cavity,
                 data._mouth_cavity_base_pos,
                 data.MouthCavityPosZ);
+            ApplyMouthOpenMax(data);
             ApplyMouthType(data);
             ApplyFacePositionXY(
                 data._mouth_smile_l,
@@ -1317,6 +1379,22 @@ namespace FacialQuickTransform
             int patternValue = MouthTypePatternMap[typeIndex];
             data.chaCtrl.ChangeMouthPtn(patternValue, true);
             data.MouthTypeLastAppliedIndex = typeIndex;
+        }
+
+        private void ApplyMouthOpenMax(FacialQuickTransformData data)
+        {
+            if (data == null || data.chaCtrl == null)
+                return;
+
+            float maxValue = Mathf.Clamp(data.MouthOpenMax, 0f, 1f);
+            if (!Mathf.Approximately(data.MouthOpenMax, maxValue))
+                data.MouthOpenMax = maxValue;
+
+            if (Mathf.Abs(data.MouthOpenMaxLastApplied - maxValue) <= ValueCompareEpsilon)
+                return;
+
+            data.chaCtrl.ChangeMouthOpenMax(maxValue);
+            data.MouthOpenMaxLastApplied = maxValue;
         }
 
         private void ApplyFaceTransform(Transform target, Quaternion baseRot, float rx, float ry, float rz)
@@ -1445,6 +1523,16 @@ namespace FacialQuickTransform
         private void Init()
         {
             _loaded = true;
+            string bundlePath = Application.dataPath + "/../abdata/facialQuickTransform/facialquickbundle.unity3d";
+
+            _bundle = AssetBundle.LoadFromFile(bundlePath);
+            if (_bundle == null)
+            {
+                Logger.LogMessage("TearDrop resource bundle not found: facialQuickTransform.unity3d");
+                return;
+            }
+
+            _tearDropImg = _bundle.LoadAsset<Texture2D>("teardrop");
         }
 
         private void SceneInit()

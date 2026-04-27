@@ -37,10 +37,6 @@ namespace RealHumanSupport
     {
 	      internal IEnumerator CoroutineProcess(RealHumanData realHumanData)
 	       {
-	           float tearValue = 0;
-	           float noseValue = 0;
-	           bool tearIncreasing = true;
-	           bool noseIncreasing = true;
 	           float nextHeadRaycastTime = 0f;
 	           RaycastHit[] headRayHits = new RaycastHit[8];
            
@@ -174,91 +170,6 @@ namespace RealHumanSupport
         #endif
                         }
 
-        #if FEATURE_TEARDROP_SUPPORT
-                        if (RealHumanSupport.TearDropActive.Value)
-                        {
-                            float deltaTear = Time.deltaTime / 10f; // Comment normalized to English.
-
-                            if (tearIncreasing)
-                            {
-                                tearValue += deltaTear;
-                                if (tearValue >= 1f)
-                                {
-                                    tearValue = 1f;
-                                    tearIncreasing = false;
-                                }
-                            }
-                            else
-                            {
-                                tearValue -= deltaTear;
-                                if (tearValue <= 0.3f)
-                                {
-                                    tearValue = 0.3f;
-                                    tearIncreasing = true;
-                                }
-                            }
-                                
-                            float tearSin = Mathf.Sin(tearValue * Mathf.PI);
-
-                            // Comment normalized to English.
-                            if (realHumanData.m_tear_eye != null) {
-                                realHumanData.m_tear_eye.SetFloat("_NamidaScale", realHumanData.tearDropRate);
-                                realHumanData.m_tear_eye.SetFloat("_RefractionScale", tearSin); 
-                            }
-
-                            float deltaNose = Time.deltaTime / 1.5f; // Comment normalized to English.
-
-                            if (noseIncreasing)
-                            {
-                                noseValue += deltaNose;
-                                if (noseValue >= 1f)
-                                {
-                                    noseValue = 1f;
-                                    noseIncreasing = false;
-                                }
-                            }
-                            else
-                            {
-                                noseValue -= deltaNose;
-                                if (noseValue <= 0.1f)
-                                {
-                                    noseValue = 0.1f;
-                                    noseIncreasing = true;
-                                }
-                            }
-                                
-                            float noseSin = Mathf.Sin(noseValue * Mathf.PI);
-                            // Comment normalized to English.
-                            if (realHumanData.nose_wing_l_tr != null) {
-
-                                float noseScaleFactor = 1f + (noseSin * 0.3f);
-                                Vector3 scalel = realHumanData.noseBaseScale;
-                                Vector3 scaler = realHumanData.noseBaseScale;
-
-                                scalel.x = realHumanData.noseBaseScale.x * noseScaleFactor;
-                                scaler.x = realHumanData.noseBaseScale.x * noseScaleFactor;
-
-                                realHumanData.nose_wing_l_tr.localScale = scalel;
-                                realHumanData.nose_wing_r_tr.localScale = scaler;
-                            }
-                        } 
-                        else
-                        {
-                            if (realHumanData.m_tear_eye != null) {
-                                realHumanData.m_tear_eye.SetFloat("_NamidaScale", 0f);
-                                realHumanData.m_tear_eye.SetFloat("_RefractionScale", 0f);
-                            }
-
-                            if (realHumanData.noseScaleInitialized)
-                            {
-                                if (realHumanData.nose_wing_l_tr != null)
-                                    realHumanData.nose_wing_l_tr.localScale = realHumanData.noseBaseScale;
-
-                                if (realHumanData.nose_wing_r_tr != null)
-                                    realHumanData.nose_wing_r_tr.localScale = realHumanData.noseBaseScale;
-                            }
-                        }
-#endif
 	                   } 
 	                   else
 	                   {

@@ -112,12 +112,10 @@ namespace RealHumanSupport
 
         internal void ResetRealHumanData()
         {
-            SetTearDropActive(false);
             realHumanData.BreathActive = false;
             realHumanData.EyeShakeActive = true;
             realHumanData.BodyBumpMapActive = true;
             realHumanData.RealPlayActive = false;            
-            realHumanData.TearDropLevel = 0.3f;
             realHumanData.BreathInterval = 1.5f;
             realHumanData.BreathStrong = 0.45f;
             realHumanData.RealPlayStrong = 1.0f;
@@ -153,10 +151,6 @@ namespace RealHumanSupport
                         realHumanData.chaCtrl.StopCoroutine(realHumanData.coroutine);
                         realHumanData.coroutine = null;
                     }
-
-#if FEATURE_TEARDROP_SUPPORT
-                    realHumanData.tearDropRate = realHumanData.TearDropLevel;
-#endif                    
 
                     realHumanData.hairDynamicBones.Clear();
                     
@@ -233,7 +227,6 @@ namespace RealHumanSupport
 
                     SupportDynamicBoobGravity(realHumanData.chaCtrl, realHumanData);
                     SupportExtraDynamicBonesForHair(realHumanData.chaCtrl, realHumanData);                    
-                    SupportTearDrop(realHumanData.chaCtrl, realHumanData);
                     SupportEyeFastBlinkEffect(realHumanData.chaCtrl, realHumanData);
                     SupportBlendShapes(realHumanData.chaCtrl, realHumanData);
 
@@ -744,32 +737,6 @@ namespace RealHumanSupport
             }        
         }
 
-#if FEATURE_TEARDROP_SUPPORT
-        internal void SetTearDrops() {
-            if (realHumanData != null)
-            {
-                string bone_prefix_str = "cf_";
-                if (realHumanData.chaCtrl.sex == 0)
-                    bone_prefix_str = "cm_";
-
-                realHumanData.nose_wing_l_tr = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str + "J_NoseWing_tx_L");
-                realHumanData.nose_wing_r_tr = realHumanData.chaCtrl.objAnim.transform.FindLoop(bone_prefix_str + "J_NoseWing_tx_R");
-                if (realHumanData.nose_wing_l_tr != null)
-                {
-                    realHumanData.noseBaseScale = new Vector3(1.0f, 1.0f, 1.0f);
-                    realHumanData.noseScaleInitialized = true;
-                }
-            }
-        }        
-
-        internal void SetTearDropRate(float tearDropRate) {                    
-
-            if (realHumanData != null)
-                realHumanData.tearDropRate = tearDropRate;
-        }          
-#endif
-
-
 #if FEATURE_FACE_BLENDSHAPE_SUPPORT || FEATURE_WINK_SUPPORT
         internal void SetFaceBlendShapes()
         {
@@ -1149,16 +1116,10 @@ namespace RealHumanSupport
                         // UnityEngine.Debug.Log($">> mainTex.isReadable {mainTex.isReadable}");
                         // SaveAsPNG(CaptureMaterialOutput(realHumanData.m_skin_head, 2048, 2048), "c:/Temp/face_mainTex.png");
                     }
-#if FEATURE_TEARDROP_SUPPORT
                     else if (name.Contains("c_m_eye_01") || name.Contains("c_m_eye_02"))
                     {
                         realHumanData.c_m_eye.Add(mat);
                     }
-                    else if (name.Contains("c_m_eye_namida")) {
-                        realHumanData.m_tear_eye = mat;
-                        realHumanData.m_tear_eye.SetTexture("_MainTex", RealHumanSupport._self._TearDropImg);
-                    }
-#endif
                 }
             }
             return realHumanData;
@@ -1205,15 +1166,6 @@ namespace RealHumanSupport
 #endif
         }
 
-        internal void SupportTearDrop(ChaControl chaCtrl, RealHumanData realHumanData) 
-        {
-#if FEATURE_TEARDROP_SUPPORT            
-            if (chaCtrl.sex == 0)
-                return;
-            SetTearDrops();
-#endif            
-        }
-                
 #if FEATURE_REALPLAY_SUPPORT
         internal void SupportRealPlay() 
         {
@@ -1267,33 +1219,6 @@ namespace RealHumanSupport
                 chaCtrl.fbsCtrl.BlinkCtrl.BaseSpeed = 0.05f; // Increase blink cadence.
         }
 
-        internal void SetTearDropActive(bool active)
-        {
-            if (realHumanData == null)
-                return;
-
-            if (realHumanData.TearDropActive == active)
-                return;
-
-            realHumanData.TearDropActive = active;
-            if (!active)
-            {
-                if (realHumanData.m_tear_eye != null) {
-                    realHumanData.m_tear_eye.SetFloat("_NamidaScale", 0f);
-                    realHumanData.m_tear_eye.SetFloat("_RefractionScale", 0f);
-                }
-
-                if (realHumanData.noseScaleInitialized)
-                {
-                    if (realHumanData.nose_wing_l_tr != null)
-                        realHumanData.nose_wing_l_tr.localScale = realHumanData.noseBaseScale;
-
-                    if (realHumanData.nose_wing_r_tr != null)
-                        realHumanData.nose_wing_r_tr.localScale = realHumanData.noseBaseScale;
-                }  
-            }
-        }
-
 #endregion
     }
 
@@ -1321,7 +1246,6 @@ namespace RealHumanSupport
         public Rigidbody headLastTriggerRigidbody = null;
         
         public bool RealPlayActive = false;
-        public bool TearDropActive = false;
         public bool BreathActive = false;
         public bool EyeShakeActive = true;
         public bool BodyBumpMapActive = true;
@@ -1346,8 +1270,7 @@ namespace RealHumanSupport
         public DynamicBone_Ver02 rightButtCheek;
         public DynamicBone_Ver02 leftButtCheek;
 
-        // Core skin/tear materials used for effect s.
-        public Material m_tear_eye;
+        // Core skin materials used for effects.
         public Material m_skin_head;
         public Material m_skin_body;
 
@@ -1424,15 +1347,6 @@ namespace RealHumanSupport
 
         // Eye materials affected by face/tear effects.
         public List<Material> c_m_eye = new List<Material>();
-#if FEATURE_TEARDROP_SUPPORT
-        public Transform nose_wing_l_tr;
-        public Transform nose_wing_r_tr;
-        public Vector3 noseBaseScale;
-        public bool noseScaleInitialized = false;     
-
-        public float tearDropRate;   
-#endif
-
 #if FEATURE_FACE_BLENDSHAPE_SUPPORT || FEATURE_WINK_SUPPORT
         public int eye_close_idx_in_head_of_eyectrl;
         public int eye_close_idx_in_namida_of_eyectrl;
@@ -1464,7 +1378,6 @@ namespace RealHumanSupport
         public int vagina_up_idx_in_body;
 #endif
 
-        public float TearDropLevel = 0.3f;
         public float BreathInterval = 1.5f;
         public float BreathStrong = 0.45f;
         public float RealPlayStrong = 1.0f;

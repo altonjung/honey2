@@ -59,6 +59,18 @@ namespace FacialQuickTransform
         internal FacialQuickTransformData expressionData;
         protected override void OnCardBeingSaved(GameMode currentGameMode) { }
 
+        private void OnDestroy()
+        {
+            StopTearDropCoroutine();
+            ResetTearDropVisuals();
+        }
+
+        private void OnDisable()
+        {
+            StopTearDropCoroutine();
+            ResetTearDropVisuals();
+        }
+
         internal FacialQuickTransformData GetData()
         {
             return expressionData;
@@ -67,7 +79,11 @@ namespace FacialQuickTransform
         internal void ResetFacialQuickTransformData()
         {
             if (expressionData != null)
+            {
+                SetTearDropActive(false);
                 expressionData.Reset();
+                ResetTearDropVisuals();
+            }
         }
 
         internal FacialQuickTransformData CreateData(OCIChar ociChar)
@@ -115,10 +131,215 @@ namespace FacialQuickTransform
             expressionData.CaptureEyeBaseRotations();
             expressionData.CaptureEyeBaseTransformRotations();
             expressionData.CaptureFaceBaseTransforms();
+            SetupTearDropResources(expressionData);
+            EnsureTearDropCoroutine();
 
             //SetFaceBlendShapes();
 
             return expressionData;
+        }
+
+        internal void SetTearDropActive(bool active)
+        {
+            if (expressionData == null)
+                return;
+
+            bool hasTearTexture = FacialQuickTransform._self != null && FacialQuickTransform._self._tearDropImg != null;
+            if (active && !hasTearTexture)
+            {
+                expressionData.TearDropActive = false;
+                ResetTearDropVisuals();
+                return;
+            }
+
+            if (expressionData.TearDropActive == active)
+                return;
+
+            expressionData.TearDropActive = active;
+            if (!active)
+                ResetTearDropVisuals();
+        }
+
+        internal void SetTearDropLevel(float level)
+        {
+            if (expressionData == null)
+                return;
+
+            expressionData.TearDropLevel = Mathf.Clamp(level, 0f, 1f);
+        }
+
+        private void EnsureTearDropCoroutine()
+        {
+            if (expressionData == null || expressionData.chaCtrl == null)
+                return;
+
+            if (expressionData.TearDropCoroutine == null)
+                expressionData.TearDropCoroutine = expressionData.chaCtrl.StartCoroutine(TearDropCoroutineProcess(expressionData));
+        }
+
+        private void StopTearDropCoroutine()
+        {
+            if (expressionData == null || expressionData.chaCtrl == null || expressionData.TearDropCoroutine == null)
+                return;
+
+            expressionData.chaCtrl.StopCoroutine(expressionData.TearDropCoroutine);
+            expressionData.TearDropCoroutine = null;
+        }
+
+        private void SetupTearDropResources(FacialQuickTransformData data)
+        {
+            if (data == null || data.chaCtrl == null || data.chaCtrl.sex == 0 || data.chaCtrl.objHead == null)
+                return;
+
+            SkinnedMeshRenderer[] headRenderers = data.chaCtrl.objHead.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            foreach (SkinnedMeshRenderer render in headRenderers)
+            {
+                if (render == null || render.sharedMaterials == null)
+                    continue;
+
+                foreach (Material mat in render.sharedMaterials)
+                {
+                    if (mat == null)
+                        continue;
+
+                    string name = mat.name.ToLowerInvariant();
+                    if (name.Contains("c_m_eye_namida"))
+                    {
+                        data.m_tear_eye = mat;
+                        if (FacialQuickTransform._self != null && FacialQuickTransform._self._tearDropImg != null && data.m_tear_eye.HasProperty("_MainTex"))
+                            data.m_tear_eye.SetTexture("_MainTex", FacialQuickTransform._self._tearDropImg);
+                        break;
+                    }
+                }
+
+                if (data.m_tear_eye != null)
+                    break;
+            }
+
+            if (data._nose_wing_l != null)
+            {
+                data.noseBaseScale = data._nose_wing_l.localScale;
+                data.noseScaleInitialized = true;
+            }
+        }
+
+        private IEnumerator TearDropCoroutineProcess(FacialQuickTransformData data)
+        {
+            float tearValue = 0.3f;
+            float noseValue = 0.1f;
+            bool tearIncreasing = true;
+            bool noseIncreasing = true;
+
+            while (data != null && data.chaCtrl != null)
+            {
+                if (data.TearDropActive)
+                {
+                    bool hasTearTexture = FacialQuickTransform._self != null && FacialQuickTransform._self._tearDropImg != null;
+                    if (!hasTearTexture)
+                    {
+                        data.TearDropActive = false;
+                        ResetTearDropVisuals();
+                        yield return null;
+                        continue;
+                    }
+
+                    if (data.m_tear_eye == null)
+                        SetupTearDropResources(data);
+
+                    float deltaTear = Time.deltaTime / 10f;
+                    if (tearIncreasing)
+                    {
+                        tearValue += deltaTear;
+                        if (tearValue >= 1f)
+                        {
+                            tearValue = 1f;
+                            tearIncreasing = false;
+                        }
+                    }
+                    else
+                    {
+                        tearValue -= deltaTear;
+                        if (tearValue <= 0.3f)
+                        {
+                            tearValue = 0.3f;
+                            tearIncreasing = true;
+                        }
+                    }
+
+                    float tearSin = Mathf.Sin(tearValue * Mathf.PI);
+                    if (data.m_tear_eye != null)
+                    {
+                        float tearRate = Mathf.Clamp(data.TearDropLevel, 0f, 1f);
+                        SetTearMaterialValues(data.m_tear_eye, tearRate, tearSin);
+                    }
+
+                    float deltaNose = Time.deltaTime / 1.5f;
+                    if (noseIncreasing)
+                    {
+                        noseValue += deltaNose;
+                        if (noseValue >= 1f)
+                        {
+                            noseValue = 1f;
+                            noseIncreasing = false;
+                        }
+                    }
+                    else
+                    {
+                        noseValue -= deltaNose;
+                        if (noseValue <= 0.1f)
+                        {
+                            noseValue = 0.1f;
+                            noseIncreasing = true;
+                        }
+                    }
+
+                    if (data.noseScaleInitialized && data._nose_wing_l != null && data._nose_wing_r != null)
+                    {
+                        float noseSin = Mathf.Sin(noseValue * Mathf.PI);
+                        float noseScaleFactor = 1f + (noseSin * 0.3f);
+                        Vector3 scaleL = data.noseBaseScale;
+                        Vector3 scaleR = data.noseBaseScale;
+                        scaleL.x = data.noseBaseScale.x * noseScaleFactor;
+                        scaleR.x = data.noseBaseScale.x * noseScaleFactor;
+                        data._nose_wing_l.localScale = scaleL;
+                        data._nose_wing_r.localScale = scaleR;
+                    }
+                }
+                else
+                {
+                    ResetTearDropVisuals();
+                }
+
+                yield return null;
+            }
+        }
+
+        private void ResetTearDropVisuals()
+        {
+            if (expressionData == null)
+                return;
+
+            if (expressionData.m_tear_eye != null)
+                SetTearMaterialValues(expressionData.m_tear_eye, 0f, 0f);
+
+            if (expressionData.noseScaleInitialized)
+            {
+                if (expressionData._nose_wing_l != null)
+                    expressionData._nose_wing_l.localScale = expressionData.noseBaseScale;
+                if (expressionData._nose_wing_r != null)
+                    expressionData._nose_wing_r.localScale = expressionData.noseBaseScale;
+            }
+        }
+
+        private void SetTearMaterialValues(Material tearMaterial, float namidaScale, float refractionScale)
+        {
+            if (tearMaterial == null)
+                return;
+
+            if (tearMaterial.HasProperty("_NamidaScale"))
+                tearMaterial.SetFloat("_NamidaScale", namidaScale);
+            if (tearMaterial.HasProperty("_RefractionScale"))
+                tearMaterial.SetFloat("_RefractionScale", refractionScale);
         }
 
         // public void SetBlendShape(float weight, int targetIdx)
@@ -333,12 +554,14 @@ namespace FacialQuickTransform
         public int EyeBallEditTarget;
         public int EyebrowTypeIndex;
         public int EyebrowTypeLastAppliedIndex = -1;
+        public int EyeTypeIndex;
+        public int EyeTypeLastAppliedIndex = -1;
+        public float EyeOpenMax = 1f;
+        public float EyeOpenMaxLastApplied = -1f;
         public float EyeBallLeftX;
         public float EyeBallLeftY;
         public float EyeBallRightX;
         public float EyeBallRightY;
-        public float EyeLidUpRotX;
-        public float EyeLidDnRotX;
         public float EyeSmileInRotX;
         public float EyeSmileOutRotX;
         public float EyeWinkLeftRotX;
@@ -357,6 +580,8 @@ namespace FacialQuickTransform
         public float MouthCavityPosZ;
         public int MouthTypeIndex;
         public int MouthTypeLastAppliedIndex = -1;
+        public float MouthOpenMax = 1f;
+        public float MouthOpenMaxLastApplied = -1f;
         public float MouthSmileLeftPosX;
         public float MouthSmileLeftPosY;
         public float MouthSmileRightPosX;
@@ -384,22 +609,13 @@ namespace FacialQuickTransform
         public float Tongue2RotY;
         public float Tongue2RotZ;
 
-
-        // // blendshape idx
-        // public int eye_close_idx_in_head_of_eyectrl;
-        // public int eye_close_idx_in_namida_of_eyectrl;
-        // public int eye_close_idx_in_lash_of_eyectrl;
-
-        // public int eye_wink_idx_in_head_of_eyectrl;
-        // public int eye_wink_idx_in_namida_of_eyectrl;
-        // public int eye_wink_idx_in_lash_of_eyectrl;
-
-        // public int eye_close_idx_in_head_of_mouthctrl;
-        // public int eye_close_idx_in_namida_of_mouthctrl;
-
-        // public int eye_wink_idx_in_head_of_mouthctrl;
-        // public int eye_wink_idx_in_namida_of_mouthctrl;
-
+        // tear drop control
+        public bool TearDropActive;
+        public float TearDropLevel = 0.3f;
+        public Coroutine TearDropCoroutine;
+        public Material m_tear_eye;
+        public Vector3 noseBaseScale = Vector3.one;
+        public bool noseScaleInitialized;
 
         internal void Reset()
         {
@@ -407,12 +623,14 @@ namespace FacialQuickTransform
             EyeBallEditTarget = 0;
             EyebrowTypeIndex = 0;
             EyebrowTypeLastAppliedIndex = -1;
+            EyeTypeIndex = 0;
+            EyeTypeLastAppliedIndex = -1;
+            EyeOpenMax = 1f;
+            EyeOpenMaxLastApplied = -1f;
             EyeBallLeftX = 0f;
             EyeBallLeftY = 0f;
             EyeBallRightX = 0f;
             EyeBallRightY = 0f;
-            EyeLidUpRotX = 0f;
-            EyeLidDnRotX = 0f;
             EyeSmileInRotX = 0f;
             EyeSmileOutRotX = 0f;
             EyeWinkLeftRotX = 0f;
@@ -429,6 +647,8 @@ namespace FacialQuickTransform
             MouthCavityPosZ = 0f;
             MouthTypeIndex = 0;
             MouthTypeLastAppliedIndex = -1;
+            MouthOpenMax = 1f;
+            MouthOpenMaxLastApplied = -1f;
             MouthSmileLeftPosX = 0f;
             MouthSmileLeftPosY = 0f;
             MouthSmileRightPosX = 0f;
@@ -451,6 +671,8 @@ namespace FacialQuickTransform
             Tongue2RotX = 0f;
             Tongue2RotY = 0f;
             Tongue2RotZ = 0f;
+            TearDropActive = false;
+            TearDropLevel = 0.3f;
         }
 
         internal void CaptureEyeBaseRotations()
